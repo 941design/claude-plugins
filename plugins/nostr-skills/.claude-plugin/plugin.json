@@ -1,0 +1,19 @@
+{
+  "name": "nostr-skills",
+  "version": "1.0.0",
+  "description": "Marmot Protocol implementation advisor. Helps build applications using MDK (Rust), marmot-ts (TypeScript), or the wn CLI/daemon.",
+  "author": {
+    "name": "941design"
+  },
+  "repository": "https://github.com/941design/claude-plugins",
+  "keywords": [
+    "nostr",
+    "marmot",
+    "mls",
+    "e2ee",
+    "messaging",
+    "mdk",
+    "openmls",
+    "whitenoise"
+  ]
+}

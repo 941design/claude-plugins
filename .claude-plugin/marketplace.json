@@ -1,0 +1,18 @@
+{
+  "name": "941design",
+  "owner": {
+    "name": "941design"
+  },
+  "metadata": {
+    "description": "Claude Code plugins by 941design"
+  },
+  "plugins": [
+    {
+      "name": "nostr-skills",
+      "source": "./plugins/nostr-skills",
+      "description": "Marmot Protocol implementation advisor — MDK (Rust), marmot-ts (TypeScript), wn CLI/daemon, and the MLS+Nostr ecosystem.",
+      "version": "1.0.0",
+      "keywords": ["nostr", "marmot", "mls", "e2ee", "messaging"]
+    }
+  ]
+}
