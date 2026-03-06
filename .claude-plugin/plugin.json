@@ -1,0 +1,20 @@
+{
+  "name": "nostr-skills",
+  "version": "1.0.0",
+  "description": "Nostr protocol knowledge base and implementation advisor. Specializes in the Marmot Protocol (MLS+Nostr), MDK (Rust), marmot-ts (TypeScript), WhiteNoise, and the broader encrypted messaging ecosystem.",
+  "author": {
+    "name": "941design"
+  },
+  "repository": "https://github.com/941design/claude-marmot",
+  "keywords": [
+    "nostr",
+    "marmot",
+    "mls",
+    "e2ee",
+    "messaging",
+    "protocol",
+    "mdk",
+    "openmls",
+    "whitenoise"
+  ]
+}
