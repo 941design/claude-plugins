@@ -38,7 +38,7 @@ from all primary repositories before answering.
 ### `/nostr-skills:marmot-update [topic]`
 
 Manual maintenance skill. Fetches the latest from all Marmot Protocol
-repositories and updates the supporting documents and agent memory.
+repositories and updates agent memory with new findings.
 
 ```bash
 # Full update
@@ -58,21 +58,25 @@ Both skills run in this agent's context, sharing the same memory.
 
 ### First Run
 
-Agent memory is user-scoped and lives outside the plugin directory. On first
-invocation, the agent detects that its memory is empty and automatically runs
-a full initialization cycle:
+Agent memory is user-scoped and lives outside the plugin directory at
+`~/.claude/agent-memory/marmot-researcher/`. Plugin files are never modified
+at runtime — all dynamic state lives in agent memory.
+
+On first invocation, the agent detects that its memory is empty and
+automatically runs a full knowledge refresh:
 
 1. Fetches latest content from all primary repositories
-2. Updates the supporting documents shipped with the plugin
-3. Populates `~/.claude/agent-memory/marmot-researcher/` with:
+2. Populates agent memory with:
    - `MEMORY.md` — index with version numbers, repo map, fetch timestamp
    - `api-patterns.md` — cross-library usage patterns
    - `gotchas.md` — common pitfalls
    - `changelog.md` — version snapshots
+   - `corrections.md` — anything that differs from shipped supporting docs
 
 This adds latency to the first invocation but requires no manual setup.
 Subsequent invocations reuse cached memory and only refresh when stale
-(>7 days).
+(>7 days). When memory and supporting docs conflict, the agent trusts its
+memory (latest fetch) over the shipped docs.
 
 To force a rebuild at any time:
 
@@ -82,8 +86,9 @@ To force a rebuild at any time:
 
 ## Supporting Documents
 
-Six reference files ship with the plugin and are kept current by the update
-mechanism:
+Six read-only reference files ship with the plugin and provide baseline
+knowledge. These are updated only through new plugin releases — the agent
+never modifies them at runtime:
 
 | File | Content |
 |---|---|

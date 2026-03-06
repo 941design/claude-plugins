@@ -1,7 +1,7 @@
 ---
 name: marmot-update
 description: >-
-  Maintenance skill that updates the Marmot Protocol supporting documents by
+  Maintenance skill that refreshes the Marmot Protocol knowledge base by
   fetching the latest from all primary repositories and documentation sites.
   Updates agent memory with new findings and timestamps.
 disable-model-invocation: true
@@ -12,16 +12,20 @@ context: fork
 agent: marmot-researcher
 ---
 
-## Documentation Update Task
+## Knowledge Refresh Task
 
-You are running a documentation update cycle for the Marmot Protocol knowledge
-base. This is a maintenance task — do NOT answer user questions, only update
-documents.
+You are running a knowledge refresh for the Marmot Protocol knowledge base.
+This is a maintenance task — do NOT answer user questions, only update your
+agent memory.
+
+**Important:** Write all findings to your agent memory directory ONLY. Never
+modify files in the plugin/skill directory — those are read-only artifacts
+managed by the plugin update mechanism.
 
 If arguments were provided, focus on: $ARGUMENTS
-Otherwise, perform a full update of all documents.
+Otherwise, perform a full refresh.
 
-## Update Procedure
+## Refresh Procedure
 
 ### 1. Fetch Latest from Primary Sources
 
@@ -55,49 +59,29 @@ Use WebSearch for:
 - "whitenoise chat" OR "whitenoise nostr" — app updates
 - "NIP-EE" OR "nostr MLS" — ecosystem developments
 
-### 3. Update Supporting Documents
+### 3. Update Agent Memory
 
-Update each file in `${CLAUDE_SKILL_DIR}/../marmot/`:
+Write all findings to your agent memory directory. Never modify plugin files.
 
-| File | What to update |
-|---|---|
-| `protocol-overview.md` | Version info, security properties, new event kinds |
-| `mip-specifications.md` | MIP status changes, new MIPs, spec amendments |
-| `mdk-reference.md` | New/changed API methods, structs, traits, version |
-| `marmot-ts-reference.md` | New/changed API classes, interfaces, version |
-| `architecture.md` | Architectural changes, new patterns |
-| `ecosystem.md` | New apps, bindings, community developments |
-
-**Rules for updates:**
-- Preserve the existing structure and headings
-- Only modify content that has actually changed
-- Add new sections at appropriate locations
-- Update version numbers when observed
-- Do NOT remove content unless it is confirmed deprecated/removed
-
-### 4. Write Timestamp
-
-Write the current Unix timestamp to `${CLAUDE_SKILL_DIR}/../marmot/last-updated.txt`:
-
-```bash
-date +%s > ${CLAUDE_SKILL_DIR}/../marmot/last-updated.txt
-```
-
-### 5. Update Agent Memory
-
-Update your MEMORY.md with:
+**MEMORY.md** — update with:
 - `last_fetch_date: <unix-timestamp>`
+- Current version numbers of all key packages
+- Repository map (any URL changes, new repos)
 - Summary of what changed since last fetch
-- Any new version numbers observed
-- Notable deprecations or breaking changes
 
-If significant new patterns or findings were discovered, write them to the
-appropriate topic files in your memory directory.
+**Topic files** — update or create as needed:
 
-### 6. Report
+| File | What to record |
+|---|---|
+| `api-patterns.md` | New or changed API patterns across MDK and marmot-ts |
+| `gotchas.md` | New pitfalls discovered, resolved issues |
+| `changelog.md` | Version changes, breaking changes, deprecations |
+| `corrections.md` | Anything that differs from the supporting documents shipped with the plugin — these corrections take precedence when answering |
 
-Output a concise summary of what was updated:
-- Which documents were modified
-- Key changes found
-- Any issues encountered (404s, missing data, etc.)
-- Current version numbers of key packages
+### 4. Report
+
+Output a concise summary of what was found:
+- Key changes since last refresh
+- New version numbers
+- Any corrections to the shipped supporting documents
+- Issues encountered (404s, missing data, etc.)

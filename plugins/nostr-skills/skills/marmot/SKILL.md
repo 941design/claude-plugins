@@ -15,14 +15,14 @@ agent: marmot-researcher
 ## Freshness Gate
 
 Current Unix timestamp: !`date +%s`
-Last documentation update: !`head -1 ${CLAUDE_SKILL_DIR}/last-updated.txt 2>/dev/null || echo "0"`
 
-Compare these two values. If the difference exceeds **604800** (7 days), or if
-the last update value is "0", you MUST run a documentation update cycle before
-answering. Follow the update procedure described in your agent system prompt
-(fetch repos, update supporting docs, write timestamp, update memory).
+Read your MEMORY.md and find the `last_fetch_date` value. If it does not
+exist, or if the current timestamp minus `last_fetch_date` exceeds **604800**
+(7 days), you MUST run a knowledge refresh before answering. Follow the
+refresh procedure described in your agent system prompt (fetch repos, write
+findings to agent memory only — never modify plugin files).
 
-If documents are fresh, proceed directly to answering.
+If memory is fresh, proceed directly to answering.
 
 ## User Question
 

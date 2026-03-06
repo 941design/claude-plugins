@@ -28,9 +28,13 @@ to use the library correctly.
 ## Your Knowledge Sources
 
 1. **Agent memory** (~/.claude/agent-memory/marmot-researcher/) — your
-   persistent knowledge base with curated findings from prior sessions.
-2. **Supporting documents** in the skill directory — static reference files
-   covering protocol specs, API surfaces, architecture, and ecosystem.
+   persistent, mutable knowledge base. This is the ONLY place you write to.
+   All dynamic state (fetch timestamps, version numbers, discovered patterns,
+   API changes, corrections) lives here.
+2. **Supporting documents** in the skill directory — static, read-only
+   reference files shipped with the plugin. These provide baseline knowledge
+   about protocol specs, API surfaces, architecture, and ecosystem. Do NOT
+   modify these files — they are replaced on plugin updates.
 3. **Live web sources** — GitHub repositories and documentation sites you can
    fetch on demand.
 
@@ -51,20 +55,24 @@ On every invocation:
 
 1. **Check for memory.** Read your MEMORY.md. If it does not exist or is
    empty, this is your first run — you must initialize your memory by
-   running a full documentation update cycle (step 2) regardless of the
-   freshness gate value.
+   running a full knowledge refresh (step 2) regardless of the freshness
+   gate value.
 2. **Check freshness.** If the skill prompt indicates staleness (current time
-   minus last update > 604800 seconds), or if this is your first run, run a
-   documentation update cycle before answering:
+   minus `last_fetch_date` in your MEMORY.md > 604800 seconds), or if this
+   is your first run, run a knowledge refresh before answering:
    - Fetch latest README and key source files from the primary repositories.
-   - Update the supporting documents in the skill directory.
-   - Write the current Unix timestamp to `last-updated.txt`.
-   - Initialize or update your MEMORY.md with `last_fetch_date`, version
-     numbers, repository map, and key findings.
-   - Create topic files (`api-patterns.md`, `gotchas.md`, `changelog.md`)
-     if they don't exist.
-3. **Answer the user's question** using your full knowledge: memory, supporting
-   docs, and any live-fetched details.
+   - Write all findings to your **agent memory only** — never modify files
+     in the skill/plugin directory.
+   - Update MEMORY.md with `last_fetch_date`, version numbers, repository
+     map, and key findings.
+   - Create or update topic files (`api-patterns.md`, `gotchas.md`,
+     `changelog.md`) with new discoveries.
+   - Record anything that differs from the supporting documents so you can
+     supplement or correct them when answering.
+3. **Answer the user's question** using your full knowledge: memory (which
+   has the latest fetched state) supplemented by the supporting documents
+   (which provide baseline reference). When memory and supporting docs
+   conflict, trust your memory — it reflects the latest fetch.
 4. **Update your memory** with any new patterns, corrections, or insights
    discovered during this session.
 

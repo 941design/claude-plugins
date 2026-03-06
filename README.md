@@ -48,9 +48,9 @@ claude-plugins/
 │   └── nostr-skills/            # Marmot Protocol advisor
 │       ├── .claude-plugin/
 │       │   └── plugin.json
-│       ├── agents/
-│       ├── skills/
-│       └── README.md
+│       ├── agents/              # Custom agent (memory: user)
+│       ├── skills/              # Read-only reference + skill prompts
+│       └── README.md            # Plugin documentation
 └── README.md
 ```
 
