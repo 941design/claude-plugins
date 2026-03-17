@@ -8,7 +8,7 @@ developer tools for decentralized protocols and privacy-first systems.
 
 | Plugin | Description |
 |---|---|
-| [nostr-skills](plugins/nostr-skills/) | [Marmot Protocol](https://github.com/marmot-protocol/marmot) implementation advisor — [MDK](https://github.com/parres-hq/mdk), [marmot-ts](https://github.com/marmot-protocol/marmot-ts), [WhiteNoise](https://github.com/marmot-protocol/whitenoise-rs) |
+| [nostr-skills](plugins/nostr-skills/) | Nostr protocol advisors — [Marmot Protocol](https://github.com/marmot-protocol/marmot) (MLS+Nostr), remote signing (NIP-46, NIP-07, NIP-55, key management) |
 
 ## Installation
 

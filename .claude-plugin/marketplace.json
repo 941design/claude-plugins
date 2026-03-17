@@ -10,9 +10,9 @@
     {
       "name": "nostr-skills",
       "source": "./plugins/nostr-skills",
-      "description": "Marmot Protocol implementation advisor — MDK (Rust), marmot-ts (TypeScript), wn CLI/daemon, and the MLS+Nostr ecosystem.",
-      "version": "1.0.0",
-      "keywords": ["nostr", "marmot", "mls", "e2ee", "messaging"]
+      "description": "Nostr protocol implementation advisors — Marmot Protocol (MLS+Nostr group messaging) and remote signing (NIP-46 bunkers, NIP-07, NIP-55, key management).",
+      "version": "1.1.0",
+      "keywords": ["nostr", "marmot", "mls", "e2ee", "messaging", "nip-46", "nip-07", "nip-55", "remote-signing", "nsecbunker", "key-management", "signer"]
     }
   ]
 }
