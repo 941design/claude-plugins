@@ -30,9 +30,9 @@ ifndef NEW_VERSION
 endif
 	@echo "Releasing nostr-skills v$(NEW_VERSION) (was $(VERSION))"
 	@# Update plugin manifest
-	@sed -i 's/"version": *"$(VERSION)"/"version": "$(NEW_VERSION)"/' $(PLUGIN_JSON)
+	@sed -i '' 's/"version": *"$(VERSION)"/"version": "$(NEW_VERSION)"/' $(PLUGIN_JSON)
 	@# Update marketplace registry
-	@sed -i 's/"version": *"$(VERSION)"/"version": "$(NEW_VERSION)"/' $(MARKETPLACE_JSON)
+	@sed -i '' 's/"version": *"$(VERSION)"/"version": "$(NEW_VERSION)"/' $(MARKETPLACE_JSON)
 	@# Stage, commit, tag
 	@git add $(PLUGIN_JSON) $(MARKETPLACE_JSON)
 	@git commit -m "Release nostr-skills v$(NEW_VERSION)"
