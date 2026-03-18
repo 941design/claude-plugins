@@ -1,7 +1,7 @@
 {
   "name": "nostr-skills",
   "version": "1.1.0",
-  "description": "Nostr protocol implementation advisors. Covers Marmot Protocol (MLS+Nostr group messaging) and remote signing (NIP-46 bunkers, NIP-07, NIP-55, key management).",
+  "description": "Nostr protocol skills. Covers direct Nostr interaction via nak CLI, Marmot Protocol (MLS+Nostr group messaging), and remote signing (NIP-46 bunkers, NIP-07, NIP-55, key management).",
   "author": {
     "name": "941design"
   },
@@ -21,6 +21,11 @@
     "remote-signing",
     "nsecbunker",
     "key-management",
-    "signer"
+    "signer",
+    "nak",
+    "relay",
+    "event",
+    "nip-19",
+    "cli"
   ]
 }

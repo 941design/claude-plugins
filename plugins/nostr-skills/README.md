@@ -1,16 +1,19 @@
 # nostr-skills
 
-Implementation advisors for [Nostr](https://github.com/nostr-protocol/nostr)
-protocol topics. Currently covers two domains:
+Skills for working with the [Nostr](https://github.com/nostr-protocol/nostr)
+protocol. Currently covers three domains:
 
+- **Nostr Operator** — interact with the Nostr network directly using
+  [nak](https://github.com/fiatjaf/nak) (the nostr army knife CLI): publish
+  events, query relays, manage keys, encode/decode NIP-19, sync, and more
 - **Marmot Protocol** — end-to-end encrypted group messaging combining
   [MLS (RFC 9420)](https://messaginglayersecurity.rocks/) with Nostr
 - **Remote Signing** — NIP-46 bunkers, NIP-07 browser extensions, NIP-55
   Android signers, key management libraries, and platform-specific best
   practices
 
-Helps build applications using existing libraries, not reimplement protocols
-from scratch.
+The Nostr Operator skill executes commands directly. The advisory skills help
+build applications using existing libraries.
 
 ## Installation
 
@@ -20,6 +23,40 @@ from scratch.
 ```
 
 ## Skills
+
+### `/nostr-skills:nostr [operation or question]`
+
+Operator skill. Interacts with Nostr directly using
+[nak](https://github.com/fiatjaf/nak) (the nostr army knife CLI):
+
+- Publish events (text notes, profiles, reactions, reposts, articles)
+- Query relays with filters (kind, author, tags, time range)
+- Fetch specific events by NIP-19 code or hex ID
+- Encode/decode NIP-19 identifiers (npub, nsec, note, nevent, nprofile, naddr)
+- Manage keys (generate, derive, NIP-49 encrypt/decrypt)
+- Remote signing via NIP-46 bunkers
+- Gift wrapping (NIP-59), NIP-44 encryption
+- Blossom file uploads, relay sync, group chat, git operations
+
+**Auto-invokes** when Claude detects requests to read from or write to Nostr.
+Runs in an isolated agent context with persistent memory.
+
+**Executes commands:** Unlike the advisory skills, this skill runs `nak`
+commands directly. It confirms with the user before publishing (writing) but
+reads freely.
+
+### `/nostr-skills:nostr-update [topic]`
+
+Manual maintenance skill. Fetches the latest nak README, release notes, and
+command documentation, then updates agent memory.
+
+```bash
+# Full update
+/nostr-skills:nostr-update
+
+# Targeted update
+/nostr-skills:nostr-update blossom commands
+```
 
 ### `/nostr-skills:marmot [question]`
 
@@ -90,6 +127,14 @@ releases, and signer implementations, then updates agent memory.
 
 ## Agents
 
+### nostr-operator
+
+Custom agent with user-scoped persistent memory
+(`~/.claude/agent-memory/nostr-operator/`). Accumulates knowledge across
+sessions — nak usage patterns, relay lists, version tracking, and changelog.
+
+Both nostr skills run in this agent's context, sharing the same memory.
+
 ### marmot-researcher
 
 Custom agent with user-scoped persistent memory
@@ -128,6 +173,18 @@ To force a rebuild at any time:
 
 ## Supporting Documents
 
+### Nostr Operator
+
+Five read-only reference files:
+
+| File | Content |
+|---|---|
+| `nak-commands.md` | Complete nak command index with all subcommands |
+| `event-construction.md` | Event creation, signing, content handling, tag syntax, publishing |
+| `query-and-filter.md` | Querying relays, filtering, pagination, negentropy sync |
+| `encoding-keys-signing.md` | NIP-19 encode/decode, key management, bunkers, musig2 |
+| `advanced-operations.md` | Gift wrapping, blossom, git, groups, wallet, publish, FUSE, admin |
+
 ### Marmot Protocol
 
 Six read-only reference files:
@@ -154,6 +211,15 @@ Five read-only reference files:
 | `libraries-and-sdks.md` | nostr-tools, NDK, nostr-login, nostr-signer-connector, Nostrify |
 
 ## Primary Sources
+
+### Nostr Operator
+
+| Source | Link |
+|---|---|
+| nak (nostr army knife) | [fiatjaf/nak](https://github.com/fiatjaf/nak) |
+| nak releases | [fiatjaf/nak/releases](https://github.com/fiatjaf/nak/releases) |
+| Nostr protocol | [nostr-protocol/nostr](https://github.com/nostr-protocol/nostr) |
+| Nostr NIPs | [nostr-protocol/nips](https://github.com/nostr-protocol/nips) |
 
 ### Marmot Protocol
 
