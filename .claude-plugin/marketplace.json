@@ -13,6 +13,13 @@
       "description": "Nostr protocol skills — direct Nostr interaction via nak CLI, Marmot Protocol (MLS+Nostr group messaging), and remote signing (NIP-46 bunkers, NIP-07, NIP-55, key management).",
       "version": "1.1.1",
       "keywords": ["nostr", "nak", "relay", "event", "nip-19", "cli", "marmot", "mls", "e2ee", "messaging", "nip-46", "nip-07", "nip-55", "remote-signing", "nsecbunker", "key-management", "signer"]
+    },
+    {
+      "name": "aws-skills",
+      "source": "./plugins/aws-skills",
+      "description": "AWS deployment skills — serverless CloudFront distributions with S3 origins, Pulumi IaC, Lambda@Edge authentication, cache policies, invalidation strategies, and static site hosting patterns.",
+      "version": "0.1.0",
+      "keywords": ["aws", "cloudfront", "s3", "pulumi", "serverless", "cdn", "static-site", "lambda-edge", "iac", "infrastructure", "deployment", "invalidation", "oac", "cache-policy"]
     }
   ]
 }

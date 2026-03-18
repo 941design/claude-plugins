@@ -1,0 +1,25 @@
+{
+  "name": "aws-skills",
+  "version": "0.1.0",
+  "description": "AWS deployment skills. Covers serverless CloudFront distributions with S3 origins, Pulumi IaC, Lambda@Edge authentication, cache policies, invalidation strategies, and static site hosting patterns.",
+  "author": {
+    "name": "941design"
+  },
+  "repository": "https://github.com/941design/claude-plugins",
+  "keywords": [
+    "aws",
+    "cloudfront",
+    "s3",
+    "pulumi",
+    "serverless",
+    "cdn",
+    "static-site",
+    "lambda-edge",
+    "iac",
+    "infrastructure",
+    "deployment",
+    "invalidation",
+    "oac",
+    "cache-policy"
+  ]
+}
