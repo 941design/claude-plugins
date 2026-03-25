@@ -1,0 +1,34 @@
+{
+  "name": "agent-skills",
+  "version": "1.0.0",
+  "description": "AI agent design expertise — architecture patterns, loop architectures, memory systems, and task systems. Four specialist agents with persistent knowledge bases covering 13+ frameworks, 8+ loop patterns, 7+ memory architectures, and 6+ task decomposition strategies.",
+  "author": {
+    "name": "941design"
+  },
+  "repository": "https://github.com/941design/claude-plugins",
+  "keywords": [
+    "agent-design",
+    "architecture",
+    "multi-agent",
+    "react",
+    "plan-execute",
+    "supervisor",
+    "router",
+    "memory",
+    "rag",
+    "vector-store",
+    "embeddings",
+    "task-planning",
+    "decomposition",
+    "prompt-engineering",
+    "context-engineering",
+    "safety",
+    "evaluation",
+    "benchmarks",
+    "langraph",
+    "crewai",
+    "autogen",
+    "mcp",
+    "observability"
+  ]
+}
