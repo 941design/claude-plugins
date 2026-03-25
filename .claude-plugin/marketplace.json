@@ -12,21 +12,65 @@
       "source": "./plugins/nostr-skills",
       "description": "Nostr protocol skills — direct Nostr interaction via nak CLI, Marmot Protocol (MLS+Nostr group messaging), and remote signing (NIP-46 bunkers, NIP-07, NIP-55, key management).",
       "version": "1.3.0",
-      "keywords": ["nostr", "nak", "relay", "event", "nip-19", "cli", "marmot", "mls", "e2ee", "messaging", "nip-46", "nip-07", "nip-55", "remote-signing", "nsecbunker", "key-management", "signer"]
+      "keywords": [
+        "nostr",
+        "nak",
+        "relay",
+        "event",
+        "nip-19",
+        "cli",
+        "marmot",
+        "mls",
+        "e2ee",
+        "messaging",
+        "nip-46",
+        "nip-07",
+        "nip-55",
+        "remote-signing",
+        "nsecbunker",
+        "key-management",
+        "signer"
+      ]
     },
     {
       "name": "aws-skills",
       "source": "./plugins/aws-skills",
       "description": "AWS deployment skills — serverless CloudFront distributions with S3 origins, Pulumi IaC, Lambda@Edge authentication, cache policies, invalidation strategies, and static site hosting patterns.",
       "version": "0.1.0",
-      "keywords": ["aws", "cloudfront", "s3", "pulumi", "serverless", "cdn", "static-site", "lambda-edge", "iac", "infrastructure", "deployment", "invalidation", "oac", "cache-policy"]
+      "keywords": [
+        "aws",
+        "cloudfront",
+        "s3",
+        "pulumi",
+        "serverless",
+        "cdn",
+        "static-site",
+        "lambda-edge",
+        "iac",
+        "infrastructure",
+        "deployment",
+        "invalidation",
+        "oac",
+        "cache-policy"
+      ]
     },
     {
       "name": "base",
       "source": "./plugins/base",
       "description": "Feature and bug workflow orchestration using agent teams — language-agnostic TDD, story-based implementation with crash recovery, evidence-based verification, and configurable quality gates.",
-      "version": "2.0.0",
-      "keywords": ["workflow", "feature", "bug", "tdd", "agent-teams", "verification", "stories", "orchestration", "property-testing", "quality-gates"]
+      "version": "2.1.0",
+      "keywords": [
+        "workflow",
+        "feature",
+        "bug",
+        "tdd",
+        "agent-teams",
+        "verification",
+        "stories",
+        "orchestration",
+        "property-testing",
+        "quality-gates"
+      ]
     }
   ]
 }
