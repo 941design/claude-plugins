@@ -1,6 +1,6 @@
 {
   "name": "agent-skills",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "AI agent design expertise — architecture patterns, loop architectures, memory systems, and task systems. Four specialist agents with persistent knowledge bases covering 13+ frameworks, 8+ loop patterns, 7+ memory architectures, and 6+ task decomposition strategies.",
   "author": {
     "name": "941design"
