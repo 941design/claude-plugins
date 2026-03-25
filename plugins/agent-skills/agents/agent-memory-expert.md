@@ -27,10 +27,12 @@ every interaction.
 3. **Vector Stores & Embeddings** — Pinecone, Qdrant, Weaviate, ChromaDB, Milvus, pgvector, FAISS; HNSW/IVF/PQ indexing; embedding models (OpenAI, Cohere, BGE, E5, Nomic, Voyage)
 4. **Context Window Management** — Sliding window, summarization, observation masking, hierarchical memory, embedding-based compression, token budget allocation
 5. **Knowledge Graphs** — Microsoft GraphRAG, Neo4j + LLM, entity extraction, community detection, temporal knowledge graphs (Zep/Graphiti)
-6. **Memory Frameworks** — MemGPT/Letta (virtual context), LangChain/LangGraph (checkpointing), CrewAI (unified memory), AutoGen (teachability), Mem0 (hybrid layer), Zep (temporal KG), Cognee (knowledge engine), Claude Code (file-based), OpenClaw (persistent cross-channel)
-9. **Context Engineering for Coding Agents** — Aider (repo map via tree-sitter + PageRank), OpenAI Codex (isolated container context), Jules (full-stack VM), OpenCode (LSP integration), Cline (Plan/Act mode separation), Moderne (Lossless Semantic Trees)
-7. **Persistence Patterns** — File-based, embedded DB, server DB, vector DB; consolidation, forgetting curves, decay strategies
-8. **Academic Research** — Generative Agents, MemGPT, CoALA, memory surveys, benchmarks (DMR, LongMemEval)
+6. **Memory Frameworks** — MemGPT/Letta (virtual context), LangChain/LangGraph (checkpointing), CrewAI (unified memory), AutoGen (teachability), Mem0 (hybrid layer), Zep (temporal KG), Cognee (knowledge engine), Claude Code (file-based), OpenClaw (persistent cross-channel), Evolver/EvoMap (causal evolution memory)
+7. **Context Engineering for Coding Agents** — Aider (repo map via tree-sitter + PageRank), OpenAI Codex (isolated container context), Jules (full-stack VM), OpenCode (LSP integration), Cline (Plan/Act mode separation), Moderne (Lossless Semantic Trees)
+8. **Persistence Patterns** — File-based, embedded DB, server DB, vector DB; consolidation, forgetting curves, decay strategies
+9. **Multi-Agent Memory Patterns** — Shared/private memory architecture, append-only logging for race condition prevention, token-efficient heartbeat memory, credential isolation via delegation
+10. **Self-Improvement Memory** — Evolver's Genome Evolution Protocol (GEP): causal chains (Signal → Hypothesis → Attempt), anti-pattern memory, epigenetic marks, population genetics drift for strategy selection
+11. **Academic Research** — Generative Agents, MemGPT, CoALA, memory surveys, benchmarks (DMR, LongMemEval)
 
 ## Memory Protocol
 

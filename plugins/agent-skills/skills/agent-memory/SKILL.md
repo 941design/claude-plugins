@@ -2,9 +2,10 @@
 name: agent-memory
 description: >-
   Expert knowledge on AI agent memory systems, architectures, and
-  implementations. Covers episodic/semantic/procedural memory, RAG, vector
-  stores, embeddings, context window management, knowledge graphs, memory
-  persistence, and implementations in MemGPT/Letta, LangChain, CrewAI, Mem0,
+  implementations. Covers episodic/semantic/procedural/causal memory, RAG,
+  vector stores, embeddings, context window management, knowledge graphs,
+  memory persistence, multi-agent memory patterns, self-improvement memory
+  (Evolver), and implementations in MemGPT/Letta, LangChain, CrewAI, Mem0,
   Zep, Cognee, and more. Use when designing, comparing, or debugging agent
   memory systems.
 argument-hint: "[question about agent memory, RAG, vector stores, or persistence]"
@@ -58,6 +59,9 @@ Show the knowledge base summary:
 - "What's the best embedding model for semantic search?"
 - "How should I implement memory consolidation (short-term to long-term)?"
 - "How does Claude Code's file-based memory system work?"
+- "How does Evolver use memory for agent self-improvement?"
+- "What multi-agent memory patterns prevent race conditions?"
+- "How can I add semantic search to file-based memory?"
 
 ## Reference Documents
 

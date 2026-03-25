@@ -26,6 +26,13 @@
 **AI Implementation**: The context window itself — recent conversation + relevant retrieved context
 **Key Insight**: The LLM context window IS working memory. Its finite size is the fundamental constraint.
 
+### Causal/Evolution Memory
+**What**: Records of what strategies were tried, why, and whether they worked — enabling self-improvement.
+**Cognitive Science**: Metacognition — "thinking about thinking," self-monitoring and self-regulation
+**AI Implementation**: Causal chains (Signal → Hypothesis → Attempt), anti-pattern bans, epigenetic marks
+**Example**: "Error signal X triggered repair gene Y, which produced capsule Z with 85% confidence — logged as successful evolution event"
+**Notable Implementation**: Evolver (github.com/EvoMap/evolver) — mandatory causal memory chain where every evolution cycle must record its reasoning or be halted. Failed strategies are auto-banned.
+
 ## Cognitive Science Mappings
 
 ### Atkinson-Shiffrin Model (1968)

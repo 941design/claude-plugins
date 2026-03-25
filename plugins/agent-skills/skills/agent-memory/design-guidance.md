@@ -72,6 +72,42 @@ Persistent background process maintains memory across 20+ chat channels (Slack, 
 ### LSP Integration (OpenCode)
 Language Server Protocol integration provides code intelligence (go-to-definition, find-references, diagnostics) as memory/context for the agent. Richer than text search — understands type relationships and code navigation.
 
+## Multi-Agent Memory Patterns (from awesome-openclaw-usecases, 2026)
+
+### Shared + Private Memory Architecture
+For agent teams, split memory into shared coordination files and private agent directories:
+```
+team/
+  GOALS.md          (shared — team priorities, read by all)
+  DECISIONS.md      (shared — append-only decision log)
+  PROJECT_STATUS.md (shared — current state)
+  agents/
+    agent-a/        (private — agent-specific context)
+    agent-b/        (private — agent-specific context)
+```
+Shared files enable coordination without agents overwriting each other's context.
+
+### Append-Only Logging for Multi-Agent Race Conditions
+When multiple agents edit the same file, text-matching edit tools break. Solution: separate files by ownership:
+- **Main session file** (e.g., AUTONOMOUS.md): only the coordinator writes goals + backlog
+- **Append-only log** (e.g., memory/tasks-log.md): sub-agents only append entries
+Analogous to Git's immutable commit log. Prevents race conditions without locking.
+
+### Token-Efficient Heartbeat Memory
+For long-running cron/heartbeat agents: keep working memory under 50 lines, archive completed tasks separately. Prevents context window bloat during autonomous loops that run for hours/days.
+
+### Credential Isolation via Delegation
+Agents never hold API keys directly. Instead: agents design workflows in orchestration tools (n8n, etc.), users add credentials in the tool's UI, agents call webhooks. Provides observability, security, and deterministic execution for non-reasoning tasks.
+
+## Memory for Self-Improvement (Evolver Pattern)
+
+The Evolver project (github.com/EvoMap/evolver) demonstrates using memory as an input signal for autonomous agent evolution:
+- **Signal extraction**: Parse runtime logs, errors, and session transcripts into semantic signals
+- **Causal chain**: Every improvement cycle records Signal → Hypothesis → Attempt
+- **Anti-pattern memory**: Auto-bans strategies that failed repeatedly (>60% signal overlap + 2 failures)
+- **Epigenetic marks**: Context-dependent memory weights (platform, architecture)
+- This is a form of **procedural memory specialized for meta-learning** — the agent learns how to improve itself
+
 ## Anti-Patterns
 
 1. **Store everything, retrieve nothing useful**: Without relevance filtering, more memories = more noise. Use min_relevance_score thresholds.
