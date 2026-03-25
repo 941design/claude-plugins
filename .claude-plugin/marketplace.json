@@ -20,6 +20,13 @@
       "description": "AWS deployment skills — serverless CloudFront distributions with S3 origins, Pulumi IaC, Lambda@Edge authentication, cache policies, invalidation strategies, and static site hosting patterns.",
       "version": "0.1.0",
       "keywords": ["aws", "cloudfront", "s3", "pulumi", "serverless", "cdn", "static-site", "lambda-edge", "iac", "infrastructure", "deployment", "invalidation", "oac", "cache-policy"]
+    },
+    {
+      "name": "base",
+      "source": "./plugins/base",
+      "description": "Feature and bug workflow orchestration using agent teams — language-agnostic TDD, story-based implementation with crash recovery, evidence-based verification, and configurable quality gates.",
+      "version": "2.0.0",
+      "keywords": ["workflow", "feature", "bug", "tdd", "agent-teams", "verification", "stories", "orchestration", "property-testing", "quality-gates"]
     }
   ]
 }

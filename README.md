@@ -8,6 +8,7 @@ developer tools for decentralized protocols and privacy-first systems.
 
 | Plugin | Description |
 |---|---|
+| [base](plugins/base/) | Feature and bug workflow orchestration using agent teams — language-agnostic TDD, story-based implementation, evidence-based verification |
 | [nostr-skills](plugins/nostr-skills/) | Nostr protocol advisors — [Marmot Protocol](https://github.com/marmot-protocol/marmot) (MLS+Nostr), remote signing (NIP-46, NIP-07, NIP-55, key management) |
 
 ## Installation
