@@ -55,6 +55,23 @@
       ]
     },
     {
+      "name": "agent-skills",
+      "source": "./plugins/agent-skills",
+      "description": "AI agent design expertise — architecture patterns, loop architectures, memory systems, and task systems. Four specialist agents with persistent knowledge bases covering 13+ frameworks, 8+ loop patterns, 7+ memory architectures, and 6+ task decomposition strategies.",
+      "version": "1.2.0",
+      "keywords": [
+        "agent-design",
+        "architecture",
+        "multi-agent",
+        "memory",
+        "rag",
+        "task-planning",
+        "prompt-engineering",
+        "safety",
+        "evaluation"
+      ]
+    },
+    {
       "name": "base",
       "source": "./plugins/base",
       "description": "Feature and bug workflow orchestration using agent teams — language-agnostic TDD, story-based implementation with crash recovery, evidence-based verification, and configurable quality gates.",
