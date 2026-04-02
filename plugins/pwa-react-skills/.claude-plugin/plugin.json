@@ -1,0 +1,29 @@
+{
+  "name": "pwa-react-skills",
+  "version": "0.1.0",
+  "description": "PWA and React expertise. Covers service workers, caching strategies, offline support, Workbox, Web App Manifest, push notifications, Core Web Vitals, React 19+ (Server Components, Actions, Compiler), state management, component patterns, testing, accessibility, UX patterns, and modern build tooling.",
+  "author": {
+    "name": "941design"
+  },
+  "repository": "https://github.com/941design/claude-plugins",
+  "keywords": [
+    "pwa",
+    "react",
+    "service-worker",
+    "workbox",
+    "offline",
+    "manifest",
+    "core-web-vitals",
+    "react-compiler",
+    "server-components",
+    "zustand",
+    "tanstack-query",
+    "vitest",
+    "playwright",
+    "tailwind",
+    "vite",
+    "next-js",
+    "accessibility",
+    "ux-patterns"
+  ]
+}

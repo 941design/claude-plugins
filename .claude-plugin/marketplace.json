@@ -88,6 +88,32 @@
         "property-testing",
         "quality-gates"
       ]
+    },
+    {
+      "name": "pwa-react-skills",
+      "source": "./plugins/pwa-react-skills",
+      "description": "PWA and React expertise — service workers, caching strategies, offline support, Workbox, Web App Manifest, push notifications, Core Web Vitals, React 19+ (Server Components, Actions, Compiler), state management, testing, accessibility, UX patterns, and modern build tooling.",
+      "version": "0.1.0",
+      "keywords": [
+        "pwa",
+        "react",
+        "service-worker",
+        "workbox",
+        "offline",
+        "manifest",
+        "core-web-vitals",
+        "react-compiler",
+        "server-components",
+        "zustand",
+        "tanstack-query",
+        "vitest",
+        "playwright",
+        "tailwind",
+        "vite",
+        "next-js",
+        "accessibility",
+        "ux-patterns"
+      ]
     }
   ]
 }
