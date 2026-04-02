@@ -67,16 +67,20 @@ const plugin = await select({
 const type = await select({
   message: `Bump type for ${plugin.name} (current: v${plugin.version})?`,
   choices: [
+    { name: "current  (re-tag only)", value: "current" },
     { name: "patch", value: "patch" },
     { name: "minor", value: "minor" },
     { name: "major", value: "major" },
   ],
 });
 
-const newVersion = bump(plugin.version, type);
+const newVersion = type === "current" ? plugin.version : bump(plugin.version, type);
 
 const ok = await confirm({
-  message: `Release ${plugin.name} v${plugin.version} → v${newVersion}?`,
+  message:
+    type === "current"
+      ? `Re-tag ${plugin.name} v${newVersion}?`
+      : `Release ${plugin.name} v${plugin.version} → v${newVersion}?`,
 });
 
 if (!ok) {
@@ -84,30 +88,41 @@ if (!ok) {
   process.exit(0);
 }
 
-// update plugin manifest
-const manifestData = readJson(plugin.manifest);
-manifestData.version = newVersion;
-writeJson(plugin.manifest, manifestData);
-console.log(`  updated ${plugin.manifest}`);
+const tag = `${plugin.name}/v${newVersion}`;
 
-// update marketplace registry if plugin is listed there
-const filesToStage = [plugin.manifest];
+if (type === "current") {
+  // delete existing tag (local + remote) then recreate
+  try { execSync(`git tag -d "${tag}"`, { cwd: ROOT, stdio: "pipe" }); } catch {}
+  try { execSync(`git push origin :refs/tags/${tag}`, { cwd: ROOT, stdio: "pipe" }); } catch {}
+  run(`git tag -a "${tag}" -m "${plugin.name} v${newVersion}"`);
+  console.log(`\nRe-tagged ${tag}`);
+  console.log("Run 'git push --tags --force' to publish.");
+} else {
+  // update plugin manifest
+  const manifestData = readJson(plugin.manifest);
+  manifestData.version = newVersion;
+  writeJson(plugin.manifest, manifestData);
+  console.log(`  updated ${plugin.manifest}`);
 
-if (existsSync(MARKETPLACE)) {
-  const marketplace = readJson(MARKETPLACE);
-  const entry = marketplace.plugins?.find((p) => p.name === plugin.name);
-  if (entry) {
-    entry.version = newVersion;
-    writeJson(MARKETPLACE, marketplace);
-    filesToStage.push(MARKETPLACE);
-    console.log(`  updated ${MARKETPLACE}`);
+  // update marketplace registry if plugin is listed there
+  const filesToStage = [plugin.manifest];
+
+  if (existsSync(MARKETPLACE)) {
+    const marketplace = readJson(MARKETPLACE);
+    const entry = marketplace.plugins?.find((p) => p.name === plugin.name);
+    if (entry) {
+      entry.version = newVersion;
+      writeJson(MARKETPLACE, marketplace);
+      filesToStage.push(MARKETPLACE);
+      console.log(`  updated ${MARKETPLACE}`);
+    }
   }
+
+  // git stage, commit, tag
+  run(`git add ${filesToStage.map((f) => `"${f}"`).join(" ")}`);
+  run(`git commit -m "Release ${plugin.name} v${newVersion}"`);
+  run(`git tag -a "${tag}" -m "${plugin.name} v${newVersion}"`);
+
+  console.log(`\nTagged ${tag}`);
+  console.log("Run 'git push && git push --tags' to publish.");
 }
-
-// git stage, commit, tag
-run(`git add ${filesToStage.map((f) => `"${f}"`).join(" ")}`);
-run(`git commit -m "Release ${plugin.name} v${newVersion}"`);
-run(`git tag -a "${plugin.name}/v${newVersion}" -m "${plugin.name} v${newVersion}"`);
-
-console.log(`\nTagged ${plugin.name}/v${newVersion}`);
-console.log("Run 'git push && git push --tags' to publish.");
