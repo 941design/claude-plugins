@@ -75,7 +75,7 @@
       "name": "base",
       "source": "./plugins/base",
       "description": "Feature and bug workflow orchestration using agent teams — language-agnostic TDD, story-based implementation with crash recovery, evidence-based verification, and configurable quality gates.",
-      "version": "2.1.0",
+      "version": "2.2.0",
       "keywords": [
         "workflow",
         "feature",
