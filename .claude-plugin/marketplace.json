@@ -114,6 +114,24 @@
         "accessibility",
         "ux-patterns"
       ]
+    },
+    {
+      "name": "reference-skills",
+      "source": "./plugins/reference-skills",
+      "description": "Reference project tracking and knowledge accumulation — track GitHub repos relevant to your project, progressively build knowledge about their architecture, APIs, patterns, and evolution, and get answers grounded in accumulated reference knowledge.",
+      "version": "0.1.0",
+      "keywords": [
+        "reference",
+        "research",
+        "github",
+        "architecture",
+        "api",
+        "patterns",
+        "changelog",
+        "comparison",
+        "knowledge-base",
+        "discovery"
+      ]
     }
   ]
 }

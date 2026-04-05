@@ -1,0 +1,21 @@
+{
+  "name": "reference-skills",
+  "version": "0.1.0",
+  "description": "Reference project tracking and knowledge accumulation. Track GitHub repos relevant to your project, progressively build knowledge about their architecture, APIs, patterns, and evolution, and get answers grounded in accumulated reference knowledge.",
+  "author": {
+    "name": "941design"
+  },
+  "repository": "https://github.com/941design/claude-plugins",
+  "keywords": [
+    "reference",
+    "research",
+    "github",
+    "architecture",
+    "api",
+    "patterns",
+    "changelog",
+    "comparison",
+    "knowledge-base",
+    "discovery"
+  ]
+}
