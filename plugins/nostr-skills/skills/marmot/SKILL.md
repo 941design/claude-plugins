@@ -41,6 +41,7 @@ The following supporting documents are available in your skill directory at
 | [marmot-ts-reference.md](marmot-ts-reference.md) | marmot-ts TypeScript API: classes, interfaces, types |
 | [architecture.md](architecture.md) | System architecture, data flows, layer diagrams |
 | [ecosystem.md](ecosystem.md) | Applications, language bindings, related projects |
+| [integration-patterns.md](integration-patterns.md) | Real-world integration patterns: NDK adapter, React context, concurrent ingest, retry queue, MDK threading, cross-implementation interop |
 
 Read the relevant documents to answer the user's question. Consult your agent
 memory for additional context and prior findings.
