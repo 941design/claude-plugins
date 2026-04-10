@@ -1,6 +1,6 @@
 {
   "name": "nostr-skills",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Nostr protocol skills. Covers direct Nostr interaction via nak CLI, Marmot Protocol (MLS+Nostr group messaging), and remote signing (NIP-46 bunkers, NIP-07, NIP-55, key management).",
   "author": {
     "name": "941design"
