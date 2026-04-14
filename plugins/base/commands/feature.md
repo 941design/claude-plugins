@@ -161,7 +161,12 @@ Create an agent team with these roles. Each teammate's role description tells th
 > 9. If max rounds exhausted, message the lead with escalation details and remaining failures.
 >
 > **Optional quality gates** (use if project supports them):
-> - If the project has Codex MCP configured (check .mcp.json), run Codex code review after verification passes. All actionable findings must be resolved.
+> - If `/codex:adversarial-review` is listed in available skills, run it after verification questions and tests pass:
+>   - Invoke with `Skill("codex:adversarial-review", args: "--wait <focus>")` where `<focus>` summarizes the story's acceptance criteria and the key design choices the architect made.
+>   - The review returns a `verdict` (`approve` | `needs-attention`) and `findings` (each with severity, file, lines, confidence, recommendation).
+>   - `needs-attention` with any `critical` or `high` severity finding is blocking — send those findings back to the architect for remediation alongside any other failures.
+>   - `low`/`medium` findings: report to the architect but do not block story completion.
+>   - Do NOT auto-apply fixes — this review is read-only. All remediation goes through the architect.
 > - If the project has Playwright + Docker Compose configured, include E2E tests in your test gate.
 >
 > Detect project language and consult `skills/languages/{language}.md` for test commands and tools.
