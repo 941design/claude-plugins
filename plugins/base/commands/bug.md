@@ -2,7 +2,7 @@
 name: bug
 description: Fix bugs through a systematic team workflow — reproduction, analysis, minimal fix, verification. ALWAYS use this for ALL bug fixes.
 argument-hint: <@bug-report-file> OR <bug-description>
-allowed-tools: Task, Read, Write, Edit, Bash, AskUserQuestion
+allowed-tools: Task, Read, Write, Edit, Bash, AskUserQuestion, Skill
 model: opus
 ---
 
@@ -89,8 +89,14 @@ Create an agent team with two roles:
 > 7. Write fix contract to `bug-reports/{name}-contract.json`: scope of allowed changes, files to modify, constraints
 > 8. Implement the minimal fix — change only what's necessary
 > 9. Verify: reproduction test now PASSES, full test suite has no regressions
-> 10. Write `bug-reports/{name}-result.json` with: root cause description, fix description, files changed, tests added, baseline vs final test counts
-> 11. Message the reviewer that the fix is ready
+> 10. If stuck during analysis or fix (3+ debug cycles on the same issue), delegate to Codex:
+>     - Use `Skill("codex:rescue", args: "--wait <root cause hypothesis, what you've tried, error details>")` for a second implementation pass
+>     - If Codex resolves it, verify the fix passes all tests before proceeding
+> 11. After fix is verified, run a Codex review before handing off:
+>     - Use `Skill("codex:review", args: "--wait --scope working-tree")` to catch issues you may have missed
+>     - Fix any critical/high severity findings before proceeding
+> 12. Write `bug-reports/{name}-result.json` with: root cause description, fix description, files changed, tests added, baseline vs final test counts
+> 13. Message the reviewer that the fix is ready
 >
 > Consult `skills/languages/{language}.md` for language-specific testing and debugging conventions.
 
@@ -104,9 +110,14 @@ Create an agent team with two roles:
 > 6. Read the reproduction test — does it actually test the reported bug?
 > 7. Spawn `verification-examiner` subagents for the verification questions the lead provides
 > 8. Look for regressions or side effects in modified files
-> 9. If issues found: message the fixer with specific feedback (files, lines, issues), wait for fixes (max 3 rounds)
-> 10. When satisfied: message the lead with ACCEPTED verdict, verification summary, and final test counts
-> 11. If not fixable after 3 rounds: message the lead with REJECTED verdict and detailed explanation
+> 9. **Mandatory: Codex adversarial review**
+>    - Run `Skill("codex:adversarial-review", args: "--wait <focus on the bug fix approach, root cause analysis, and whether the fix is minimal and correct>")` 
+>    - `needs-attention` with any `critical` or `high` severity finding is blocking — send those findings back to the fixer alongside any other issues
+>    - `low`/`medium` findings: report to the fixer but do not block acceptance
+>    - Do NOT auto-apply fixes — all remediation goes through the fixer
+> 10. If issues found: message the fixer with specific feedback (files, lines, issues), wait for fixes (max 3 rounds)
+> 11. When satisfied: message the lead with ACCEPTED verdict, verification summary, and final test counts
+> 12. If not fixable after 3 rounds: message the lead with REJECTED verdict and detailed explanation
 
 ---
 

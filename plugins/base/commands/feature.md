@@ -2,7 +2,7 @@
 name: feature
 description: Implement features from specs or natural language using an agent team. ALWAYS use this for ALL feature work, including small tasks.
 argument-hint: <@spec-file> OR <feature-description> OR <epic-directory>
-allowed-tools: Task, Read, Write, Edit, Bash, AskUserQuestion
+allowed-tools: Task, Read, Write, Edit, Bash, AskUserQuestion, Skill
 model: opus
 ---
 
@@ -134,10 +134,15 @@ Create an agent team with these roles. Each teammate's role description tells th
 > 4. After implementation, ensure `{story_dir}/verification.json` exists with 5+ verification questions covering code quality, architecture, testing, and spec alignment
 > 5. Ensure `{story_dir}/result.json` documents what was implemented, files created/modified, test counts
 > 6. Validate: story directory contains ONLY baseline.json, verification.json, result.json (no .md, .txt, or extras). Delete any forbidden files.
-> 7. Message the verifier that this story is ready for review
-> 8. When the verifier reports issues, address them (spawn `integration-architect` subagent or fix directly), then re-notify the verifier. Max 5 remediation rounds per story.
-> 9. If max rounds exhausted, message the lead with escalation details.
-> 10. After all assigned stories are verified, message the lead.
+> 7. **Codex review gate**: Before notifying the verifier, run a Codex review:
+>    - Invoke `Skill("codex:review", args: "--wait --scope working-tree")` to review the implementation
+>    - Fix any critical/high severity findings before proceeding
+>    - Note low/medium findings in verification.json for the verifier's awareness
+> 8. Message the verifier that this story is ready for review
+> 9. When the verifier reports issues, address them (spawn `integration-architect` subagent or fix directly), then re-notify the verifier. Max 5 remediation rounds per story.
+>    - If stuck on a remediation issue after reasonable effort, use `Skill("codex:rescue", args: "--wait <description of what's stuck>")` for a second implementation pass before exhausting rounds.
+> 10. If max rounds exhausted, message the lead with escalation details.
+> 11. After all assigned stories are verified, message the lead.
 >
 > Story directories MUST contain ONLY: baseline.json, verification.json, result.json.
 > Detect project language and consult `skills/languages/{language}.md` for all commands.
