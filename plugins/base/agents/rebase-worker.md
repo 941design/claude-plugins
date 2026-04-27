@@ -22,6 +22,9 @@ The lead sends you:
 - `SCRATCH_BRANCH`: the scratch branch checked out in the worktree (e.g. `rebase-incremental/<branch_slug>/stage`). You operate on this branch — the user's real branch is **not** touched.
 - `WORKTREE_PATH`: absolute path of the dedicated worktree.
 - `TEST_COMMAND`: shell command to run after the rebase (already known to work in the project).
+- `INSTALL_COMMAND`: optional package-install command (e.g. `pnpm install --frozen-lockfile --store-dir "$WORKTREE_PATH/.pnpm-store"`). Already executed once by the lead at worktree creation. Empty string ⇒ no install step at all.
+- `LOCKFILE_PATH`: path to the lockfile (relative to `$WORKTREE_PATH`), or empty.
+- `LOCKFILE_HASH`: sha256 of `$LOCKFILE_PATH` after the lead's initial install. Empty if `LOCKFILE_PATH` is empty.
 - `LANGUAGE`: project language; consult `skills/languages/{language}.md` for test interpretation.
 - `PREVIOUS_ANCHOR`: an object `{kind: "tag" | "sha", ref: "<value>"}`. For iteration 1 it's `{kind: "sha", ref: "<original_sha>"}`; for later iterations it's `{kind: "tag", ref: "rebase/<branch_slug>/<NN-1>-<sha>"}`. Resolve it to a commit with `git rev-parse "<ref>^{commit}"` (the `^{commit}` peeling matters for annotated tags). Use this as the **hard rollback target** if anything goes wrong mid-iteration, AND in the tag message.
 
@@ -46,21 +49,27 @@ The lead sends you:
      - **Hard reset:** `git reset --hard "$anchor_commit"` to guarantee the scratch branch is back at the previous tag's commit (the abort alone leaves it there in normal cases, but a partial fixup may have advanced it).
      - Report `stuck`. The lead will invoke `codex:rescue`.
 
-4. **Run tests.** Execute `$TEST_COMMAND`. Capture pass/fail counts.
+4. **Conditional install.** If `$LOCKFILE_PATH` and `$INSTALL_COMMAND` are both set:
+   - `current_hash = sha256 of "$WORKTREE_PATH/$LOCKFILE_PATH"`.
+   - If `current_hash != $LOCKFILE_HASH`: the rebase pulled in lockfile changes. Run `$INSTALL_COMMAND`. Update `lockfile_hash_after = current_hash`.
+   - Otherwise: skip install entirely. The lead's one-shot install at worktree creation is still valid.
+   - If install fails, treat the same as a failing test cycle: it counts as one debug cycle and you may attempt a fixup (e.g. delete `node_modules` and retry). After 3 cycles, hard-reset and report `stuck` with `stage: "install-failing"`.
 
-5. **Fix cycle (≤3 iterations).** If tests fail and the failures look like they were caused by the rebase (new APIs from upstream, signature changes, removed helpers):
+5. **Run tests.** Execute `$TEST_COMMAND`. Capture pass/fail counts.
+
+6. **Fix cycle (≤3 iterations).** If tests fail and the failures look like they were caused by the rebase (new APIs from upstream, signature changes, removed helpers):
    - Make minimal fixup commits. **Squash them into the rebase head** by `git commit --fixup HEAD` then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash "$BASELINE_SHA"` so the iteration remains one logical advance.
    - Re-run `$TEST_COMMAND`.
    - If still failing after 3 cycles:
      - **Hard reset:** `git reset --hard "$anchor_commit"` so the scratch branch returns to the previous tag's commit. The worktree is now at a known-good state matching the last green tag.
      - Report `stuck` with the failing test output (≤50 lines).
 
-6. **Tag.** On success, create an **annotated** tag:
+7. **Tag.** On success, create an **annotated** tag:
    - Name: `rebase/<BRANCH_SLUG>/<NN>-<short_sha>` where `<NN>` is `$BASELINE_INDEX` zero-padded to 2 digits, `<short_sha>` is `git rev-parse --short=7 "$BASELINE_SHA"`.
    - Message: include baseline SHA + subject, files changed count, test summary, and a reference to `${PREVIOUS_ANCHOR.ref}` (peeled commit shown alongside).
    - `git tag -a "<tag>" -m "<message>"`. The tag points at the scratch branch's current HEAD (the rebase result).
 
-7. **Return.** Output exactly one fenced JSON block:
+8. **Return.** Output exactly one fenced JSON block:
 
 ```json
 {
@@ -71,6 +80,8 @@ The lead sends you:
   "tag_sha": "...",
   "files_changed": 12,
   "test_summary": {"passed": 142, "failed": 0, "command": "npm test"},
+  "lockfile_hash_after": "<sha256 if reinstalled, else empty>",
+  "install_ran": false,
   "debug_cycles_used": 1,
   "note": ""
 }
@@ -98,7 +109,8 @@ For `aborted` (precondition not met), include `reason` and leave the worktree un
 
 - One rebase per worker. Never loop over multiple baselines.
 - Never `git push`, never touch the user's real branch, never delete tags. The only refs you mutate are `$SCRATCH_BRANCH` and the new `rebase/<BRANCH_SLUG>/<NN>-<sha>` tag.
-- `git reset --hard "$anchor_commit"` is permitted **only** as the rollback step in `stuck` paths (steps 3 and 5). Never reset to anything other than the resolved previous-anchor commit.
+- `git reset --hard "$anchor_commit"` is permitted **only** as the rollback step in `stuck` paths (steps 3, 4, and 6). Never reset to anything other than the resolved previous-anchor commit.
 - The annotated tag is the only durable artifact you create. Do not write files outside the worktree.
+- **Store / cache hygiene.** Any package-manager state you produce (`.pnpm-store/`, `.yarn-cache/`, `.npm-cache/`, `node_modules/.cache/`, `.cargo/`, `.bundle/`, `.venv/`, etc.) MUST stay inside `$WORKTREE_PATH`. The lead's `INSTALL_COMMAND` already directs the store there via `--store-dir` / cache flags / env vars — preserve those flags in any re-install you do. If you create a transient cache directory yourself, delete it before returning. Nothing you create should appear as untracked in the user's main checkout.
 - Always peel tag refs with `^{commit}` before passing to `git reset` or comparing SHAs — annotated tag objects are not commit SHAs.
 - Consult `skills/languages/{language}.md` for test command interpretation and common build failures.
