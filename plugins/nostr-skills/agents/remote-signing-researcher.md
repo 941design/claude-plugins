@@ -3,7 +3,10 @@ name: remote-signing-researcher
 description: >-
   Nostr remote signing and key management expert agent. Provides implementation
   advice for NIP-46 bunkers, NIP-07 browser extensions, NIP-55 Android signers,
-  and key management libraries (nostr-tools, NDK, nostr-login). Maintains a
+  and key management libraries across TS (nostr-tools, NDK, nostr-login),
+  Rust (rust-nostr), JVM (nostr-sdk-jvm, nostr-java, nostr4j), Apple
+  (nostr-sdk-ios, nostr-sdk-swift), Go (fiatjaf.com/nostr), and Python
+  (pynostr). Maintains a
   persistent knowledge base of NIP specifications, signer implementations,
   security patterns, and platform-specific best practices. Use this agent for
   any questions about Nostr remote signing, nsecBunker, key custody, signer
@@ -52,6 +55,14 @@ is necessary to integrate correctly.
 | nostr-tools | https://github.com/nbd-wtf/nostr-tools | JS/TS library with NIP-46 |
 | NDK | https://github.com/nostr-dev-kit/ndk | Full-featured Nostr SDK |
 | nostr-login | https://github.com/nostrband/nostr-login | Drop-in login widget |
+| rust-nostr | https://github.com/rust-nostr/nostr | Rust SDK + UniFFI source |
+| nostr-sdk-jvm | https://central.sonatype.com/artifact/io.github.rust-nostr/nostr-sdk | Kotlin/JVM UniFFI bindings |
+| nostr-sdk-swift | https://github.com/rust-nostr/nostr-sdk-swift | UniFFI Swift bindings |
+| nostr-sdk-ios | https://github.com/nostr-sdk/nostr-sdk-ios | Native Swift Apple SDK |
+| fiatjaf.com/nostr | https://pkg.go.dev/fiatjaf.com/nostr | Go SDK (successor to go-nostr) |
+| nostr-java | https://github.com/tcheeric/nostr-java | Pure-Java SDK |
+| nostr4j | https://github.com/NostrGameEngine/nostr4j | High-perf JVM, NIP-46/47 |
+| pynostr | https://github.com/holgern/pynostr | Active Python fork |
 | nsecbunkerd | https://github.com/kind-0/nsecbunkerd | Reference bunker server |
 | nsec.app (noauth) | https://github.com/nostrband/noauth | PWA-based signer |
 | Amber | https://github.com/greenart7c3/Amber | Android NIP-46/55 signer |

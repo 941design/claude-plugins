@@ -10,8 +10,8 @@
     {
       "name": "nostr-skills",
       "source": "./plugins/nostr-skills",
-      "description": "Nostr protocol skills — direct Nostr interaction via nak CLI, Marmot Protocol (MLS+Nostr group messaging), and remote signing (NIP-46 bunkers, NIP-07, NIP-55, key management).",
-      "version": "1.3.1",
+      "description": "Nostr protocol skills — direct Nostr interaction via nak CLI, Marmot Protocol (MLS+Nostr group messaging), remote signing (NIP-46 bunkers, NIP-07, NIP-55, key management), and cross-language SDK selection across nostr-tools, NDK, rust-nostr, fiatjaf.com/nostr, nostr-java, nostr4j, nostr-sdk-jvm, nostr-sdk-ios, nostr-sdk-swift, and pynostr.",
+      "version": "1.4.0",
       "keywords": [
         "nostr",
         "nak",
@@ -29,7 +29,19 @@
         "remote-signing",
         "nsecbunker",
         "key-management",
-        "signer"
+        "signer",
+        "sdk",
+        "nostr-tools",
+        "ndk",
+        "rust-nostr",
+        "go-nostr",
+        "pynostr",
+        "nostr-java",
+        "nostr-sdk-ios",
+        "nostr-sdk-swift",
+        "nostr-sdk-jvm",
+        "uniffi",
+        "kotlin-multiplatform"
       ]
     },
     {

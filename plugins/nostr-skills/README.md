@@ -1,7 +1,7 @@
 # nostr-skills
 
 Skills for working with the [Nostr](https://github.com/nostr-protocol/nostr)
-protocol. Currently covers three domains:
+protocol. Currently covers four domains:
 
 - **Nostr Operator** — interact with the Nostr network directly using
   [nak](https://github.com/fiatjaf/nak) (the nostr army knife CLI): publish
@@ -11,6 +11,10 @@ protocol. Currently covers three domains:
 - **Remote Signing** — NIP-46 bunkers, NIP-07 browser extensions, NIP-55
   Android signers, key management libraries, and platform-specific best
   practices
+- **Nostr SDKs** — cross-language SDK selection and usage advisor across
+  TS (nostr-tools, NDK), Rust (rust-nostr), Go (fiatjaf.com/nostr), JVM
+  (nostr-sdk-jvm, nostr-java, nostr4j), Apple (nostr-sdk-ios,
+  nostr-sdk-swift), Python (pynostr), and more
 
 The Nostr Operator skill executes commands directly. The advisory skills help
 build applications using existing libraries.
@@ -125,6 +129,50 @@ releases, and signer implementations, then updates agent memory.
 /nostr-skills:remote-signing-update NIP-46
 ```
 
+### `/nostr-skills:nostr-sdks [question]`
+
+Advisory skill. Helps pick and use the right Nostr SDK across languages and
+platforms. Default stance: language-native first.
+
+- **TypeScript/JS** — [nostr-tools](https://github.com/nbd-wtf/nostr-tools),
+  [NDK](https://github.com/nostr-dev-kit/ndk)
+- **Rust** — [rust-nostr](https://github.com/rust-nostr/nostr) (`nostr-sdk` crate)
+- **Go** — [fiatjaf.com/nostr](https://pkg.go.dev/fiatjaf.com/nostr)
+  (successor to archived `nbd-wtf/go-nostr`)
+- **JVM** — [nostr-sdk-jvm](https://central.sonatype.com/artifact/io.github.rust-nostr/nostr-sdk)
+  (UniFFI), [nostr-java](https://github.com/tcheeric/nostr-java),
+  [nostr4j](https://github.com/NostrGameEngine/nostr4j)
+- **Apple** — [nostr-sdk-ios](https://github.com/nostr-sdk/nostr-sdk-ios)
+  (native), [nostr-sdk-swift](https://github.com/rust-nostr/nostr-sdk-swift)
+  (UniFFI)
+- **Python** — [pynostr](https://github.com/holgern/pynostr) (active fork of
+  legacy [python-nostr](https://github.com/jeffthibault/python-nostr))
+- Cross-SDK comparison, common-task code snippets, interop and bindings
+  guidance, archived/legacy library detection
+
+For deep NIP-46/07/55 signer questions defer to **remote-signing**; for
+Marmot/MLS group messaging defer to **marmot**.
+
+**Auto-invokes** when Claude detects SDK-selection or cross-language
+questions. Runs in an isolated agent context with persistent memory.
+
+**Self-updating:** Checks documentation freshness on each invocation. If
+supporting documents are older than 7 days, automatically fetches the latest
+release notes and project status before answering.
+
+### `/nostr-skills:nostr-sdks-update [topic]`
+
+Manual maintenance skill. Fetches latest releases, NIP support, and project
+status across all tracked SDKs, then updates agent memory.
+
+```bash
+# Full update
+/nostr-skills:nostr-sdks-update
+
+# Targeted update
+/nostr-skills:nostr-sdks-update rust-nostr
+```
+
 ## Agents
 
 ### nostr-operator
@@ -152,7 +200,16 @@ signer implementation updates, and security gotchas.
 
 Both remote-signing skills run in this agent's context, sharing the same memory.
 
-### First Run (both agents)
+### nostr-sdk-researcher
+
+Custom agent with user-scoped persistent memory
+(`~/.claude/agent-memory/nostr-sdk-researcher/`). Accumulates knowledge
+across sessions — SDK version numbers, NIP-support tables, archive/legacy
+status, and binding/native trade-offs across all tracked Nostr libraries.
+
+Both nostr-sdks skills run in this agent's context, sharing the same memory.
+
+### First Run (all agents)
 
 Agent memory is user-scoped and lives outside the plugin directory. Plugin
 files are never modified at runtime — all dynamic state lives in agent memory.
@@ -169,6 +226,7 @@ To force a rebuild at any time:
 ```bash
 /nostr-skills:marmot-update
 /nostr-skills:remote-signing-update
+/nostr-skills:nostr-sdks-update
 ```
 
 ## Supporting Documents
@@ -208,7 +266,18 @@ Five read-only reference files:
 | `signing-nips-reference.md` | NIP-07, NIP-55, NIP-44, NIP-49, NIP-19 and related NIPs |
 | `signer-implementations.md` | nsecBunker, nsec.app, Amber, Aegis, nos2x, FROSTR, Gossip |
 | `platform-best-practices.md` | PWA, web, desktop patterns, security, UX recommendations |
-| `libraries-and-sdks.md` | nostr-tools, NDK, nostr-login, nostr-signer-connector, Nostrify |
+| `libraries-and-sdks.md` | TS (nostr-tools, NDK, nostr-login, nostr-signer-connector, Nostrify), Rust (rust-nostr), JVM (nostr-sdk-jvm, nostr-java, nostr4j), Apple (nostr-sdk-ios, nostr-sdk-swift), Go (fiatjaf.com/nostr), Python (pynostr) |
+
+### Nostr SDKs
+
+Four read-only reference files:
+
+| File | Content |
+|---|---|
+| `library-matrix.md` | All major Nostr SDKs by language/maturity/NIP support/activity, with strengths and trade-offs |
+| `selection-guide.md` | Decision tree by language, platform, use case; when to push back on the user's choice |
+| `common-tasks.md` | Side-by-side code examples for keypair generation, publish, subscribe, and NIP-46 connect across SDKs |
+| `interop-and-bindings.md` | rust-nostr UniFFI family, the two distinct nostr-sdk-ios projects, archived/legacy projects, wire compatibility |
 
 ## Primary Sources
 
@@ -250,6 +319,22 @@ Five read-only reference files:
 | Amber | [greenart7c3/Amber](https://github.com/greenart7c3/Amber) |
 | Aegis | [ZharlieW/Aegis](https://github.com/ZharlieW/Aegis) |
 | FROSTR/Igloo | [FROSTR-ORG/igloo-desktop](https://github.com/FROSTR-ORG/igloo-desktop) |
+
+### Nostr SDKs
+
+| Source | Link |
+|---|---|
+| nostr-tools | [nbd-wtf/nostr-tools](https://github.com/nbd-wtf/nostr-tools) |
+| NDK | [nostr-dev-kit/ndk](https://github.com/nostr-dev-kit/ndk) |
+| rust-nostr | [rust-nostr/nostr](https://github.com/rust-nostr/nostr) |
+| rust-nostr book | [rust-nostr.org](https://rust-nostr.org/) |
+| nostr-sdk-jvm | [Maven Central — io.github.rust-nostr:nostr-sdk](https://central.sonatype.com/artifact/io.github.rust-nostr/nostr-sdk) |
+| nostr-sdk-swift (UniFFI) | [rust-nostr/nostr-sdk-swift](https://github.com/rust-nostr/nostr-sdk-swift) |
+| nostr-sdk-ios (native) | [nostr-sdk/nostr-sdk-ios](https://github.com/nostr-sdk/nostr-sdk-ios) |
+| fiatjaf.com/nostr (Go) | [pkg.go.dev/fiatjaf.com/nostr](https://pkg.go.dev/fiatjaf.com/nostr) |
+| nostr-java | [tcheeric/nostr-java](https://github.com/tcheeric/nostr-java) |
+| nostr4j | [NostrGameEngine/nostr4j](https://github.com/NostrGameEngine/nostr4j) |
+| pynostr | [holgern/pynostr](https://github.com/holgern/pynostr) |
 
 ## Underlying Standards
 

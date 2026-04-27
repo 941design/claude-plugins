@@ -47,6 +47,14 @@ Fetch the raw NIP markdown files from GitHub to check for spec updates:
 | nostr-tools | https://github.com/nbd-wtf/nostr-tools |
 | NDK | https://github.com/nostr-dev-kit/ndk |
 | nostr-login | https://github.com/nostrband/nostr-login |
+| rust-nostr | https://github.com/rust-nostr/nostr/blob/master/CHANGELOG.md |
+| nostr-sdk-jvm | https://central.sonatype.com/artifact/io.github.rust-nostr/nostr-sdk |
+| nostr-sdk-swift | https://github.com/rust-nostr/nostr-sdk-swift/releases |
+| nostr-sdk-ios | https://github.com/nostr-sdk/nostr-sdk-ios/releases |
+| fiatjaf.com/nostr | https://pkg.go.dev/fiatjaf.com/nostr |
+| nostr-java | https://github.com/tcheeric/nostr-java/releases |
+| nostr4j | https://github.com/NostrGameEngine/nostr4j |
+| pynostr | https://pypi.org/project/pynostr/ |
 | nsecbunkerd | https://github.com/kind-0/nsecbunkerd |
 | nsec.app (noauth) | https://github.com/nostrband/noauth |
 | Amber | https://github.com/greenart7c3/Amber |
@@ -70,6 +78,9 @@ Use WebSearch for:
 - "FROSTR" OR "nostr threshold signing" — ecosystem developments
 - "nostr NIP-07 NIP-55" — browser/Android signer updates
 - "nostr-tools" OR "NDK" signer API changes
+- "rust-nostr" OR "nostr-sdk-jvm" OR "nostr-sdk-swift" release notes
+- "fiatjaf.com/nostr" OR "go-nostr" Go SDK changes
+- "pynostr" OR "nostr-java" OR "nostr4j" release activity
 
 ### 4. Update Agent Memory
 
