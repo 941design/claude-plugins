@@ -26,4 +26,11 @@ runner's equivalent). Sequential e2e suites cascade failures from a single root
 cause; letting the run continue burns time confirming what triage would tell
 you in minutes.
 
+Do not reach for `.skip`, `.only`, `test.fixme`, or commenting tests out to
+make a run go green. Skipped tests rot — they drift out of sync with the code,
+nobody notices when the underlying bug regresses, and the suite quietly loses
+coverage. A failing test is a useful signal: surface it, report it, and let
+the user decide whether to fix the code, fix the test, or delete it
+deliberately. Silencing the signal is not your call to make.
+
 $ARGUMENTS
