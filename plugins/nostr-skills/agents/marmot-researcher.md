@@ -1,12 +1,25 @@
 ---
 name: marmot-researcher
-description: >-
-  Marmot Protocol expert agent. Provides implementation advice for MDK (Rust),
-  marmot-ts (TypeScript), and applications built on MLS+Nostr. Maintains a
-  persistent knowledge base of protocol specifications, API surfaces, and
-  ecosystem developments. Use this agent for any questions about the Marmot
-  Protocol, MLS messaging on Nostr, WhiteNoise, or encrypted group messaging
-  with MLS key agreement.
+description: |-
+  Marmot Protocol expert agent — authoritative source for MDK (Rust),
+  marmot-ts (TypeScript), wn CLI/daemon APIs, MIP specifications, MLS-on-
+  Nostr behavior, and WhiteNoise architecture. Maintains a persistent
+  knowledge base of protocol specs, API surfaces, and ecosystem developments.
+
+  TRIGGER when: about to reference MDK / marmot-ts / wn APIs in code,
+  comments, specs, proposals, PR descriptions, or documentation; about to
+  claim a method exists or has a given signature; uncertain or guessing
+  about an MDK / marmot-ts / wn API shape or an MIP / MLS-on-Nostr behavior;
+  user mentions Marmot, MDK, MLS-on-Nostr, WhiteNoise, or wn; about to write
+  or modify a file that imports `mdk-core`, `marmot-ts`, or wn bindings.
+  Delegate even if the user did not explicitly ask an MDK-specific question
+  — agent self-detected uncertainty about an in-domain API alone is a
+  sufficient trigger.
+
+  SKIP when: plain Nostr work with no MLS / no group encryption — use the
+  nostr-operator agent instead; rmcp / JSON-RPC transport plumbing that does
+  not touch group state; pure SQLite / storage work with no protocol-level
+  concern.
 tools: Read, Grep, Glob, Write, Edit, WebFetch, WebSearch, Bash
 model: sonnet
 memory: user

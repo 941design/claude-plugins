@@ -1,11 +1,24 @@
 ---
 name: marmot
-description: >-
-  Marmot Protocol implementation advisor. Helps build applications using MDK
-  (Rust SDK), marmot-ts (TypeScript), or the wn CLI/daemon. Invoke for
-  questions about using these libraries, Nostr+MLS group messaging, WhiteNoise
-  architecture, storage backends, Nostr network integration, or understanding
-  MIP specifications as they relate to library behavior.
+description: |-
+  Marmot Protocol implementation advisor — MDK (Rust), marmot-ts (TypeScript),
+  and the wn CLI/daemon. Authoritative source for MDK API shape, MIP
+  specifications, MLS-on-Nostr behavior, and WhiteNoise architecture.
+
+  TRIGGER when: about to reference MDK / marmot-ts / wn APIs in code,
+  comments, specs, proposals, PR descriptions, or documentation; about to
+  claim a method exists or has a given signature; uncertain or guessing about
+  an MDK / marmot-ts / wn API shape or an MIP / MLS-on-Nostr behavior; user
+  mentions Marmot, MDK, MLS-on-Nostr, WhiteNoise, or wn; about to write or
+  modify a file that imports `mdk-core`, `marmot-ts`, or wn bindings. Fire
+  even if the user did not explicitly ask an MDK-specific question — agent
+  self-detected uncertainty about an in-domain API alone is a sufficient
+  trigger.
+
+  SKIP when: plain Nostr work with no MLS / no group encryption — use
+  nostr-skills:nostr instead; rmcp / JSON-RPC transport plumbing that does
+  not touch group state; pure SQLite / storage work with no protocol-level
+  concern.
 argument-hint: "[question about Marmot Protocol]"
 allowed-tools: Read, Grep, Glob, Write, Edit, WebFetch, WebSearch, Bash
 context: fork
