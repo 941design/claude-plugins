@@ -17,4 +17,13 @@ Run the following e2e tests iteratively, one at a time. Only proceed to the next
 test if the current test passes. If any test fails, stop immediately and report
 the failure.
 
+Before running, load your project memory (`~/.claude/agent-memory/base-e2e-tester/`)
+for stack-specific commands, container names, helpers, and known gotchas — these
+override generic defaults.
+
+For any run covering more than ~10 tests, pass `--max-failures=1` (or the
+runner's equivalent). Sequential e2e suites cascade failures from a single root
+cause; letting the run continue burns time confirming what triage would tell
+you in minutes.
+
 $ARGUMENTS
