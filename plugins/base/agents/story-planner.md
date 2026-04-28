@@ -27,6 +27,14 @@ Name the specific function/field/component, the verb, and the resulting state. B
 **Rule 3: End-to-end data flow coverage**
 For data moving source→destination, create one AC per hop. Ask: "What is the source? What intermediaries relay it? What is the final consumer?"
 
+**Rule 4: AC ID form**
+Each AC uses the form `AC-<TAG>-<N>` where `<TAG>` is a short uppercase
+category token (`STRUCT`, `DEP`, `ERR`, `PERF`, `SEC`, `OBS`, `UX`, …) and
+`<N>` is a 1-based integer unique within the AC file. IDs are stable
+references — do not renumber when an AC is removed. Full conventions are
+documented in `base:spec-template`; the schema enforces the regex
+`^AC-[A-Z]+-[0-9]+$`.
+
 ## Story Design Principles
 
 1. **Independence** — each story testable in isolation; use mocks if dependency unavoidable

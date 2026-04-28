@@ -40,6 +40,11 @@ Read the spec file. Check for:
 - Scope boundaries (in-scope and out-of-scope)
 - Error handling and edge cases
 
+The canonical format for `specs/epic-<slug>/spec.md` and
+`acceptance-criteria.md` is documented in `base:spec-template` — cite it in
+clarification messages when a section is missing or an AC ID is malformed
+(e.g. "spec rejected: `## Non-Goals` missing — see `base:spec-template`").
+
 If gaps exist, use AskUserQuestion to get clarifications. Update the spec. Max 3 rounds — if still unclear, stop and explain what's missing.
 
 For complex specs, spawn a `spec-validator` subagent for thorough analysis.

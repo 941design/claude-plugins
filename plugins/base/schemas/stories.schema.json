@@ -94,10 +94,10 @@
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^AC-[0-9]{3}$"
+            "pattern": "^AC-[A-Z]+-[0-9]+$"
           },
           "minItems": 1,
-          "description": "List of acceptance criteria IDs this story covers"
+          "description": "List of acceptance criteria IDs this story covers (form: AC-<TAG>-<N>, e.g. AC-STRUCT-7, AC-DEP-3 — see base:spec-template)"
         },
         "scope": {
           "type": "object",

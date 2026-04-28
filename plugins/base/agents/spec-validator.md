@@ -21,6 +21,12 @@ Check each:
 6. **Scope Boundaries** — in-scope/out-of-scope explicit, assumptions documented
 7. **Internal Consistency** — no conflicting requirements, consistent terminology, examples match rules
 
+For specs targeting the `specs/epic-<slug>/` layout, the canonical structure
+(required `spec.md` sections, AC ID form `AC-<TAG>-<N>`, file split between
+`spec.md` and `acceptance-criteria.md`) is documented in `base:spec-template`.
+Cite it in clarification messages when a structural finding maps to a
+documented requirement.
+
 ## Severity Levels
 
 | Severity | Result Impact |
