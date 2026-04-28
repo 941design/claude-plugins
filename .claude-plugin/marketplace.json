@@ -86,7 +86,7 @@
     {
       "name": "base",
       "source": "./plugins/base",
-      "description": "Feature and bug workflow orchestration using agent teams — language-agnostic TDD, story-based implementation with crash recovery, evidence-based verification, and configurable quality gates.",
+      "description": "Feature and bug workflow orchestration using agent teams — language-agnostic TDD, story-based implementation with crash recovery, evidence-based verification, configurable quality gates, and cross-environment dev troubleshooting (host + VM sharing one project tree).",
       "version": "2.3.3",
       "keywords": [
         "workflow",
@@ -98,7 +98,11 @@
         "stories",
         "orchestration",
         "property-testing",
-        "quality-gates"
+        "quality-gates",
+        "cross-environment",
+        "cross-platform",
+        "playwright",
+        "node-modules"
       ]
     },
     {
