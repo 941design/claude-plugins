@@ -27,6 +27,24 @@ For each question, identify: what is being asked, where to look, success criteri
 - Function-level AND integration-level — is the function called in the expected context?
 - Happy path AND edge cases from ACs/scope
 
+**AC-derived SPEC questions (when `ac_id` is set):**
+
+For SPEC-category questions carrying an `ac_id` field, perform an explicit AC-coverage check:
+
+1. Locate the AC text in `acceptance-criteria.md` by its ID.
+2. Identify the named artifact(s) in the AC (function, field, file, endpoint).
+3. Locate the test(s) that exercise it. Search: test names containing the AC ID, comments referencing the AC ID, assertions on the named artifact's observable state.
+4. Confirm the test passes (cross-reference baseline.json or run the test directly).
+5. Classify the test as **behavioral** or **proxy**:
+    - *Behavioral* — exercises the named artifact through real or test-fixture infrastructure and asserts the observable state change directly.
+    - *Proxy* — only asserts that a mocked dependency was called. Treat as PARTIAL at best.
+6. Answer:
+    - **YES** — behavioral test exists, passes, asserts the AC's named state change.
+    - **PARTIAL** — proxy/mock-only test, OR the test exists but does not fully assert the AC's observable.
+    - **NO** — no test covers the AC, OR the AC's named artifact does not exist in production code.
+
+Citations MUST include (a) the AC text verbatim, (b) the production code at file:line, (c) the test at file:line.
+
 ### 3. Evidence Gathering
 Systematically collect evidence per category (Code Quality, Architecture, Testing, Spec Alignment, Best Practices).
 
@@ -49,14 +67,18 @@ Systematically collect evidence per category (Code Quality, Architecture, Testin
 ### 6. CSV Logging
 Append results to `.claude/verification-results.csv`:
 ```
-epic,story_id,round,timestamp,question_id,question_category,question,summary,result,severity,confidence,remediation_complexity,root_cause_category,evidence_files
+epic,story_id,round,timestamp,question_id,question_category,question,summary,result,severity,confidence,remediation_complexity,root_cause_category,evidence_files,phase,ac_id
 ```
+
+`phase` is `pre-impl` or `post-impl`. `ac_id` is the AC ID for AC-derived SPEC questions (empty otherwise).
 
 ## Return Template
 
 ```
 QUESTION_ID: {VQ-xx-xxx}
 QUESTION_CATEGORY: {TEST|ARCHITECTURE|QUALITY|SECURITY|SPEC}
+PHASE: {pre-impl|post-impl}
+AC_ID: {AC-XYZ-N | omit if not AC-derived}
 QUESTION: {exact question}
 ANSWER: {YES|NO|PARTIAL}
 

@@ -136,7 +136,10 @@ Create an agent team with these roles. Each teammate's role description tells th
 > 1. Establish a test baseline: detect the project's test command from `skills/languages/{language}.md`, run the full test suite, record results in `{story_dir}/baseline.json`. ZERO TOLERANCE for failures — if any test fails, message the lead immediately.
 > 2. Design the component architecture for the story — interfaces, data flow, module boundaries
 > 3. Spawn an `integration-architect` subagent with the story spec, acceptance criteria, baseline, and exploration context. The subagent handles TDD implementation including spawning `pbt-dev` for components.
-> 4. After implementation, ensure `{story_dir}/verification.json` exists with 5+ verification questions covering code quality, architecture, testing, and spec alignment
+> 4. Verification questions are written in two phases by the `integration-architect` subagent and recorded in `{story_dir}/verification.json` with a `phase` field on each record:
+>    - **Pre-impl** (before stubs/code, Step 2 of the subagent) — a commitment set with ≥1 question per category {QUALITY, ARCHITECTURE, TEST, SPEC, SECURITY} **plus one SPEC question per AC** the story covers (with `ac_id` set). Pre-impl questions are immutable once written.
+>    - **Post-impl** (after pbt-dev work, Step 6 of the subagent) — append-only implementation-specific questions with `phase: "post-impl"`.
+>    Ensure both phases are populated before notifying the verifier.
 > 5. Ensure `{story_dir}/result.json` documents what was implemented, files created/modified, test counts
 > 6. Validate: story directory contains ONLY baseline.json, verification.json, result.json (no .md, .txt, or extras). Delete any forbidden files.
 > 7. **Codex review gate**: Before notifying the verifier, run a Codex review:
@@ -157,18 +160,23 @@ Create an agent team with these roles. Each teammate's role description tells th
 > 1. Read the story spec from stories.json and its acceptance criteria
 > 2. Read `{story_dir}/verification.json` for the verification questions
 > 3. Validate artifacts: `{story_dir}/` must contain ONLY baseline.json, verification.json, result.json. If forbidden files exist, message the architect to remove them before you proceed.
-> 4. Spawn `verification-examiner` subagents (one per question or batch of related questions) to investigate each question with evidence
-> 5. Collect results. For each question, determine: YES (passes), NO (fails), or PARTIAL
-> 6. **Re-run the full test suite yourself** — never trust claimed results. Detect the test command from `skills/languages/{language}.md`.
-> 7. If any question is NO or PARTIAL with severity >= 7, or any test fails:
+> 4. **Pre-examination gate** — validate the commitment set is complete:
+>    - ≥1 pre-impl question for each category in {QUALITY, ARCHITECTURE, TEST, SPEC, SECURITY}
+>    - ≥1 pre-impl SPEC question with `ac_id` set, for every AC ID in the story's `acceptance_criteria` array (from stories.json)
+>    
+>    If gaps exist, message the architect with the specific missing categories and AC IDs. The architect backfills the missing pre-impl questions (this is a process concession — backfilled questions still carry `phase: "pre-impl"` but lose the genuine pre-implementation guarantee, since the implementation is already visible). Max 1 round on this gate; if it fails twice, escalate to lead — repeated commitment-set gaps mean Step 2 of `integration-architect` is being skipped.
+> 5. Spawn `verification-examiner` subagents (one per question or batch of related questions) to investigate each question with evidence. AC-derived SPEC questions (those with `ac_id`) get the AC-coverage procedure described in `verification-examiner.md`.
+> 6. Collect results. For each question, determine: YES (passes), NO (fails), or PARTIAL
+> 7. **Re-run the full test suite yourself** — never trust claimed results. Detect the test command from `skills/languages/{language}.md`.
+> 8. If any question is NO or PARTIAL with severity >= 7, or any test fails:
 >    - Message the architect with specific files, issues, and root cause categories
 >    - Wait for the architect to fix and re-message you
 >    - Re-verify using the SAME questions (max 5 rounds per story)
-> 8. When all questions pass and all tests pass:
+> 9. When all questions pass and all tests pass:
 >    - Update `{story_dir}/result.json`: set status="done", add verification_rounds, set final_outcome="accepted", set completed_at
 >    - Update `specs/epic-{name}/stories.json`: set this story's status to "done"
 >    - Message the lead that the story is verified
-> 9. If max rounds exhausted, message the lead with escalation details and remaining failures.
+> 10. If max rounds exhausted, message the lead with escalation details and remaining failures.
 >
 > **Mandatory: Codex adversarial review**
 > - After verification questions and tests pass, run the Codex adversarial review before accepting the story:
