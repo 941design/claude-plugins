@@ -92,9 +92,7 @@ Create an agent team with two roles:
 > 10. If stuck during analysis or fix (3+ debug cycles on the same issue), delegate to Codex:
 >     - Use `Skill("codex:rescue", args: "--wait <root cause hypothesis, what you've tried, error details>")` for a second implementation pass
 >     - If Codex resolves it, verify the fix passes all tests before proceeding
-> 11. After fix is verified, run a Codex review before handing off:
->     - Use `Skill("codex:review", args: "--wait --scope working-tree")` to catch issues you may have missed
->     - Fix any critical/high severity findings before proceeding
+> 11. `Skill("codex:review", args: "--wait --scope working-tree")` is available as an in-flight tool during fix work — invoke when uncertain or when you want a second pair of eyes on a non-trivial change. Treat findings as input to your judgment, not a checklist to satisfy. The handoff condition is your own judgment that the fix is correct, complete, and minimal — not "Codex finds nothing."
 > 12. Write `bug-reports/{name}-result.json` with: root cause description, fix description, files changed, tests added, baseline vs final test counts
 > 13. Message the reviewer that the fix is ready
 >
@@ -110,13 +108,13 @@ Create an agent team with two roles:
 > 6. Read the reproduction test — does it actually test the reported bug?
 > 7. Spawn `verification-examiner` subagents for the verification questions the lead provides
 > 8. Look for regressions or side effects in modified files
-> 9. **Mandatory: Codex adversarial review**
+> 9. If issues found from steps 1-8: message the fixer with specific feedback (files, lines, issues), wait for fixes (max 3 rounds)
+> 10. **Last-mile: Codex adversarial review** — only when no issues remain from steps 1-8 (you would otherwise accept), run the adversarial as the final external check at the moment of declared completion:
 >    - Run `Skill("codex:adversarial-review", args: "--wait <focus on the bug fix approach, root cause analysis, and whether the fix is minimal and correct>")` 
->    - `needs-attention` with any `critical` or `high` severity finding is blocking — send those findings back to the fixer alongside any other issues
+>    - `needs-attention` with any `critical` or `high` severity finding is blocking — send findings back to the fixer alongside any other issues (counts as a remediation round against the 3-round budget)
 >    - `low`/`medium` findings: report to the fixer but do not block acceptance
 >    - Do NOT auto-apply fixes — all remediation goes through the fixer
-> 10. If issues found: message the fixer with specific feedback (files, lines, issues), wait for fixes (max 3 rounds)
-> 11. When satisfied: message the lead with ACCEPTED verdict, verification summary, and final test counts
+> 11. When satisfied (all checks pass and last-mile review is not blocking): message the lead with ACCEPTED verdict, verification summary, and final test counts
 > 12. If not fixable after 3 rounds: message the lead with REJECTED verdict and detailed explanation
 
 ---
