@@ -148,6 +148,23 @@
         "knowledge-base",
         "discovery"
       ]
+    },
+    {
+      "name": "ollama",
+      "source": "./plugins/ollama",
+      "description": "Local-LLM code review skills via the Claude Code headless harness pointed at an Ollama-served model. Mirrors the codex plugin's review/adversarial-review interface so base-plugin call sites can use a private/offline reviewer.",
+      "version": "0.1.0",
+      "keywords": [
+        "ollama",
+        "local-llm",
+        "code-review",
+        "adversarial-review",
+        "qwen",
+        "headless",
+        "anthropic-compat",
+        "private",
+        "offline"
+      ]
     }
   ]
 }

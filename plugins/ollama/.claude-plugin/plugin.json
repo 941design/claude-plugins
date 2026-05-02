@@ -1,0 +1,20 @@
+{
+  "name": "ollama",
+  "version": "0.1.0",
+  "description": "Run code reviews against a local Ollama-served model via the Claude Code headless harness. Mirrors the codex plugin's review/adversarial-review interface so base-plugin call sites can use a private/offline reviewer.",
+  "author": {
+    "name": "941design"
+  },
+  "repository": "https://github.com/941design/claude-plugins",
+  "keywords": [
+    "ollama",
+    "local-llm",
+    "code-review",
+    "adversarial-review",
+    "qwen",
+    "headless",
+    "anthropic-compat",
+    "private",
+    "offline"
+  ]
+}
