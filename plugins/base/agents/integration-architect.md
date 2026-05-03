@@ -123,9 +123,9 @@ Write `result.json` documenting:
 
 Story directories MUST contain ONLY: `baseline.json`, `verification.json`, `result.json`. No .md, .txt, or extra files.
 
-## Codex Integration
+## Review Integration
 
-Use Codex as a second brain for implementation quality:
+Use external review as a second brain for implementation quality:
 
 ### Rescue (when stuck)
 If implementation hits a wall after reasonable effort (3+ debug cycles on the same issue), delegate to Codex before escalating:
@@ -135,12 +135,21 @@ If implementation hits a wall after reasonable effort (3+ debug cycles on the sa
 - If Codex resolves the issue, verify the fix passes all tests before proceeding
 
 ### Review (in-flight tool, not a gate)
-Use `codex:review` as a tool *during* implementation, not as a phase boundary after it. Your judgment is the handoff criterion — Codex's verdict is not.
+Use review as a tool *during* implementation, not as a phase boundary after it. Your judgment is the handoff criterion — no review's verdict is.
 
-How to use:
-- Invoke `Skill("codex:review", args: "--wait --scope working-tree")` at any point in Steps 3–6 when a second pair of eyes would help — typically after a non-trivial change, before declaring the implementation done, or when uncertain about a specific area you just touched.
+Use a two-stage approach each time you reach for a review:
+
+**Stage 1 — Ollama review (first):**
+- Invoke `Skill("ollama:review", args: "--wait --scope working-tree")` at any point in Steps 3–6 when a second pair of eyes would help — typically after a non-trivial change, before declaring the implementation done, or when uncertain about a specific area you just touched.
+- If it returns findings you judge as accurate → fix them. You can re-run Ollama after fixing.
+- If it returns no findings, or all findings are rejected as inaccurate → proceed to Stage 2.
+
+**Stage 2 — Codex review (after Stage 1 clears):**
+- Invoke `Skill("codex:review", args: "--wait --scope working-tree")` for the authoritative second opinion.
 - Treat findings as input to your judgment, not a checklist to satisfy. Decide which findings actually represent risk and act on those; ignore noise. `pbt-dev` subagents handle the resulting fix-ups the same way they handle original implementation.
-- Iterate freely: implement → review → fix → review → … until *you* are satisfied. There is no "Codex must pass" handoff condition.
+
+General rules:
+- Iterate freely: implement → review → fix → review → … until *you* are satisfied. There is no "must pass" handoff condition.
 - Hand off to the verifier when you judge the implementation done. Findings you deliberately did not act on (with reasoning) belong in the post-impl questions added in Step 6 — this gives the verifier visibility into your judgment calls.
 
 ## Regression Prevention

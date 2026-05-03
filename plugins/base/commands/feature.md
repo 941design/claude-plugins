@@ -143,13 +143,13 @@ Create an agent team with these roles. Each teammate's role description tells th
 > 5. Ensure `{story_dir}/result.json` documents what was implemented, files created/modified, test counts
 > 6. Validate: story directory contains ONLY baseline.json, verification.json, result.json (no .md, .txt, or extras). Delete any forbidden files.
 > 7. Message the verifier that this story is ready for review
-> 8. When the verifier reports issues, route them to the `integration-architect` subagent for remediation. The subagent treats verifier findings the same way it treats original spec, including using `codex:review` as an in-flight tool. Once it judges the remediation done, re-notify the verifier. Max 5 remediation rounds per story.
+> 8. When the verifier reports issues, route them to the `integration-architect` subagent for remediation. The subagent treats verifier findings the same way it treats original spec, including using the two-stage review (Ollama first, then Codex) as an in-flight tool. Once it judges the remediation done, re-notify the verifier. Max 5 remediation rounds per story.
 >    - If stuck on a remediation issue after reasonable effort, the subagent uses `Skill("codex:rescue", args: "--wait <description of what's stuck>")` for an alternative implementation pass before exhausting rounds.
 > 9. If max rounds exhausted, message the lead with escalation details.
 > 10. After all assigned stories are verified, message the lead.
 >
 > Story directories MUST contain ONLY: baseline.json, verification.json, result.json.
-> The `integration-architect` subagent uses `codex:review` as an in-flight tool during implementation (see the agent's Codex Integration section). It is not a handoff gate — handoff is gated on the architect's own judgment that the implementation is done.
+> The `integration-architect` subagent uses a two-stage review (Ollama first, then Codex) as an in-flight tool during implementation (see the agent's Codex Integration section). It is not a handoff gate — handoff is gated on the architect's own judgment that the implementation is done.
 > Detect project language and consult `skills/languages/{language}.md` for all commands.
 
 **Verifier** (1 teammate)
@@ -169,20 +169,27 @@ Create an agent team with these roles. Each teammate's role description tells th
 >    - Message the architect with specific files, issues, and root cause categories
 >    - Wait for the architect to fix and re-message you
 >    - Re-verify using the SAME questions (max 5 rounds per story)
-> 9. **Last-mile adversarial review** — only when bullet 8's failure condition is NOT triggered (all VQs pass, all tests pass, AC coverage verified, no remaining objections — i.e., you would otherwise accept), run `codex:adversarial-review` as the final external check at the moment of declared completion. See **Last-mile: Codex adversarial review** below for invocation details. If it returns blocking findings, treat them as a remediation cycle (back to step 8 with the findings as the failure); if not, proceed to step 10.
+> 9. **Last-mile adversarial review** — only when bullet 8's failure condition is NOT triggered (all VQs pass, all tests pass, AC coverage verified, no remaining objections — i.e., you would otherwise accept), run the two-stage adversarial check at the moment of declared completion. See **Last-mile: Two-stage adversarial review** below for invocation details. If either stage returns blocking findings, treat them as a remediation cycle (back to step 8 with the findings as the failure); if not, proceed to step 10.
 > 10. When all questions pass, all tests pass, and the last-mile review is not blocking:
 >    - Update `{story_dir}/result.json`: set status="done", add verification_rounds, set final_outcome="accepted", set completed_at
 >    - Update `specs/epic-{name}/stories.json`: set this story's status to "done"
 >    - Message the lead that the story is verified
 > 11. If max rounds exhausted, message the lead with escalation details and remaining failures.
 >
-> **Last-mile: Codex adversarial review**
-> Run this only when you have reached a tentative *I would accept* verdict — all VQs pass (YES, or PARTIAL with severity < 7), all tests pass, AC coverage is verified, and you have no remaining objections. The adversarial review is the final external check at the moment of declared completion; it is not a phase that runs in parallel with examination.
-> - Invoke with `Skill("codex:adversarial-review", args: "--wait <focus>")` where `<focus>` summarizes the story's acceptance criteria and the key design choices the architect made.
+> **Last-mile: Two-stage adversarial review**
+> Run only when you have reached a tentative *I would accept* verdict — all VQs pass (YES, or PARTIAL with severity < 7), all tests pass, AC coverage is verified, and you have no remaining objections. This is the final external check at the moment of declared completion; it is not a phase that runs in parallel with examination.
+>
+> **Stage 1 — Ollama adversarial review (runs first):**
+> - Invoke `Skill("ollama:adversarial-review", args: "--wait <focus>")` where `<focus>` summarizes the story's acceptance criteria and the key design choices the architect made.
+> - If it returns any `critical` or `high` severity findings you judge as accurate → blocking: send findings to architect as a remediation cycle (counts against the 5-round budget); do NOT proceed to Stage 2.
+> - If it returns no blocking findings, or all findings are rejected as inaccurate → proceed to Stage 2.
+>
+> **Stage 2 — Codex adversarial review (runs only after Stage 1 clears):**
+> - Invoke `Skill("codex:adversarial-review", args: "--wait <focus>")` with the same `<focus>` text.
 > - The review returns a `verdict` (`approve` | `needs-attention`) and `findings` (each with severity, file, lines, confidence, recommendation).
 > - `needs-attention` with any `critical` or `high` severity finding is blocking — send those findings back to the architect for remediation alongside any other failures (counts as a remediation round against the 5-round budget).
-> - `low`/`medium` findings: report to the architect but do not block story completion.
-> - Do NOT auto-apply fixes — this review is read-only. All remediation goes through the architect.
+> - `low`/`medium` findings from either stage: report to the architect but do not block story completion.
+> - Do NOT auto-apply fixes — both reviews are read-only. All remediation goes through the architect.
 >
 > **Optional quality gates** (use if project supports them):
 > - If the project has Playwright + Docker Compose configured, include E2E tests in your test gate.
