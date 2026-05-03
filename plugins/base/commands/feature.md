@@ -109,6 +109,28 @@ Merge results into `specs/epic-{name}/exploration.json`.
 }
 ```
 
+### Produce Epic Architecture (always-on)
+
+After codebase exploration, before creating the team, produce `specs/epic-{name}/architecture.md`.
+
+Check `specs/epic-{name}/spec.md` YAML frontmatter for `arch_debate: true`.
+
+**If `arch_debate: true`:**
+Invoke `Skill("base:arch-debate", args: "--epic {epic_name} --spec specs/epic-{name}/spec.md")`.
+The skill reads `exploration.json`, runs a two-round Proposer ↔ Codex adversary debate, and outputs:
+- `docs/adr/ADR-{N:03d}-{epic-name}.md` — the decision record
+- `specs/epic-{name}/architecture.md` — the operational document all agents read
+
+**Default path (no debate flag):**
+Synthesize `exploration.json` directly into `specs/epic-{name}/architecture.md`:
+1. **Paradigm** — use the named paradigm from the code-explorer architecture findings. If the exploration did not identify one, default to: modular monolith at top level, package-by-feature for module layout, hexagonal seams at external boundaries.
+2. **Module map** — list each module this epic touches or creates: name, purpose, directory location, owned data.
+3. **Boundary rules** — "No direct imports across module boundaries. Cross-module access only through declared seam contracts." Add any project-specific rules from exploration.json.
+4. **Seams** — initially empty; the planner populates these when it identifies cross-story dependencies.
+5. **Implementation constraints** — any constraints from the spec or existing codebase patterns.
+
+`architecture.md` must exist before the team is created.
+
 ---
 
 ## Step 4: Create the Team
@@ -120,22 +142,24 @@ Create an agent team with these roles. Each teammate's role description tells th
 **Planner** (1 teammate)
 > You are a story planner. Your job is to:
 > 1. Read the spec at `specs/epic-{name}/spec.md` and exploration at `specs/epic-{name}/exploration.json`
-> 2. Explore the codebase to understand existing patterns, architecture, and test conventions
-> 3. Derive acceptance criteria — each must be specific, testable, and use state-change language (not intent language like "so that" or "enabling"). Name the exact function/field/component, the verb, and the resulting state.
-> 4. Write `specs/epic-{name}/acceptance-criteria.md`
-> 5. Split the feature into independent, vertically-sliced stories. Each story must be testable in isolation, have at least one AC, and include scope boundaries.
-> 6. Write `specs/epic-{name}/stories.json` following the schema at `schemas/stories.schema.json`
-> 7. Create story directories: `specs/epic-{name}/{id}-{story-name}/` for each story
-> 8. You may spawn a `story-planner` subagent for the detailed decomposition work.
-> 9. Message the lead when done.
+> 2. **Read `specs/epic-{name}/architecture.md`** — story decomposition must respect the paradigm, module map, and boundary rules declared there. If architecture.md is absent, message the lead before proceeding.
+> 3. Explore the codebase to understand existing patterns, architecture, and test conventions
+> 4. Derive acceptance criteria — each must be specific, testable, and use state-change language (not intent language like "so that" or "enabling"). Name the exact function/field/component, the verb, and the resulting state.
+> 5. Write `specs/epic-{name}/acceptance-criteria.md`
+> 6. Split the feature into independent, vertically-sliced stories. Each story must: be testable in isolation, have at least one AC, include scope boundaries, declare `owning_module` (a module from architecture.md).
+> 7. For cross-story dependencies: define the seam `contract` (type_name, fields, invariants) in stories.json before writing the stories that produce or consume it. Contract-first, then stories.
+> 8. Write `specs/epic-{name}/stories.json` following the schema at `schemas/stories.schema.json`
+> 9. Create story directories: `specs/epic-{name}/{id}-{story-name}/` for each story
+> 10. You may spawn a `story-planner` subagent for the detailed decomposition work.
+> 11. Message the lead when done.
 >
 > Detect project language from config files and consult `skills/languages/{language}.md` for conventions.
 
 **Architect** (1 teammate)
-> You are the integration architect. Wait for the lead to message you with story assignments. Then for each assigned story, in order:
+> You are the integration architect. **Read `specs/epic-{name}/architecture.md` before starting any story.** If architecture.md is absent, message the lead immediately — no story begins without it. Wait for the lead to message you with story assignments. Then for each assigned story, in order:
 > 1. Establish a test baseline: detect the project's test command from `skills/languages/{language}.md`, run the full test suite, record results in `{story_dir}/baseline.json`. ZERO TOLERANCE for failures — if any test fails, message the lead immediately.
 > 2. Design the component architecture for the story — interfaces, data flow, module boundaries
-> 3. Spawn an `integration-architect` subagent with the story spec, acceptance criteria, baseline, and exploration context. The subagent handles TDD implementation including spawning `pbt-dev` for components.
+> 3. Spawn an `integration-architect` subagent with the story spec, acceptance criteria, baseline, exploration context, and the path to `specs/epic-{name}/architecture.md`. The subagent handles TDD implementation including spawning `pbt-dev` for components; it must write `architecture.json` before any stubs (Step 1.5 in its protocol).
 > 4. Verification questions are written in two phases by the `integration-architect` subagent and recorded in `{story_dir}/verification.json` with a `phase` field on each record:
 >    - **Pre-impl** (before stubs/code, Step 2 of the subagent) — a commitment set with ≥1 question per category {QUALITY, ARCHITECTURE, TEST, SPEC, SECURITY} **plus one SPEC question per AC** the story covers (with `ac_id` set). Pre-impl questions are immutable once written.
 >    - **Post-impl** (after pbt-dev work, Step 6 of the subagent) — append-only implementation-specific questions with `phase: "post-impl"`.
@@ -156,7 +180,7 @@ Create an agent team with these roles. Each teammate's role description tells th
 > You verify implementation quality independently and skeptically. Core principle: GUILTY UNTIL PROVEN INNOCENT. For each story the architect sends you:
 > 1. Read the story spec from stories.json and its acceptance criteria
 > 2. Read `{story_dir}/verification.json` for the verification questions
-> 3. Validate artifacts: `{story_dir}/` must contain ONLY baseline.json, verification.json, result.json. If forbidden files exist, message the architect to remove them before you proceed.
+> 3. Validate artifacts: `{story_dir}/` must contain ONLY architecture.json, baseline.json, verification.json, result.json. If forbidden files exist, message the architect to remove them before you proceed. If architecture.json is missing, message the architect — it is a required artifact written before stubs (Step 1.5) and its absence means the architecture gate was skipped.
 > 4. **Pre-examination gate** — validate the commitment set is complete:
 >    - ≥1 pre-impl question for each category in {QUALITY, ARCHITECTURE, TEST, SPEC, SECURITY}
 >    - ≥1 pre-impl SPEC question with `ac_id` set, for every AC ID in the story's `acceptance_criteria` array (from stories.json)
@@ -198,7 +222,9 @@ Create an agent team with these roles. Each teammate's role description tells th
 
 ### When to Scale Up
 
-If stories.json has **4+ stories**, request an additional architect teammate to work stories in parallel with the first architect (architect-1 takes odd stories, architect-2 takes even). Both coordinate via messaging about shared interfaces. The verifier handles both architects' outputs.
+If stories.json has **4+ stories**, request an additional architect teammate to work stories in parallel with the first architect (architect-1 takes odd stories, architect-2 takes even). The verifier handles both architects' outputs.
+
+**Parallel gate (mandatory):** Before the second architect begins their first story, verify that every cross-story seam contract those stories will consume is defined with a typed `contract` in stories.json and reflected in `specs/epic-{name}/architecture.md`. No shared interface coordination through chat — seam contracts are written artifacts or work does not start. If any seam contract is missing, pause the second architect until the planner produces it.
 
 ---
 
@@ -261,20 +287,22 @@ pending → in_progress → done
 If resuming an epic:
 
 1. Read `epic-state.json` for current phase and completed stories
-2. Read `stories.json` for per-story statuses
-3. Check story directories for artifacts to determine exact resume point:
+2. Check that `specs/epic-{name}/architecture.md` exists. If missing, produce it following the "Produce Epic Architecture" step above before resuming any stories.
+3. Read `stories.json` for per-story statuses
+4. Check story directories for artifacts to determine exact resume point:
+   - No `architecture.json` → story needs architecture contract (Step 1.5)
    - No `baseline.json` → story needs baseline
    - `baseline.json` but no `result.json` → story needs implementation
    - `result.json` with status="in_progress" → check verification_rounds for resume point
    - `result.json` with status="done" → story complete
-4. Validate completed stories: each must have all 3 required artifacts (baseline.json, verification.json, result.json) with valid schemas. If violations found, present options to user: reset story, force continue, or abort.
-5. Check for escalated stories — if any, STOP. Present escalation to user via AskUserQuestion. Do not proceed past escalated stories.
-6. **Recreate the team** with the same three roles (Planner, Architect, Verifier)
-7. Message teammates with context about where we left off:
+5. Validate completed stories: each must have all 4 required artifacts (architecture.json, baseline.json, verification.json, result.json) with valid schemas. If violations found, present options to user: reset story, force continue, or abort.
+6. Check for escalated stories — if any, STOP. Present escalation to user via AskUserQuestion. Do not proceed past escalated stories.
+7. **Recreate the team** with the same three roles (Planner, Architect, Verifier)
+8. Message teammates with context about where we left off:
    - If stories.json exists: tell planner "Planning is complete, skip to done"
-   - Tell architect which stories are done and which is current/next
+   - Tell architect which stories are done and which is current/next; remind them architecture.md is at specs/epic-{name}/architecture.md
    - Tell verifier current verification state
-8. Continue from the last incomplete story
+9. Continue from the last incomplete story
 
 ---
 
@@ -283,6 +311,7 @@ If resuming an epic:
 Story directories MUST contain ONLY these files:
 ```
 {story_id}-{story_name}/
+├── architecture.json  # Module contract — written before any stubs (Step 1.5)
 ├── baseline.json      # Test snapshot before implementation
 ├── verification.json  # 5+ verification questions + answers
 └── result.json        # Implementation outcome, verification rounds
@@ -299,10 +328,14 @@ NO .md, .txt, .bak, .tmp, .log, or any other files. This enables crash recovery.
 | `specs/epic-{name}/spec.md` | Feature specification |
 | `specs/epic-{name}/epic-state.json` | Epic-level state machine |
 | `specs/epic-{name}/exploration.json` | Codebase exploration findings |
+| `specs/epic-{name}/architecture.md` | Living epic architecture (paradigm, modules, seams, boundary rules) |
+| `specs/epic-{name}/arch-debate.json` | Debate state for crash recovery (present when arch_debate: true) |
 | `specs/epic-{name}/acceptance-criteria.md` | Testable ACs |
 | `specs/epic-{name}/stories.json` | Story definitions (schema: `schemas/stories.schema.json`) |
 | `specs/epic-{name}/mocks-registry.json` | Temporary mock tracking |
+| `specs/epic-{name}/{id}-{name}/architecture.json` | Per-story module contract (written before stubs) |
 | `specs/epic-{name}/{id}-{name}/baseline.json` | Pre-implementation test snapshot |
 | `specs/epic-{name}/{id}-{name}/verification.json` | Verification questions + answers |
 | `specs/epic-{name}/{id}-{name}/result.json` | Implementation outcome |
+| `docs/adr/` | Architecture Decision Records (one per arch_debate run or major revision) |
 | `skills/languages/{language}.md` | Project language conventions |

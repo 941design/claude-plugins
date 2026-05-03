@@ -39,13 +39,37 @@ Run existing test suite (adapt command to language). ZERO TOLERANCE for failures
 
 ### Step 1: Architecture Design
 
-1. Identify all components (classes, interfaces, modules, functions)
-2. Define dependencies between components
-3. Design interfaces with complete contracts
-4. Extract all business logic into testable properties
-5. Adapt to target language idioms
+Answer these five questions before designing anything:
 
-Design principles: clear separation of concerns, minimal coupling, testable interfaces, consistent with existing codebase patterns.
+1. **Owning module** — What module does this story's `owning_module` field name? Does it already exist in the codebase or does this story create it? If creating, state its purpose and directory location.
+2. **Public contract** — What types and functions will this module expose to callers? List them with full signatures. These are the module's public API — callers may only use these.
+3. **Boundary check** — Does this story cross a module boundary? If yes, through which seam? Read `specs/epic-{name}/architecture.md` for declared seam contracts. If the required seam has no typed contract yet, message the Architect teammate immediately — no implementation begins until that seam contract is frozen.
+4. **Data ownership** — What data does this module own exclusively? Is ownership non-overlapping with other modules declared in architecture.md?
+5. **Paradigm compliance** — Read `specs/epic-{name}/architecture.md`. Does this design comply with the declared paradigm, module map, and boundary rules? Identify any rule it would violate.
+
+### Step 1.5: Write `architecture.json` (Hard Gate)
+
+Before any stubs, tests, or implementation code, write `{story_dir}/architecture.json`:
+
+```json
+{
+  "module_name": "",
+  "purpose": "",
+  "public_api": [{ "name": "", "signature": "", "description": "" }],
+  "private_files": [],
+  "owned_data": [],
+  "dependencies_allowed": [],
+  "dependencies_forbidden": [],
+  "external_ports": [],
+  "events_emitted": [],
+  "events_consumed": [],
+  "test_targets": []
+}
+```
+
+Verify the entries are consistent with `specs/epic-{name}/architecture.md`. If any `dependencies_allowed` entry is absent from architecture.md's allowed edges, flag it and message the Architect teammate before proceeding.
+
+No stubs, tests, or implementation code may exist until `architecture.json` is written and compliant.
 
 ### Step 2: Pre-Implementation Verification Questions
 
@@ -55,7 +79,7 @@ The commitment set has two parts.
 
 **Part A — Generic-category questions (5 mandatory).** At least one question per category, instantiated for this story's spec:
 - `QUALITY` — code cleanliness, dead code, stub markers
-- `ARCHITECTURE` — module boundaries, coupling, naming, design compliance with `spec.md` decisions
+- `ARCHITECTURE` — module boundaries, coupling, naming, design compliance with `specs/epic-{name}/architecture.md` decisions; always include a second mandatory ARCHITECTURE question: "Could `{owning_module}` be deleted and rewritten without modifying any file outside its `dependencies_allowed` list? If not, which cross-module dependencies exist and do they flow through declared seam contracts in architecture.md?"
 - `TEST` — unit, property, and integration coverage of the named artifacts
 - `SPEC` — alignment with the spec's intent (separate from per-AC questions below)
 - `SECURITY` — defensive checks and validation at boundaries (substitute `BEST_PRACTICES` if the story has no security surface)
@@ -121,7 +145,7 @@ Write `result.json` documenting:
 
 ## Artifact Rules
 
-Story directories MUST contain ONLY: `baseline.json`, `verification.json`, `result.json`. No .md, .txt, or extra files.
+Story directories MUST contain ONLY: `baseline.json`, `verification.json`, `result.json`, `architecture.json`. No .md, .txt, or extra files.
 
 ## Review Integration
 

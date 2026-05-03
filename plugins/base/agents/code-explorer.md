@@ -27,6 +27,8 @@ Find existing features resembling the planned one. Trace from entry point throug
 ### architecture
 Map module/package boundaries, abstraction layers, dependency direction, integration points, configuration patterns, and data flow conventions.
 
+**Paradigm identification (mandatory):** Name the dominant architectural paradigm(s) in use — choose from: layered/n-tier, hexagonal/ports-and-adapters, package-by-feature, modular monolith, event-driven, CQRS, functional core + imperative shell, or mixed. State the evidence with file:line references. If different areas use different paradigms, identify each area separately. Use exact pattern names — do not describe structure without naming the pattern.
+
 ### testing-and-conventions
 Identify test framework/runner/organization, project guidelines (CLAUDE.md), naming conventions, error handling patterns, linting/formatting config, E2E infrastructure, CI/CD.
 

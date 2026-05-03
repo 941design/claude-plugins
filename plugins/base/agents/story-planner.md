@@ -41,6 +41,15 @@ documented in `base:spec-template`; the schema enforces the regex
 2. **Observable Result** — each story delivers something testable with at least one AC
 3. **Vertical Slice** — end-to-end thin slices, not horizontal layers
 4. **Ordered by complexity** — simpler first, foundation before features
+5. **Module Ownership** — each story belongs to exactly one named module; set `owning_module` in stories.json to the module name from `specs/epic-{name}/architecture.md`
+
+## Seam Contract Rules
+
+When a story depends on a component that another story will implement (a cross-story seam):
+- Define the seam's `contract` in stories.json with at minimum: `type_name`, `fields` (name + type per field), and `invariants` (testable assertions)
+- A mock created for story A to consume must define the contract that story B will satisfy — not just the dependency fact
+- The contract becomes both the mock's specification and the implementing story's acceptance criteria
+- Contract-first: define the seam before planning the stories that produce or consume it
 
 ## Mock Strategy
 
@@ -56,6 +65,9 @@ Before output, verify:
 - `story_order` defined
 - Scope-to-AC alignment: every `scope.includes` item backed by assigned AC
 - Data flow seams: no orphaned intermediate steps in cross-story flows
+- Module ownership: every story has `owning_module` set to a non-empty string
+- Seam contracts: every entry in the top-level `seams` array has a `contract` with at minimum a `type_name`
+- No two stories claim the same `owning_module` unless the spec explicitly allows shared module ownership
 
 ## Language Detection
 

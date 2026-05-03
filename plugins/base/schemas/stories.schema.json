@@ -52,9 +52,10 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["data", "source", "destination"],
+        "required": ["data", "source", "destination", "contract"],
         "properties": {
           "data": { "type": "string" },
+          "contract": { "$ref": "#/$defs/seam_contract" },
           "source": { "$ref": "#/$defs/seam_endpoint" },
           "intermediaries": {
             "type": "array",
@@ -64,7 +65,7 @@
         }
       },
       "default": [],
-      "description": "Cross-story data flow seams — each intermediary must be owned by a story"
+      "description": "Cross-story data flow seams — each seam requires a typed contract frozen before parallel implementation"
     }
   },
   "$defs": {
@@ -146,6 +147,21 @@
           "enum": ["pending", "in_progress", "done", "blocked", "escalated"],
           "description": "Current story status"
         },
+        "owning_module": {
+          "type": "string",
+          "description": "Name of the module this story belongs to and is responsible for implementing (must match a module in architecture.md)"
+        },
+        "creates_seam": {
+          "type": "boolean",
+          "default": false,
+          "description": "True if this story creates a new cross-story seam contract"
+        },
+        "consumes_seams": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "type_names of seam contracts this story depends on (must be defined in the top-level seams array)"
+        },
         "notes": {
           "type": "string",
           "description": "Additional context or implementation notes"
@@ -172,6 +188,34 @@
         "resolution_story": {
           "type": ["string", "null"],
           "description": "Story ID that will resolve this mock"
+        }
+      }
+    },
+    "seam_contract": {
+      "type": "object",
+      "required": ["type_name"],
+      "description": "Typed interface contract that stories agree on before implementation",
+      "properties": {
+        "type_name": {
+          "type": "string",
+          "description": "Name of the interface or type (e.g. PaymentResult, UserEvent)"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "type"],
+            "properties": {
+              "name": { "type": "string" },
+              "type": { "type": "string" },
+              "optional": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "invariants": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Testable assertions this contract must satisfy (e.g. 'amount is always positive')"
         }
       }
     },
