@@ -1,0 +1,20 @@
+{
+  "name": "meta",
+  "version": "0.1.0",
+  "description": "Meta tooling — scaffolds new advisory skill pairs (agent + advisory skill + update skill + 3-5 supporting docs) into any plugin in this repository, following the 941design knowledge-skill pattern.",
+  "author": {
+    "name": "941design"
+  },
+  "repository": "https://github.com/941design/claude-plugins",
+  "keywords": [
+    "meta",
+    "scaffold",
+    "skill-creation",
+    "agent",
+    "advisory-skill",
+    "update-skill",
+    "knowledge-skill",
+    "templates",
+    "plugin-development"
+  ]
+}
