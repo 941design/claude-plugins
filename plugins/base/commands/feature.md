@@ -10,6 +10,15 @@ model: opus
 
 You are the **team lead**. Your job is to create and coordinate an agent team that implements a feature from specification through verified, tested code.
 
+## Conventions for spawning vs. messaging
+
+Two distinct mechanisms exist; do not confuse them. **Agent creates a new instance; SendMessage finds an existing one by name.**
+
+- **Spawning a fresh subagent** → use the **Agent tool** with an explicit `subagent_type` (e.g. `subagent_type: base:integration-architect`). This is the only way to launch agents named `base:*` such as `base:integration-architect`, `base:code-explorer`, `base:spec-validator`, `base:story-planner`, `base:pbt-dev`, `base:verification-examiner`. Always namespace-qualify with `base:`.
+- **Messaging an existing teammate** → use **SendMessage** with the teammate's role name (e.g. `architect`, `verifier`, `planner`). SendMessage to a name that does not match a current teammate **routes successfully but silently no-ops** — work will stall with no error. There is no hook or runtime check that catches this; prevention is by getting the call right. Never use SendMessage to "spawn" a `base:*` subagent.
+
+Whenever this document says "spawn an X subagent" it means: call the Agent tool with `subagent_type: base:X`.
+
 ## Input: $ARGUMENTS
 
 ---
@@ -47,7 +56,7 @@ clarification messages when a section is missing or an AC ID is malformed
 
 If gaps exist, use AskUserQuestion to get clarifications. Update the spec. Max 3 rounds — if still unclear, stop and explain what's missing.
 
-For complex specs, spawn a `spec-validator` subagent for thorough analysis.
+For complex specs, use the Agent tool with `subagent_type: base:spec-validator` for thorough analysis.
 
 ---
 
@@ -91,7 +100,7 @@ Write `specs/epic-${epic_name}/epic-state.json`:
 
 ### Codebase Exploration
 
-Spawn 2-3 `code-explorer` subagents in parallel with different focuses:
+Use the Agent tool with `subagent_type: base:code-explorer` to launch 2-3 explorers in parallel (one Agent call per focus, sent in a single message), with different focuses:
 - **similar-features**: Existing features resembling this one
 - **architecture**: Module boundaries, abstraction layers, data flow
 - **testing-and-conventions**: Test framework, conventions, E2E infrastructure
@@ -150,7 +159,7 @@ Create an agent team with these roles. Each teammate's role description tells th
 > 7. For cross-story dependencies: define the seam `contract` (type_name, fields, invariants) in stories.json before writing the stories that produce or consume it. Contract-first, then stories.
 > 8. Write `specs/epic-{name}/stories.json` following the schema at `schemas/stories.schema.json`
 > 9. Create story directories: `specs/epic-{name}/{id}-{story-name}/` for each story
-> 10. You may spawn a `story-planner` subagent for the detailed decomposition work.
+> 10. You may use the Agent tool with `subagent_type: base:story-planner` for the detailed decomposition work.
 > 11. Message the lead when done.
 >
 > Detect project language from config files and consult `skills/languages/{language}.md` for conventions.
@@ -159,21 +168,21 @@ Create an agent team with these roles. Each teammate's role description tells th
 > You are the integration architect. **Read `specs/epic-{name}/architecture.md` before starting any story.** If architecture.md is absent, message the lead immediately — no story begins without it. Wait for the lead to message you with story assignments. Then for each assigned story, in order:
 > 1. Establish a test baseline: detect the project's test command from `skills/languages/{language}.md`, run the full test suite, record results in `{story_dir}/baseline.json`. ZERO TOLERANCE for failures — if any test fails, message the lead immediately.
 > 2. Design the component architecture for the story — interfaces, data flow, module boundaries
-> 3. Spawn an `integration-architect` subagent with the story spec, acceptance criteria, baseline, exploration context, and the path to `specs/epic-{name}/architecture.md`. The subagent handles TDD implementation including spawning `pbt-dev` for components; it must write `architecture.json` before any stubs (Step 1.5 in its protocol).
-> 4. Verification questions are written in two phases by the `integration-architect` subagent and recorded in `{story_dir}/verification.json` with a `phase` field on each record:
+> 3. Use the Agent tool with `subagent_type: base:integration-architect` to delegate implementation. **Do not use SendMessage for this — that addresses an existing teammate, not a new subagent, and the message will silently no-op.** The Agent prompt must include the story spec, acceptance criteria, baseline, exploration context, and the path to `specs/epic-{name}/architecture.md`. The subagent handles TDD implementation, including its own Agent calls to `subagent_type: base:pbt-dev` for components; it must write `architecture.json` before any stubs (Step 1.5 in its protocol).
+> 4. Verification questions are written in two phases by the `base:integration-architect` subagent and recorded in `{story_dir}/verification.json` with a `phase` field on each record:
 >    - **Pre-impl** (before stubs/code, Step 2 of the subagent) — a commitment set with ≥1 question per category {QUALITY, ARCHITECTURE, TEST, SPEC, SECURITY} **plus one SPEC question per AC** the story covers (with `ac_id` set). Pre-impl questions are immutable once written.
 >    - **Post-impl** (after pbt-dev work, Step 6 of the subagent) — append-only implementation-specific questions with `phase: "post-impl"`.
 >    Ensure both phases are populated before notifying the verifier.
 > 5. Ensure `{story_dir}/result.json` documents what was implemented, files created/modified, test counts
 > 6. Validate: story directory contains ONLY baseline.json, verification.json, result.json (no .md, .txt, or extras). Delete any forbidden files.
 > 7. Message the verifier that this story is ready for review
-> 8. When the verifier reports issues, route them to the `integration-architect` subagent for remediation. The subagent treats verifier findings the same way it treats original spec, including using the two-stage review (Ollama first, then Codex) as an in-flight tool. Once it judges the remediation done, re-notify the verifier. Max 5 remediation rounds per story.
+> 8. When the verifier reports issues, route them to a fresh `base:integration-architect` subagent (Agent tool, not SendMessage) for remediation. The subagent treats verifier findings the same way it treats original spec, including using the two-stage review (Ollama first, then Codex) as an in-flight tool. Once it judges the remediation done, re-notify the verifier. Max 5 remediation rounds per story.
 >    - If stuck on a remediation issue after reasonable effort, the subagent uses `Skill("codex:rescue", args: "--wait <description of what's stuck>")` for an alternative implementation pass before exhausting rounds.
 > 9. If max rounds exhausted, message the lead with escalation details.
 > 10. After all assigned stories are verified, message the lead.
 >
 > Story directories MUST contain ONLY: baseline.json, verification.json, result.json.
-> The `integration-architect` subagent uses a two-stage review (Ollama first, then Codex) as an in-flight tool during implementation (see the agent's Codex Integration section). It is not a handoff gate — handoff is gated on the architect's own judgment that the implementation is done.
+> The `base:integration-architect` subagent uses a two-stage review (Ollama first, then Codex) as an in-flight tool during implementation (see the agent's Codex Integration section). It is not a handoff gate — handoff is gated on the architect's own judgment that the implementation is done.
 > Detect project language and consult `skills/languages/{language}.md` for all commands.
 
 **Verifier** (1 teammate)
@@ -185,8 +194,8 @@ Create an agent team with these roles. Each teammate's role description tells th
 >    - ≥1 pre-impl question for each category in {QUALITY, ARCHITECTURE, TEST, SPEC, SECURITY}
 >    - ≥1 pre-impl SPEC question with `ac_id` set, for every AC ID in the story's `acceptance_criteria` array (from stories.json)
 >    
->    If gaps exist, message the architect with the specific missing categories and AC IDs. The architect backfills the missing pre-impl questions (this is a process concession — backfilled questions still carry `phase: "pre-impl"` but lose the genuine pre-implementation guarantee, since the implementation is already visible). Max 1 round on this gate; if it fails twice, escalate to lead — repeated commitment-set gaps mean Step 2 of `integration-architect` is being skipped.
-> 5. Spawn `verification-examiner` subagents (one per question or batch of related questions) to investigate each question with evidence. AC-derived SPEC questions (those with `ac_id`) get the AC-coverage procedure described in `verification-examiner.md`.
+>    If gaps exist, message the architect with the specific missing categories and AC IDs. The architect backfills the missing pre-impl questions (this is a process concession — backfilled questions still carry `phase: "pre-impl"` but lose the genuine pre-implementation guarantee, since the implementation is already visible). Max 1 round on this gate; if it fails twice, escalate to lead — repeated commitment-set gaps mean Step 2 of `base:integration-architect` is being skipped.
+> 5. Use the Agent tool with `subagent_type: base:verification-examiner` (one Agent call per question or batch of related questions, sent in parallel where possible) to investigate each question with evidence. AC-derived SPEC questions (those with `ac_id`) get the AC-coverage procedure described in `verification-examiner.md`.
 > 6. Collect results. For each question, determine: YES (passes), NO (fails), or PARTIAL
 > 7. **Re-run the full test suite yourself** — never trust claimed results. Detect the test command from `skills/languages/{language}.md`.
 > 8. If any question is NO or PARTIAL with severity >= 7, or any test fails:

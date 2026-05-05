@@ -122,7 +122,7 @@ Write integration tests BEFORE implementation. These tests:
 
 ### Step 5: Delegate to pbt-dev
 
-For each non-trivial component, spawn a `pbt-dev` subagent with:
+For each non-trivial component, use the **Agent tool** with `subagent_type: base:pbt-dev` (not SendMessage — that addresses existing teammates only). The Agent prompt must include:
 - Complete specification (interface + contracts + behavior)
 - Referenced files (stubs, types, dependencies)
 - Clear scope boundaries

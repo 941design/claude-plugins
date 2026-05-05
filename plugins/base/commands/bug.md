@@ -38,7 +38,7 @@ ELSE:
 
 ### Explore the Codebase
 
-Spawn 2 `code-explorer` subagents in parallel:
+Use the Agent tool with `subagent_type: base:code-explorer` to launch 2 explorers in parallel (both Agent calls in a single message):
 - **Agent 1**: Bug symptoms — error messages, affected components, recent changes
 - **Agent 2**: Architecture — dependencies, integration points, similar past bugs
 
@@ -106,7 +106,7 @@ Create an agent team with two roles:
 > 4. Check: Are changes minimal and scoped to the contract?
 > 5. **Re-run the full test suite yourself** — confirm all tests pass. Detect test command from `skills/languages/{language}.md`.
 > 6. Read the reproduction test — does it actually test the reported bug?
-> 7. Spawn `verification-examiner` subagents for the verification questions the lead provides
+> 7. Use the Agent tool with `subagent_type: base:verification-examiner` (one Agent call per question or batch of related questions, sent in parallel where possible) for the verification questions the lead provides — not SendMessage, which only addresses existing teammates
 > 8. Look for regressions or side effects in modified files
 > 9. If issues found from steps 1-8: message the fixer with specific feedback (files, lines, issues), wait for fixes (max 3 rounds)
 > 10. **Last-mile: Codex adversarial review** — only when no issues remain from steps 1-8 (you would otherwise accept), run the adversarial as the final external check at the moment of declared completion:
