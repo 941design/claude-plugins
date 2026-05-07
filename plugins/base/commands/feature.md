@@ -3,7 +3,7 @@ name: feature
 description: Implement features from specs or natural language using an agent team. ALWAYS use this for ALL feature work, including small tasks.
 argument-hint: <@spec-file> OR <feature-description> OR <epic-directory>
 allowed-tools: Task, Read, Write, Edit, Bash, AskUserQuestion, Skill
-model: opus
+model: sonnet
 ---
 
 # Feature Implementation — Agent Team Blueprint
@@ -144,123 +144,108 @@ Synthesize `exploration.json` directly into `specs/epic-{name}/architecture.md`:
 
 ## Step 4: Create the Team
 
-Create an agent team with these roles. Each teammate's role description tells them what they're responsible for and how to communicate.
+Create an agent team with one role. The lead (this session, running on Sonnet) does the mechanical coordination — spawning subagents, reading artifacts, updating state files, applying fast-path decision rules. The Decider (Opus) is the decision authority, consulted only on non-trivial judgment calls.
 
 ### Team Composition
 
-**Planner** (1 teammate)
-> You are a story planner. Your job is to:
-> 1. Read the spec at `specs/epic-{name}/spec.md` and exploration at `specs/epic-{name}/exploration.json`
-> 2. **Read `specs/epic-{name}/architecture.md`** — story decomposition must respect the paradigm, module map, and boundary rules declared there. If architecture.md is absent, message the lead before proceeding.
-> 3. Explore the codebase to understand existing patterns, architecture, and test conventions
-> 4. Derive acceptance criteria — each must be specific, testable, and use state-change language (not intent language like "so that" or "enabling"). Name the exact function/field/component, the verb, and the resulting state.
-> 5. Write `specs/epic-{name}/acceptance-criteria.md`
-> 6. Split the feature into independent, vertically-sliced stories. Each story must: be testable in isolation, have at least one AC, include scope boundaries, declare `owning_module` (a module from architecture.md).
-> 7. For cross-story dependencies: define the seam `contract` (type_name, fields, invariants) in stories.json before writing the stories that produce or consume it. Contract-first, then stories.
-> 8. Write `specs/epic-{name}/stories.json` following the schema at `schemas/stories.schema.json`
-> 9. Create story directories: `specs/epic-{name}/{id}-{story-name}/` for each story
-> 10. You may use the Agent tool with `subagent_type: base:story-planner` for the detailed decomposition work.
-> 11. Message the lead when done.
+**Decider** (1 teammate, model: opus)
+> You are the decision authority for this epic. You are consulted only when
+> the lead escalates a non-trivial judgment call. Routine outcomes (story
+> passed, first retry on a clear failure) are handled by the lead without
+> your input.
 >
-> Detect project language from config files and consult `skills/languages/{language}.md` for conventions.
+> When the lead messages you, it will provide: story artifacts, failure
+> details, remediation history, and a specific question. Respond with one of:
+>   RETRY — restate the problem as a specific remediation prompt for the
+>           architect. Include the exact files, lines, and what must change.
+>   ESCALATE — the story cannot be resolved automatically. Provide the reason
+>              and what the user must decide.
+>   ACCEPT — the story outcome is acceptable despite partial findings. State
+>            any caveats to record in result.json.
+>   REJECT — enumerate the specific failures that block acceptance.
+>
+> You do not spawn subagents. You do not manage state files. You do not read
+> artifacts yourself unless the lead provides them in context.
 
-**Architect** (1 teammate)
-> You are the integration architect. **Read `specs/epic-{name}/architecture.md` before starting any story.** If architecture.md is absent, message the lead immediately — no story begins without it. Wait for the lead to message you with story assignments. Then for each assigned story, in order:
-> 1. Establish a test baseline: detect the project's test command from `skills/languages/{language}.md`, run the full test suite, record results in `{story_dir}/baseline.json`. ZERO TOLERANCE for failures — if any test fails, message the lead immediately.
-> 2. Design the component architecture for the story — interfaces, data flow, module boundaries
-> 3. Use the Agent tool with `subagent_type: base:integration-architect` to delegate implementation. **Do not use SendMessage for this — that addresses an existing teammate, not a new subagent, and the message will silently no-op.** The Agent prompt must include the story spec, acceptance criteria, baseline, exploration context, and the path to `specs/epic-{name}/architecture.md`. The subagent handles TDD implementation, including its own Agent calls to `subagent_type: base:pbt-dev` for components; it must write `architecture.json` before any stubs (Step 1.5 in its protocol).
-> 4. Verification questions are written in two phases by the `base:integration-architect` subagent and recorded in `{story_dir}/verification.json` with a `phase` field on each record:
->    - **Pre-impl** (before stubs/code, Step 2 of the subagent) — a commitment set with ≥1 question per category {QUALITY, ARCHITECTURE, TEST, SPEC, SECURITY} **plus one SPEC question per AC** the story covers (with `ac_id` set). Pre-impl questions are immutable once written.
->    - **Post-impl** (after pbt-dev work, Step 6 of the subagent) — append-only implementation-specific questions with `phase: "post-impl"`.
->    Ensure both phases are populated before notifying the verifier.
-> 5. Ensure `{story_dir}/result.json` documents what was implemented, files created/modified, test counts
-> 6. Validate: story directory contains ONLY baseline.json, verification.json, result.json (no .md, .txt, or extras). Delete any forbidden files.
-> 7. Message the verifier that this story is ready for review
-> 8. When the verifier reports issues, route them to a fresh `base:integration-architect` subagent (Agent tool, not SendMessage) for remediation. The subagent treats verifier findings the same way it treats original spec, including using the two-stage review (Ollama first, then Codex) as an in-flight tool. Once it judges the remediation done, re-notify the verifier. Max 5 remediation rounds per story.
->    - If stuck on a remediation issue after reasonable effort, the subagent uses `Skill("codex:rescue", args: "--wait <description of what's stuck>")` for an alternative implementation pass before exhausting rounds.
-> 9. If max rounds exhausted, message the lead with escalation details.
-> 10. After all assigned stories are verified, message the lead.
->
-> Story directories MUST contain ONLY: baseline.json, verification.json, result.json.
-> The `base:integration-architect` subagent uses a two-stage review (Ollama first, then Codex) as an in-flight tool during implementation (see the agent's Codex Integration section). It is not a handoff gate — handoff is gated on the architect's own judgment that the implementation is done.
-> Detect project language and consult `skills/languages/{language}.md` for all commands.
+### Planning Phase
 
-**Verifier** (1 teammate)
-> You verify implementation quality independently and skeptically. Core principle: GUILTY UNTIL PROVEN INNOCENT. For each story the architect sends you:
-> 1. Read the story spec from stories.json and its acceptance criteria
-> 2. Read `{story_dir}/verification.json` for the verification questions
-> 3. Validate artifacts: `{story_dir}/` must contain ONLY architecture.json, baseline.json, verification.json, result.json. If forbidden files exist, message the architect to remove them before you proceed. If architecture.json is missing, message the architect — it is a required artifact written before stubs (Step 1.5) and its absence means the architecture gate was skipped.
-> 4. **Pre-examination gate** — validate the commitment set is complete:
->    - ≥1 pre-impl question for each category in {QUALITY, ARCHITECTURE, TEST, SPEC, SECURITY}
->    - ≥1 pre-impl SPEC question with `ac_id` set, for every AC ID in the story's `acceptance_criteria` array (from stories.json)
->    
->    If gaps exist, message the architect with the specific missing categories and AC IDs. The architect backfills the missing pre-impl questions (this is a process concession — backfilled questions still carry `phase: "pre-impl"` but lose the genuine pre-implementation guarantee, since the implementation is already visible). Max 1 round on this gate; if it fails twice, escalate to lead — repeated commitment-set gaps mean Step 2 of `base:integration-architect` is being skipped.
-> 5. Use the Agent tool with `subagent_type: base:verification-examiner` (one Agent call per question or batch of related questions, sent in parallel where possible) to investigate each question with evidence. AC-derived SPEC questions (those with `ac_id`) get the AC-coverage procedure described in `verification-examiner.md`.
-> 6. Collect results. For each question, determine: YES (passes), NO (fails), or PARTIAL
-> 7. **Re-run the full test suite yourself** — never trust claimed results. Detect the test command from `skills/languages/{language}.md`.
-> 8. If any question is NO or PARTIAL with severity >= 7, or any test fails:
->    - Message the architect with specific files, issues, and root cause categories
->    - Wait for the architect to fix and re-message you
->    - Re-verify using the SAME questions (max 5 rounds per story)
-> 9. **Last-mile adversarial review** — only when bullet 8's failure condition is NOT triggered (all VQs pass, all tests pass, AC coverage verified, no remaining objections — i.e., you would otherwise accept), run the two-stage adversarial check at the moment of declared completion. See **Last-mile: Two-stage adversarial review** below for invocation details. If either stage returns blocking findings, treat them as a remediation cycle (back to step 8 with the findings as the failure); if not, proceed to step 10.
-> 10. When all questions pass, all tests pass, and the last-mile review is not blocking:
->    - Update `{story_dir}/result.json`: set status="done", add verification_rounds, set final_outcome="accepted", set completed_at
->    - Update `specs/epic-{name}/stories.json`: set this story's status to "done"
->    - Message the lead that the story is verified
-> 11. If max rounds exhausted, message the lead with escalation details and remaining failures.
->
-> **Last-mile: Two-stage adversarial review**
-> Run only when you have reached a tentative *I would accept* verdict — all VQs pass (YES, or PARTIAL with severity < 7), all tests pass, AC coverage is verified, and you have no remaining objections. This is the final external check at the moment of declared completion; it is not a phase that runs in parallel with examination.
->
-> **Stage 1 — Ollama adversarial review (runs first):**
-> - Invoke `Skill("ollama:adversarial-review", args: "--wait <focus>")` where `<focus>` summarizes the story's acceptance criteria and the key design choices the architect made.
-> - If it returns any `critical` or `high` severity findings you judge as accurate → blocking: send findings to architect as a remediation cycle (counts against the 5-round budget); do NOT proceed to Stage 2.
-> - If it returns no blocking findings, or all findings are rejected as inaccurate → proceed to Stage 2.
->
-> **Stage 2 — Codex adversarial review (runs only after Stage 1 clears):**
-> - Invoke `Skill("codex:adversarial-review", args: "--wait <focus>")` with the same `<focus>` text.
-> - The review returns a `verdict` (`approve` | `needs-attention`) and `findings` (each with severity, file, lines, confidence, recommendation).
-> - `needs-attention` with any `critical` or `high` severity finding is blocking — send those findings back to the architect for remediation alongside any other failures (counts as a remediation round against the 5-round budget).
-> - `low`/`medium` findings from either stage: report to the architect but do not block story completion.
-> - Do NOT auto-apply fixes — both reviews are read-only. All remediation goes through the architect.
->
-> **Optional quality gates** (use if project supports them):
-> - If the project has Playwright + Docker Compose configured, include E2E tests in your test gate.
->
-> Detect project language and consult `skills/languages/{language}.md` for test commands and tools.
+After creating the Decider, run the planning phase:
 
-### When to Scale Up
+1. Spawn `Agent(subagent_type: base:story-planner)` with: spec path, exploration.json path, architecture.md path. Wait for completion.
+2. Read `stories.json` directly.
+3. Sanity check: all ACs covered, `story_order` defined, no duplicate story IDs.
+   - If issues are minor and unambiguous (typos, missing scope boundary, missing AC reference): spawn a second `Agent(subagent_type: base:story-planner)` with targeted corrections.
+   - If issues require judgment (AC interpretation, story split disagreement, scope ambiguity): `SendMessage(Decider)` with the gap and the specific question. Apply the Decider's response before proceeding.
+4. When `stories.json` is valid, proceed to the implementation loop in Step 5.
 
-If stories.json has **4+ stories**, request an additional architect teammate to work stories in parallel with the first architect (architect-1 takes odd stories, architect-2 takes even). The verifier handles both architects' outputs.
-
-**Parallel gate (mandatory):** Before the second architect begins their first story, verify that every cross-story seam contract those stories will consume is defined with a typed `contract` in stories.json and reflected in `specs/epic-{name}/architecture.md`. No shared interface coordination through chat — seam contracts are written artifacts or work does not start. If any seam contract is missing, pause the second architect until the planner produces it.
+The lead spawns `base:story-planner` via the Agent tool — never via TeamCreate or SendMessage. There is no persistent Planner teammate.
 
 ---
 
 ## Step 5: Coordinate the Workflow
 
-As lead, your coordination responsibilities:
+As lead, you drive the implementation loop directly. There is no persistent Architect or Verifier teammate. For each story you spawn fresh `base:integration-architect` and `base:verification-examiner` subagents via the Agent tool. The Decider is consulted only on judgment calls per the routing rules below.
 
-1. **After creating the team**, message the planner to begin
-2. **When planner finishes** (planner messages you), review stories.json yourself:
-   - Sanity check: all ACs covered, stories make sense, story_order defined
-   - If issues: message planner with feedback
-   - If good: message architect(s) to begin, providing story assignments
-3. **Monitor progress** — the architect and verifier communicate directly for story-level remediation cycles. You observe but don't relay.
-4. **Handle escalations** — if the verifier or architect message you about unresolvable issues:
-   - Investigate: read the story artifacts, check test output
-   - Provide guidance and tell them to retry, OR
-   - Use AskUserQuestion to get user input, OR
-   - Mark the story as escalated in epic-state.json and stories.json
-5. **After each story verified** (verifier messages you):
-   - Update `epic-state.json`: add story ID to `completed_stories`, update `updated_at`
-   - If more stories remain: architect continues to next (they manage their own sequencing)
-6. **When all stories are verified**, do final checks:
-   - Run the full test suite yourself — all tests must pass
-   - Check that all ACs from acceptance-criteria.md are covered by done stories
-   - Verify no temporary mocks remain unresolved (check mocks-registry.json)
-   - If unresolved mocks: create an additional story to resolve them, message architect
-   - Update epic-state.json: status="done", phase="COMPLETE"
+### Implementation loop
+
+```
+FOR each story in stories.json ordered by story_order WHERE status = pending:
+
+  1. Update stories.json: story status → in_progress.
+     Update epic-state.json: updated_at.
+
+  2. Spawn Agent(subagent_type: base:integration-architect) with:
+       - the story spec (the relevant entry from stories.json)
+       - acceptance criteria (acceptance-criteria.md, filtered to this story's ACs)
+       - exploration.json (path)
+       - architecture.md (path)
+     Context MUST NOT include result.json or artifacts from prior stories — every story gets a fresh subagent with a clean context window. Wait for the subagent to write {story_dir}/result.json.
+
+  3. Read {story_dir}/verification.json.
+     Spawn Agent(subagent_type: base:verification-examiner) for each verification question, or each batch of related questions. Independent batches MUST be sent in parallel — single message, multiple Agent tool calls. Each examiner returns YES, NO, or PARTIAL with severity and evidence.
+     Collect all results.
+
+  4. Apply decision rules:
+
+     FAST PATH — pass:
+       All questions YES, or PARTIAL with severity < 7. All tests pass.
+       → Update {story_dir}/result.json: status=done, final_outcome=accepted, completed_at.
+       → Update stories.json: this story's status → done.
+       → Update epic-state.json: append story ID to completed_stories.
+       → Continue to next story. (No Decider consult.)
+
+     FAST PATH — first retry:
+       One or more questions NO, or PARTIAL ≥ 7. remediation_round = 0. Root cause is clear and unambiguous in the examiner output (single named file, single named defect).
+       → Spawn a fresh Agent(subagent_type: base:integration-architect) with the examiner findings as the remediation brief.
+       → Re-run step 3 (spawn fresh examiners). If the result is now FAST PATH — pass, advance. Otherwise → ESCALATE.
+
+     ESCALATE:
+       Triggered by any of:
+         - remediation_round ≥ 1 and still failing
+         - PARTIAL with severity ≥ 7 and ambiguous root cause (multiple files, contradictory signals, or unclear failure mode)
+         - Examiner results contradict each other
+         - Spec interpretation conflict surfaced during implementation
+         - Architecture seam dispute
+         - Story has hit max remediation rounds (5)
+       → SendMessage(Decider) with: story ID, verification.json summary, examiner results, remediation history, and a specific question.
+       → Execute the Decider's response:
+           RETRY    → spawn a fresh Agent(subagent_type: base:integration-architect) with the Decider's remediation prompt; re-run step 3.
+           ESCALATE → mark the story escalated in stories.json and epic-state.json; surface to the user via AskUserQuestion.
+           ACCEPT   → update result.json with the Decider's caveats; mark done.
+           REJECT   → treat as a remediation round; re-run step 2 with the Decider's failure list.
+
+  5. After all stories are done or escalated:
+       - The lead runs the full test suite directly. If failures, SendMessage(Decider) before declaring the epic done.
+       - Check that all ACs from acceptance-criteria.md are covered by done stories.
+       - Check mocks-registry.json: if unresolved mocks remain, create an additional story and re-enter the loop.
+       - Update epic-state.json: status="done", phase="COMPLETE".
+```
+
+### Spawn-vs-message invariants
+
+- Every Agent tool call in this Step 5 originates from the lead (this session). No teammate or subagent spawns `base:integration-architect` or `base:verification-examiner` on the lead's behalf.
+- No SendMessage in this Step 5 targets a `planner`, `architect`, or `verifier` role — those teammates do not exist.
+- SendMessage in this Step 5 targets only the `Decider` role.
 
 ---
 
@@ -306,12 +291,9 @@ If resuming an epic:
    - `result.json` with status="done" → story complete
 5. Validate completed stories: each must have all 4 required artifacts (architecture.json, baseline.json, verification.json, result.json) with valid schemas. If violations found, present options to user: reset story, force continue, or abort.
 6. Check for escalated stories — if any, STOP. Present escalation to user via AskUserQuestion. Do not proceed past escalated stories.
-7. **Recreate the team** with the same three roles (Planner, Architect, Verifier)
-8. Message teammates with context about where we left off:
-   - If stories.json exists: tell planner "Planning is complete, skip to done"
-   - Tell architect which stories are done and which is current/next; remind them architecture.md is at specs/epic-{name}/architecture.md
-   - Tell verifier current verification state
-9. Continue from the last incomplete story
+7. **Recreate the Decider teammate only** (single TeamCreate call with one role — the Decider role block from Step 4). Do NOT recreate Planner, Architect, or Verifier teammates — those roles no longer exist.
+8. Resume the implementation loop in Step 5 from the first story with `status` ≠ `done` and ≠ `escalated`. Pass Decider context only when an escalation arises: which stories are done, which is current, remediation history if mid-round.
+9. Continue through the remaining stories per the Step 5 loop.
 
 ---
 
