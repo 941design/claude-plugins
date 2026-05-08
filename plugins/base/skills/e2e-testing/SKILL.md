@@ -1,10 +1,25 @@
 ---
 name: e2e-testing
-description: >-
-  Run e2e tests iteratively one at a time using Playwright MCP. Only proceeds to
-  the next test when the current test passes. Reports failure immediately on
-  first failing test. Use for end-to-end test verification after feature
-  implementation or as a quality gate.
+description: |-
+  Run long-running test suites sequentially, one test at a time, stopping
+  on the first failure so a single root cause doesn't cascade through the
+  rest of the run. Re-runs previously failed tests first so regressions
+  surface fastest.
+
+  ALWAYS use this skill before kicking off an e2e or other long-running
+  suite. Do not invoke the runner directly via Bash — that skips the
+  sequential discipline and fail-first ordering this skill provides.
+
+  TRIGGER when: about to run an e2e, integration, or other long-running
+  test suite (Playwright, Cypress, WebdriverIO, etc.); user says "run the
+  e2e tests", "verify e2e", "check the suite", or names a suite to run;
+  quality-gating a feature after implementation; re-running a previously
+  failing test. Agent self-detected uncertainty about whether a run
+  qualifies is itself sufficient to trigger.
+
+  SKIP when: running fast unit-test suites; one-off interactive debugging
+  where sequential execution adds no value; user explicitly asks to bypass
+  sequential execution.
 user-invocable: false
 context: fork
 agent: e2e-tester
@@ -13,9 +28,14 @@ allowed-tools: Read, Grep, Glob, Bash, mcp__plugin_playwright_playwright__browse
 
 ## E2E Test Execution
 
-Run the following e2e tests iteratively, one at a time. Only proceed to the next
-test if the current test passes. If any test fails, stop immediately and report
-the failure.
+Run e2e tests iteratively, one at a time. Stop immediately on the first
+failure and report it.
+
+Goal: surface a failing test as fast as possible. Unless the user named a
+specific test or file, run previously failed tests first using whatever
+rerun-failed mechanism the runner provides (e.g. Playwright
+`--last-failed`, Jest `--onlyFailures`, or a cached failure list). If no
+prior-failure signal is available, fall back to the suite's natural order.
 
 Before running, load your project memory (`~/.claude/agent-memory/base-e2e-tester/`)
 for stack-specific commands, container names, helpers, and known gotchas — these
