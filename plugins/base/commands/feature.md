@@ -265,21 +265,24 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
   4. Apply decision rules:
 
      FAST PATH — pass:
-       All questions YES, or PARTIAL with severity < 7. All tests pass.
+       All questions YES, or PARTIAL with severity < 4 AND confidence ≥ 0.7. All tests pass. No examiner reports a stub-scan hit or a missing-test downgrade. No `root_cause_category` of `security_gap`, `arch_violation`, or `missing_contract` on any PARTIAL.
        → Update {story_dir}/result.json: status=done, final_outcome=accepted, completed_at.
        → Update stories.json: this story's status → done.
        → Update epic-state.json: append story ID to completed_stories.
        → Continue to next story. (No Decider consult.)
 
      FAST PATH — first retry:
-       One or more questions NO, or PARTIAL ≥ 7. remediation_round = 0. Root cause is clear and unambiguous in the examiner output (single named file, single named defect).
+       One or more questions NO, or PARTIAL with severity 4–6. remediation_round = 0. Root cause is clear and unambiguous in the examiner output (single named file, single named defect) AND `root_cause_category` is one of {missing_test, impl_bug, dead_code, duplication, documentation}.
        → Spawn a fresh Agent(subagent_type: base:integration-architect) with the examiner findings as the remediation brief.
        → Re-run step 3 (spawn fresh examiners). If the result is now FAST PATH — pass, advance. Otherwise → ESCALATE.
 
      ESCALATE:
        Triggered by any of:
          - remediation_round ≥ 1 and still failing
-         - PARTIAL with severity ≥ 7 and ambiguous root cause (multiple files, contradictory signals, or unclear failure mode)
+         - Any PARTIAL with severity ≥ 7 (always — no fast-path retry, regardless of root-cause clarity)
+         - Any PARTIAL with `root_cause_category` ∈ {security_gap, arch_violation, missing_contract, spec_gap} (always — these are not eligible for the architect-only retry path)
+         - PARTIAL with severity 4–6 and ambiguous root cause (multiple files, contradictory signals, or unclear failure mode)
+         - Any examiner reports confidence < 0.7 on a non-YES verdict
          - Examiner results contradict each other
          - Spec interpretation conflict surfaced during implementation
          - Architecture seam dispute
