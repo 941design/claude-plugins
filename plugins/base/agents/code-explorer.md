@@ -49,6 +49,25 @@ PATTERNS:
 
 CONVENTIONS:
 - {convention}: {evidence} (see {file}:{line})
+
+{Optional retro flag — see "Retrospective flag" below}
 ```
 
 Every claim must have a file:line reference. No design recommendations — that is the architect's job.
+
+## Retrospective flag (optional, skip-allowed)
+
+If exploration was substantially harder than expected — inconsistent module conventions,
+missing AGENTS.md, surprising hidden state, dead code that masqueraded as live, naming
+collisions across packages — append a one-line flag to your output:
+
+```
+RETROSPECTIVE:
+  skipped: <true|false>
+  flag: "<if not skipped, one sentence>"
+  scope: "<project_specific|meta>"
+```
+
+**Skip is the default.** Most exploration runs skip. Flag only when the codebase
+organization itself made discovery materially harder, or when you found a structural
+issue worth surfacing to the synthesizer at epic-end.

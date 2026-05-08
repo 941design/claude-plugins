@@ -65,6 +65,26 @@ QUESTIONS FOR USER: (if NEEDS_CLARIFICATION)
   "notes_for_architect": [...]
 }
 ---END_JSON---
+
+{Optional retro flag — see "Retrospective flag" below}
 ```
 
 Use AskUserQuestion tool for clarifications when result is NEEDS_CLARIFICATION.
+
+## Retrospective flag (optional, skip-allowed)
+
+If validation surfaced friction worth flagging to the synthesizer at epic-end — spec
+ambiguity required >2 clarification rounds, a section the validator expected was missing
+in a way the author's prior specs hadn't done before, the spec template itself produced a
+section the spec didn't actually need, or terminology was inconsistent across spec
+sections — append a one-line flag to your return:
+
+```
+RETROSPECTIVE:
+  skipped: <true|false>
+  flag: "<if not skipped, one sentence>"
+  scope: "<project_specific|meta>"
+```
+
+**Skip is the default.** A spec that validates cleanly skips. Only flag when something
+about the *validation process or spec authoring* is worth surfacing across epics.

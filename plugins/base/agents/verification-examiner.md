@@ -103,7 +103,27 @@ RECOMMENDATIONS: {concrete fixes with file:line}
 
 CSV_LOGGED: ✓
 STORY_CONTEXT: {epic} | Story {id} | Round {round}
+
+{Optional retro flag — see "Retrospective flag" below}
 ```
+
+## Retrospective flag (optional, skip-allowed)
+
+If something about *this verification* (not the underlying code) was harder than it
+needed to be — pre-impl questions ambiguous, AC scope unclear, evidence locations
+non-obvious, examiner instructions in conflict — append a one-line flag to your return:
+
+```
+RETROSPECTIVE:
+  skipped: <true|false>
+  flag: "<if not skipped, one sentence — e.g. 'Verification questions for AC-AUTH-3 were ambiguous; had to infer scope.'>"
+  scope: "<project_specific|meta>"
+```
+
+**Skip is the default.** A routine YES finding with no procedural friction skips. Only
+flag when the *verification process itself* surfaced friction that the synthesizer at
+epic-end should know about. Do not flag merely because the underlying code was buggy —
+that's what your YES/NO/PARTIAL answer already captures.
 
 ## Codex Adversarial Review
 

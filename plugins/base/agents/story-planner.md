@@ -139,3 +139,19 @@ Before output, verify:
 Detect project language from config files (pyproject.toml, package.json, go.mod, Cargo.toml, pom.xml, build.gradle.kts) and consult `skills/languages/{language}.md` for conventions.
 
 Use AskUserQuestion for any gaps that block story creation.
+
+## Retrospective flag (optional, skip-allowed)
+
+After completing each mode (Mode 1 / Mode 2 / Mode 3), append an optional one-line flag
+to your final response message — NOT to any of the files you write. Skip is the default.
+Flag only when the *planning process itself* surfaced friction that the synthesizer at
+epic-end should know about (e.g. spec ambiguity that forced multiple AC rewrites,
+architecture.md missing a needed boundary rule, a story split that revealed a structural
+problem with the spec).
+
+```
+RETROSPECTIVE:
+  skipped: <true|false>
+  flag: "<if not skipped, one sentence>"
+  scope: "<project_specific|meta>"
+```

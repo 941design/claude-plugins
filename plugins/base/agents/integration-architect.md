@@ -113,6 +113,10 @@ For each non-trivial component, use the **Agent tool** with `subagent_type: base
 - Referenced files (stubs, types, dependencies)
 - Clear scope boundaries
 
+**Absorb pbt-dev retros.** Each `base:pbt-dev` return MAY include an optional `RETROSPECTIVE:` block. Read every return; if pbt-dev surfaces a non-skipped flag, you MUST either fold its substance into your own retro (Step 7) with a citation in `absorbed_from`, or record the verbatim flag as an `absorbed_from` entry referenced from your own prose. Never silently drop a pbt-dev flag. If you disagree with pbt-dev's framing, note the disagreement in your own retro rather than discarding it.
+
+**Optional probe of pbt-dev** (skip-allowed). If a pbt-dev flag is unclear in a way that would materially improve your retro, you MAY use `SendMessage({to: <pbt_dev_agentId>, message: <one specific question>})` to ask the still-reachable pbt-dev for clarification. Cap: 2 follow-ups per pbt-dev spawn. The agentId was returned by your original Agent spawn. This is `agentId`-based addressing, distinct from the role-name SendMessage convention used for TeamCreate teammates.
+
 ### Step 6: Post-Implementation Verification Questions (additive)
 
 After implementation, append implementation-specific questions to `verification.json` that the pre-impl set could not anticipate — concrete risks tied to design choices made during the build, named files and components, edge cases that surfaced from `pbt-dev` work.
@@ -124,11 +128,50 @@ If you cannot think of any post-impl questions, that is acceptable — the pre-i
 
 ### Step 7: Result Documentation
 
-Write `result.json` documenting:
+Write `result.json` per `plugins/base/schemas/result.schema.json`. Required fields:
+- `story_id`, `status`, `remediation_rounds`, `retrospective`
 - Files created and modified
 - Implementation summary
 - Test counts (baseline vs final)
 - Mocks introduced (if any)
+
+#### Retrospective field (required)
+
+Port the protocol from `~/.claude/CLAUDE.md` verbatim:
+
+> Surface what made the work harder than it needed to be: missing context, unclear instructions, knowledge gaps, pipeline friction. State the *what* and the *why*. Skip for routine or seamless tasks — you decide whether complexity warrants reflection. Project-specific findings → `scope: "project_specific"`. Meta-level findings (pipeline, agent design, spec/template friction, harness behavior) → `scope: "meta"`.
+
+Two valid shapes for the `retrospective` field:
+
+**Skipped (routine or seamless story):**
+```json
+"retrospective": { "skipped": true, "reason": "routine | clean_run | trivial_change" }
+```
+
+**Populated:**
+```json
+"retrospective": {
+  "skipped": false,
+  "harder_than_needed": "<prose, 1–4 sentences — what made this harder than it needed to be>",
+  "surprised_by": "<prose, 0–3 sentences — what surprised you (may be empty string)>",
+  "scope": "project_specific" | "meta",
+  "outcome": "merged" | "planning_only" | "escalated_no_merge",
+  "commits_made": ["<sha>", "..."],
+  "absorbed_from": [
+    { "agent": "pbt-dev", "spawn_index": 1, "note": "<one-line summary of pbt-dev's flag>" },
+    { "agent": "ollama:review", "note": "<one-line summary>" }
+  ],
+  "lead_clarifications": []
+}
+```
+
+Populate `commits_made` by running `git log --pretty=%H {baseline_commit}..HEAD` (or the equivalent for your branch state); use `[]` if no commits. The `lead_clarifications` array starts empty — the lead appends to it via SendMessage probes (Step 5a of `feature.md`); you do not write to it yourself.
+
+`absorbed_from` carries POV from agents you orchestrated:
+- `pbt-dev` returns whose `RETROSPECTIVE:` block was non-skipped (Step 5 above).
+- Codex/Ollama review-skill notes (`codex:review`, `ollama:review`, `codex:rescue`) that materially shaped the implementation.
+
+Never silently drop a flag from one of these sources.
 
 ## Artifact Rules
 
@@ -190,4 +233,6 @@ VERIFICATION:
 - verification.json: {N_pre} pre-impl (planner) + {N_post} post-impl (appended) questions
 - All tests passing: {total count}
 - Baseline: {count} → Final: {count}
+
+RETROSPECTIVE: <skipped | meta | project_specific>
 ```

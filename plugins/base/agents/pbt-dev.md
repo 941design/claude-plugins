@@ -55,4 +55,26 @@ If compilation/tests fail OUTSIDE your scope: retry up to 3 times, use Codex res
 ## Return Templates
 
 **Phase 1**: `STATUS: AWAITING_SPECIFICATION` with RECEIVED and MISSING_FOR_IMPLEMENTATION sections
-**Phase 2**: `STATUS: COMPLETE` with IMPLEMENTATION_SUMMARY, TEST_SUMMARY, CLEANUP_PERFORMED
+**Phase 2**: `STATUS: COMPLETE` with IMPLEMENTATION_SUMMARY, TEST_SUMMARY, CLEANUP_PERFORMED, plus an optional `RETROSPECTIVE:` block (see below).
+
+### Optional retrospective (Phase 2)
+
+Port from the global retrospective protocol: surface what made the work harder than it
+needed to be, and what surprised you. **Skip for routine, seamless work** — you decide
+whether complexity warrants reflection. The architect (your parent) will absorb a
+non-skipped flag into its own retro per the integration-architect's Step 5 rule.
+
+Append to your Phase 2 return:
+
+```
+RETROSPECTIVE:
+  skipped: <true|false>
+  reason: "<if skipped, brief reason — e.g. routine, trivial_change>"
+  harder_than_needed: "<if not skipped, 1–3 sentences>"
+  surprised_by: "<optional, may be empty>"
+  scope: "<project_specific|meta>"
+```
+
+Do not write any file for this — the field rides in your return string. The architect
+reads it; if you flag something non-skipped and the architect needs clarification, it MAY
+re-engage you via `SendMessage(to: <your agentId>)` (cap 2 rounds).

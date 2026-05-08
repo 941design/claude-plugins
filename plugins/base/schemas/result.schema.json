@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "result.schema.json",
+  "title": "Story Result Schema",
+  "description": "Authoritative schema for {story_dir}/result.json — implementation outcome plus retrospective.",
+  "type": "object",
+  "required": ["story_id", "status", "remediation_rounds", "retrospective"],
+  "properties": {
+    "story_id": {
+      "type": "string",
+      "pattern": "^[0-9]{2}$",
+      "description": "Two-digit story identifier (matches stories.json id)"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["in_progress", "done", "escalated"],
+      "description": "Per-story state at the time the result was last written"
+    },
+    "final_outcome": {
+      "type": "string",
+      "enum": ["accepted", "accepted_with_caveats", "escalated_no_merge"],
+      "description": "Outcome assigned by the lead after verification (or Decider on escalation)"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when status reached done or escalated"
+    },
+    "files_created": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "Repository-relative paths created by the architect"
+    },
+    "files_modified": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "Repository-relative paths modified by the architect"
+    },
+    "tests_added": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 },
+      "description": "Test counts by kind (e.g. property, parameterized, unit, integration). Free-form keys."
+    },
+    "test_counts": {
+      "type": "object",
+      "properties": {
+        "baseline": { "type": "integer", "minimum": 0 },
+        "final": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Total test counts before vs after the story's implementation"
+    },
+    "mocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "reason"],
+        "properties": {
+          "name": { "type": "string" },
+          "reason": { "type": "string" },
+          "resolution_story": { "type": "string", "description": "Story id that will resolve this mock, if known" }
+        }
+      },
+      "default": [],
+      "description": "Temporary mocks introduced; tracked against mocks-registry.json"
+    },
+    "remediation_rounds": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Count of architect re-spawns triggered by failed verification"
+    },
+    "escalation_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["round", "reason", "decision"],
+        "properties": {
+          "round": { "type": "integer", "minimum": 0 },
+          "reason": { "type": "string" },
+          "decision": { "type": "string", "enum": ["RETRY", "ESCALATE", "ACCEPT", "REJECT"] },
+          "decider_caveats": { "type": "string" }
+        }
+      },
+      "default": [],
+      "description": "One entry per Decider consult during this story"
+    },
+    "retrospective": {
+      "oneOf": [
+        { "$ref": "#/$defs/retrospective_skipped" },
+        { "$ref": "#/$defs/retrospective_populated" }
+      ],
+      "description": "Architect's free-form retrospective. Either skipped (with reason) or populated (two narrative prompts plus provenance)."
+    }
+  },
+  "$defs": {
+    "retrospective_skipped": {
+      "type": "object",
+      "required": ["skipped", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "skipped": { "const": true },
+        "reason": {
+          "type": "string",
+          "description": "Brief reason for skip (e.g. 'routine', 'clean_run', 'trivial_change')"
+        }
+      }
+    },
+    "retrospective_populated": {
+      "type": "object",
+      "required": ["skipped", "harder_than_needed", "scope", "outcome"],
+      "additionalProperties": false,
+      "properties": {
+        "skipped": { "const": false },
+        "harder_than_needed": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Free-form prose: what made this harder than it needed to be"
+        },
+        "surprised_by": {
+          "type": "string",
+          "description": "Free-form prose: what surprised you (may be empty string)"
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["project_specific", "meta"],
+          "description": "Project-specific finding (note in code/result.json) vs meta-level finding (about the workflow/factory itself)"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": ["merged", "planning_only", "escalated_no_merge"],
+          "description": "Whether this story produced merged commits, was planning-only, or escalated without merge"
+        },
+        "commits_made": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+          "default": [],
+          "description": "Commit SHAs produced during this story (git log baseline..HEAD)"
+        },
+        "absorbed_from": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["agent", "note"],
+            "properties": {
+              "agent": {
+                "type": "string",
+                "description": "Source agent (e.g. 'pbt-dev', 'codex:review', 'ollama:review', 'codex:rescue')"
+              },
+              "spawn_index": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "1-based index when the same agent was invoked multiple times"
+              },
+              "note": {
+                "type": "string",
+                "description": "One-line summary of the absorbed POV (verbatim or lightly cleaned)"
+              }
+            }
+          },
+          "default": [],
+          "description": "POV from agents the architect orchestrated (pbt-dev, review skills) that the architect folded into its own retro"
+        },
+        "lead_clarifications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["question", "answer"],
+            "properties": {
+              "question": { "type": "string" },
+              "answer": { "type": "string" }
+            }
+          },
+          "default": [],
+          "description": "Q/A pairs from the lead's optional probe (Step 5a). Capped at 3 entries."
+        }
+      }
+    }
+  }
+}
