@@ -169,16 +169,41 @@ Create an agent team with one role. The lead (this session, running on Sonnet) d
 
 ### Planning Phase
 
-After creating the Decider, run the planning phase:
+After creating the Decider, run the planning phase. The planner runs in
+three modes; spawn it once per mode (fresh subagent each time).
 
-1. Spawn `Agent(subagent_type: base:story-planner)` with: spec path, exploration.json path, architecture.md path. Wait for completion.
-2. Read `stories.json` directly.
-3. Sanity check: all ACs covered, `story_order` defined, no duplicate story IDs.
-   - If issues are minor and unambiguous (typos, missing scope boundary, missing AC reference): spawn a second `Agent(subagent_type: base:story-planner)` with targeted corrections.
-   - If issues require judgment (AC interpretation, story split disagreement, scope ambiguity): `SendMessage(Decider)` with the gap and the specific question. Apply the Decider's response before proceeding.
-4. When `stories.json` is valid, proceed to the implementation loop in Step 5.
+1. Spawn `Agent(subagent_type: base:story-planner)` in **Mode 1** with: spec
+   path, exploration.json path, architecture.md path. Output:
+   `acceptance-criteria.md`. Wait for completion.
+2. Spawn `Agent(subagent_type: base:story-planner)` in **Mode 2** with: spec
+   path, acceptance-criteria.md path, architecture.md path. Output:
+   `stories.json`. Wait for completion.
+3. Read `stories.json` directly. Sanity check: all ACs covered,
+   `story_order` defined, no duplicate story IDs.
+   - If issues are minor and unambiguous (typos, missing scope boundary,
+     missing AC reference): re-spawn Mode 2 with targeted corrections.
+   - If issues require judgment (AC interpretation, story split
+     disagreement, scope ambiguity): `SendMessage(Decider)` with the gap
+     and the specific question. Apply the Decider's response before
+     proceeding.
+4. Spawn `Agent(subagent_type: base:story-planner)` in **Mode 3** with:
+   stories.json path, acceptance-criteria.md path, architecture.md path.
+   Output: one `{story_dir}/verification.json` per story containing the
+   pre-impl commitment set. The planner creates the story directories.
+   Wait for completion. Sanity check: every story listed in
+   `stories.json` has a `verification.json` with at least 5 pre-impl
+   records plus one SPEC record per AC in its `acceptance_criteria`.
+5. When all three modes have produced their artifacts, proceed to the
+   implementation loop in Step 5.
 
 The lead spawns `base:story-planner` via the Agent tool — never via TeamCreate or SendMessage. There is no persistent Planner teammate.
+
+**Why three modes, not one.** The pre-impl commitment set is authored by
+the planner — not by the implementing architect — to eliminate the
+rubber-stamp risk of letting the agent that writes the code also write
+the questions about its own code. The planner is also the only agent
+that has both the AC list and the story split in front of it at once,
+which is what Part B (one SPEC question per AC) needs.
 
 ---
 
@@ -199,7 +224,14 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
        - acceptance criteria (acceptance-criteria.md, filtered to this story's ACs)
        - exploration.json (path)
        - architecture.md (path)
+       - {story_dir}/verification.json (path) — pre-authored by the
+         story-planner in Mode 3; pre-impl questions are immutable, the
+         architect appends post-impl records only.
      Context MUST NOT include result.json or artifacts from prior stories — every story gets a fresh subagent with a clean context window. Wait for the subagent to write {story_dir}/result.json.
+
+     If {story_dir}/verification.json is missing for this story, the
+     planner did not complete Mode 3 — re-spawn `base:story-planner` in
+     Mode 3 for this story before spawning the architect.
 
   3. Read {story_dir}/verification.json.
      Spawn Agent(subagent_type: base:verification-examiner) for each verification question, or each batch of related questions. Independent batches MUST be sent in parallel — single message, multiple Agent tool calls. Each examiner returns YES, NO, or PARTIAL with severity and evidence.
@@ -237,7 +269,7 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
   5. After all stories are done or escalated:
        - The lead runs the full test suite directly. If failures, SendMessage(Decider) before declaring the epic done.
        - Check that all ACs from acceptance-criteria.md are covered by done stories.
-       - Check mocks-registry.json: if unresolved mocks remain, create an additional story and re-enter the loop.
+       - Check mocks-registry.json: if unresolved mocks remain, create an additional story and re-enter the loop. Spawn `base:story-planner` in Mode 3 for the new story before re-entering the architect spawn at step 2.
        - Update epic-state.json: status="done", phase="COMPLETE".
 ```
 
@@ -284,6 +316,7 @@ If resuming an epic:
 2. Check that `specs/epic-{name}/architecture.md` exists. If missing, produce it following the "Produce Epic Architecture" step above before resuming any stories.
 3. Read `stories.json` for per-story statuses
 4. Check story directories for artifacts to determine exact resume point:
+   - No `verification.json` → story needs pre-impl commitment set; re-spawn `base:story-planner` in Mode 3 for this story before any architect spawn
    - No `architecture.json` → story needs architecture contract (Step 1.5)
    - No `baseline.json` → story needs baseline
    - `baseline.json` but no `result.json` → story needs implementation
@@ -302,9 +335,9 @@ If resuming an epic:
 Story directories MUST contain ONLY these files:
 ```
 {story_id}-{story_name}/
-├── architecture.json  # Module contract — written before any stubs (Step 1.5)
+├── verification.json  # Pre-impl commitment set — authored by story-planner Mode 3 BEFORE the architect runs; architect appends post-impl questions only
+├── architecture.json  # Module contract — written by the architect before any stubs (Step 1.5)
 ├── baseline.json      # Test snapshot before implementation
-├── verification.json  # 5+ verification questions + answers
 └── result.json        # Implementation outcome, verification rounds
 ```
 

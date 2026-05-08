@@ -71,38 +71,24 @@ Verify the entries are consistent with `specs/epic-{name}/architecture.md`. If a
 
 No stubs, tests, or implementation code may exist until `architecture.json` is written and compliant.
 
-### Step 2: Pre-Implementation Verification Questions
+### Step 2: Read the Pre-Authored Verification Commitments
 
-Before writing any code (stubs or implementation), create `verification.json` with the **commitment set** — verification questions written *now*, while you are still in auditor mindset, so they are not biased by the implementation choices that follow.
+`{story_dir}/verification.json` was authored by `base:story-planner` before
+this story entered implementation. It contains the **commitment set** of
+pre-impl questions (Part A: 5 generic-category questions; Part B: one SPEC
+question per AC the story covers). Read it now so the questions inform
+your design and tests.
 
-The commitment set has two parts.
+**Immutability rule.** You MUST NOT edit, remove, or soften any pre-impl
+question. If one turns out to be irrelevant after implementation, leave it
+— the verifier will mark it `na`. The commitment was locked in before the
+code existed; that is what makes it credible. Step 6 below is the only
+place you may write to this file, and it is append-only for `phase:
+post-impl` records.
 
-**Part A — Generic-category questions (5 mandatory).** At least one question per category, instantiated for this story's spec:
-- `QUALITY` — code cleanliness, dead code, stub markers
-- `ARCHITECTURE` — module boundaries, coupling, naming, design compliance with `specs/epic-{name}/architecture.md` decisions; always include a second mandatory ARCHITECTURE question: "Could `{owning_module}` be deleted and rewritten without modifying any file outside its `dependencies_allowed` list? If not, which cross-module dependencies exist and do they flow through declared seam contracts in architecture.md?"
-- `TEST` — unit, property, and integration coverage of the named artifacts
-- `SPEC` — alignment with the spec's intent (separate from per-AC questions below)
-- `SECURITY` — defensive checks and validation at boundaries (substitute `BEST_PRACTICES` if the story has no security surface)
-
-**Part B — One SPEC question per AC the story covers.** Read `acceptance-criteria.md` and look up each AC ID listed in this story's `acceptance_criteria` array (from `stories.json`). For each AC, emit a SPEC-category question that:
-- Sets `ac_id` to the AC ID (e.g. `"ac_id": "AC-DEP-3"`)
-- Restates the AC's named artifact and observable state in question form
-- Demands evidence of (a) the production code, (b) the test(s) that exercise the AC end-to-end, and (c) confirmation that tests are not pure mock-spy proxies
-
-Question record shape:
-```json
-{
-  "question_id": "VQ-{story_id}-{NNN}",
-  "phase": "pre-impl",
-  "category": "QUALITY|ARCHITECTURE|TEST|SPEC|SECURITY",
-  "ac_id": "AC-XYZ-N",
-  "question": "<the question text>"
-}
-```
-
-`ac_id` is set only on SPEC questions derived from an AC; omit it otherwise.
-
-**Immutability rule.** Once written, pre-impl questions MUST NOT be edited, removed, or softened. If one turns out to be irrelevant after implementation, leave it — the verifier will mark it `na`. The point is to lock in the commitment before the code exists.
+If `verification.json` does not exist or contains no `phase: pre-impl`
+records, halt with `STATUS: PRE_IMPL_QUESTIONS_MISSING` and surface the
+problem — the planner did not run Mode 3 for this story.
 
 ### Step 3: Create Stubs/Interfaces
 
@@ -131,7 +117,8 @@ For each non-trivial component, use the **Agent tool** with `subagent_type: base
 
 After implementation, append implementation-specific questions to `verification.json` that the pre-impl set could not anticipate — concrete risks tied to design choices made during the build, named files and components, edge cases that surfaced from `pbt-dev` work.
 
-Append-only. Each new record uses the same shape as Step 2 with `phase: "post-impl"`. The pre-impl questions written in Step 2 remain untouched.
+Append-only. Each new record uses the same shape as the planner-authored
+pre-impl records (see `base:story-planner` Mode 3) but with `phase: "post-impl"`. The pre-impl questions remain untouched.
 
 If you cannot think of any post-impl questions, that is acceptable — the pre-impl commitment set already covers the audit floor.
 
@@ -200,7 +187,7 @@ IMPLEMENTATION:
 - Tests added: {count by type}
 
 VERIFICATION:
-- verification.json created with {N} questions
+- verification.json: {N_pre} pre-impl (planner) + {N_post} post-impl (appended) questions
 - All tests passing: {total count}
 - Baseline: {count} → Final: {count}
 ```

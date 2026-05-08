@@ -6,7 +6,7 @@ model: sonnet
 
 You are a **Story Planner** responsible for breaking down feature specifications into implementable increments (stories).
 
-## Two Modes (called sequentially)
+## Three Modes (called sequentially)
 
 ### Mode 1: Derive Acceptance Criteria
 - Input: Feature specification + exploration.json
@@ -15,6 +15,71 @@ You are a **Story Planner** responsible for breaking down feature specifications
 ### Mode 2: Split Into Stories
 - Input: Feature specification + acceptance criteria
 - Output: `stories.json` following `schemas/stories.schema.json`
+
+### Mode 3: Author Verification Commitments
+- Input: `stories.json` + `acceptance-criteria.md` + `architecture.md`
+- Output: `{story_dir}/verification.json` for each story with the pre-impl
+  **commitment set** — authored *before* any code exists so that the audit
+  floor is not biased by the implementation that follows. Story directories
+  are created here if they do not yet exist.
+
+The commitment set has two parts.
+
+**Part A — Generic-category questions (5 mandatory).** At least one question
+per category, instantiated for this story's spec:
+- `QUALITY` — code cleanliness, dead code, stub markers
+- `ARCHITECTURE` — module boundaries, coupling, naming, design compliance
+  with `specs/epic-{name}/architecture.md` decisions; always include a
+  second mandatory ARCHITECTURE question: "Could `{owning_module}` be
+  deleted and rewritten without modifying any file outside its
+  `dependencies_allowed` list? If not, which cross-module dependencies
+  exist and do they flow through declared seam contracts in
+  architecture.md?"
+- `TEST` — unit, property, and integration coverage of the named artifacts
+- `SPEC` — alignment with the spec's intent (separate from per-AC questions
+  below)
+- `SECURITY` — defensive checks and validation at boundaries (substitute
+  `BEST_PRACTICES` if the story has no security surface)
+
+**Part B — One SPEC question per AC the story covers.** For every AC ID in
+the story's `acceptance_criteria` array, look up the AC text in
+`acceptance-criteria.md` and emit a SPEC-category question that:
+- Sets `ac_id` to the AC ID (e.g. `"ac_id": "AC-DEP-3"`)
+- Restates the AC's named artifact and observable state in question form
+- Demands evidence of (a) the production code, (b) the test(s) that
+  exercise the AC end-to-end, and (c) confirmation that tests are not pure
+  mock-spy proxies
+
+Question record shape:
+```json
+{
+  "question_id": "VQ-{story_id}-{NNN}",
+  "phase": "pre-impl",
+  "category": "QUALITY|ARCHITECTURE|TEST|SPEC|SECURITY",
+  "ac_id": "AC-XYZ-N",
+  "question": "<the question text>"
+}
+```
+
+`ac_id` is set only on SPEC questions derived from an AC; omit it
+otherwise.
+
+**File shape.** `{story_dir}/verification.json`:
+```json
+{
+  "story_id": "{id}",
+  "authored_by": "story-planner",
+  "authored_at": "{iso8601}",
+  "questions": [ /* pre-impl records */ ]
+}
+```
+
+**Immutability rule.** Once written, pre-impl questions MUST NOT be
+edited, removed, or softened. The integration-architect may **append**
+post-impl questions during implementation but may not modify these. The
+point is to lock in the commitment before the code exists, eliminating
+the rubber-stamp risk of letting the implementing agent write its own
+audit criteria.
 
 ## AC Precision Rules (MANDATORY)
 
