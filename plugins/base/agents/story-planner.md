@@ -143,11 +143,7 @@ Use AskUserQuestion for any gaps that block story creation.
 ## Retrospective flag (optional, skip-allowed)
 
 After completing each mode (Mode 1 / Mode 2 / Mode 3), append an optional one-line flag
-to your final response message — NOT to any of the files you write. Skip is the default.
-Flag only when the *planning process itself* surfaced friction that the synthesizer at
-epic-end should know about (e.g. spec ambiguity that forced multiple AC rewrites,
-architecture.md missing a needed boundary rule, a story split that revealed a structural
-problem with the spec).
+to your final response message — NOT to any of the files you write.
 
 ```
 RETROSPECTIVE:
@@ -155,3 +151,31 @@ RETROSPECTIVE:
   flag: "<if not skipped, one sentence>"
   scope: "<project_specific|meta>"
 ```
+
+**Skip is the strong default.**
+
+**Do NOT flag** to report what you produced or how you classified your output. Counts,
+breakdowns, and labels belong in your normal return payload (`stories.json`, the AC
+table, `verification.json`), not in the retro flag. Examples of what NOT to put in a
+flag:
+
+- "42 total questions (21 SPEC + 13 BEHAVIORAL + 4 CONTRACT + 2 EDGE_CASE)." → counts.
+- "Split cleanly along 5-layer spec; AC-STRUCT-9 naturally bundled into S4." → recap of
+  what you did.
+- "18 ACs drafted across 5 layers." → recap.
+
+**DO flag** when:
+
+- The spec, AC table, or architecture.md *disagreed with itself* and forced rewrites or
+  guesswork.
+- The story / AC schema cannot natively express something you needed to express
+  (partial satisfaction, multi-story AC ownership, etc.).
+- The planning *process itself* hit friction the synthesizer should know about (e.g.
+  spec-template field is missing; mode prompt diverges from the schema in the system
+  prompt).
+
+Positive example (a good flag):
+
+> *"AC-AR-3 spans two stories; the story schema cannot express partial satisfaction
+> natively, forcing duplicate AC IDs across stories with no link between them. Add an
+> optional `partial_satisfaction_notes` field to the per-story AC entry."*

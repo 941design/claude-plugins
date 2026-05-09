@@ -141,6 +141,18 @@ Port the protocol from `~/.claude/CLAUDE.md` verbatim:
 
 > Surface what made the work harder than it needed to be: missing context, unclear instructions, knowledge gaps, pipeline friction. State the *what* and the *why*. Skip for routine or seamless tasks — you decide whether complexity warrants reflection. Project-specific findings → `scope: "project_specific"`. Meta-level findings (pipeline, agent design, spec/template friction, harness behavior) → `scope: "meta"`.
 
+**Skip threshold (when to use the skipped shape).** Skip is the strong default for stories that landed without friction. In particular:
+
+- Skip when every AC passed first try, no remediation rounds, no spec ambiguity, no surprises.
+- Skip when the only thing you would write is "I edited the files the spec named" or "no regressions."
+- Skip when the prose would be a recap of *what you did* rather than a record of *what was harder than it needed to be*.
+
+Do **not** populate just to fill the field. `harder_than_needed` requires actual friction (missing context, unclear instructions, knowledge gaps, pipeline rough edges). A clean run is a skipped retro, not a populated one with positive prose.
+
+`surprised_by` is for **negative or divergent** surprise only — something that diverged from the spec or your expectation enough to be worth recording for the next architect or for the synthesizer. Strip phrasings like "no regressions," "clean solution," "all questions YES," "no friction." Those are not retro material; if you have nothing else to flag, skip the retro entirely.
+
+If there was real friction in only one direction (`harder_than_needed` *or* `surprised_by`), populate that field and leave the other empty. Do not invent content to balance the two.
+
 Two valid shapes for the `retrospective` field:
 
 **Skipped (routine or seamless story):**
@@ -153,7 +165,7 @@ Two valid shapes for the `retrospective` field:
 "retrospective": {
   "skipped": false,
   "harder_than_needed": "<prose, 1–4 sentences — what made this harder than it needed to be>",
-  "surprised_by": "<prose, 0–3 sentences — what surprised you (may be empty string)>",
+  "surprised_by": "<prose, 0–3 sentences — negative or divergent surprise only; may be empty string>",
   "scope": "project_specific" | "meta",
   "outcome": "merged" | "planning_only" | "escalated_no_merge",
   "commits_made": ["<sha>", "..."],

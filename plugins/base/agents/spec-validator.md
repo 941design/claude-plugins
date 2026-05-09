@@ -86,5 +86,25 @@ RETROSPECTIVE:
   scope: "<project_specific|meta>"
 ```
 
-**Skip is the default.** A spec that validates cleanly skips. Only flag when something
-about the *validation process or spec authoring* is worth surfacing across epics.
+**Skip is the strong default.** A spec that validates cleanly skips.
+
+**Do NOT flag** to report your verdict, the section count, or what you read. Those
+belong in your normal validation return. Examples of what NOT to put in a flag:
+
+- "Reviewed 12 ACs across 4 sections; all pass." → verdict, not retro.
+- "Spec follows the standard template structure." → recap.
+
+**DO flag** when:
+
+- A spec section says X and another section says X-modulo-Y; the spec is internally
+  inconsistent and you had to guess.
+- The spec-template skill itself is producing a section that doesn't fit this kind of
+  spec (or is missing a section this kind of spec needs).
+- Terminology drifted across sections in a way that materially affects downstream
+  planning.
+
+Positive example (a good flag):
+
+> *"§7 says authentication uses OAuth-only; §12 references API-key fallback. I picked
+> OAuth-only but that is a guess — the spec is internally inconsistent and the author
+> needs to disambiguate before story-planning."*

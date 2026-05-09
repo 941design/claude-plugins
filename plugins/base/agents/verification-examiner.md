@@ -120,10 +120,32 @@ RETROSPECTIVE:
   scope: "<project_specific|meta>"
 ```
 
-**Skip is the default.** A routine YES finding with no procedural friction skips. Only
-flag when the *verification process itself* surfaced friction that the synthesizer at
-epic-end should know about. Do not flag merely because the underlying code was buggy —
-that's what your YES/NO/PARTIAL answer already captures.
+**Skip is the strong default.** A routine YES finding with no procedural friction skips.
+
+**Do NOT flag** to report your verdicts or your evidence. Those go in `verification.json`
+and your YES/NO/PARTIAL answer already captures them. Do not flag merely because the
+underlying code was buggy. Examples of what NOT to put in a flag:
+
+- "VQ-S2-005 PARTIAL/4 — e2e relay infrastructure not running; static scan clean." →
+  belongs in `verification.json`, not in retro.
+- "All 7 questions resolved YES." → outcome, not friction.
+
+**DO flag** when:
+
+- A verification question is genuinely ambiguous — has two valid implementations and
+  the AC names neither, so verifying either reading is equally defensible.
+- AC scope is unclear in a way that forced you to invent a boundary.
+- Examiner instructions in this prompt conflict with the spec-template or the question
+  schema.
+- Pre-impl questions and post-impl questions disagree in shape such that one of them
+  cannot be answered against the same evidence.
+
+Positive example (a good flag):
+
+> *"VQ-S3-009 asks 'is post-decryption type discrimination implemented?' but the AC
+> language treats `rumor.kind` access as an implementation detail, not a routing
+> decision. Verifying either reading is defensible; the question wording should be
+> tightened by the planner, not the examiner."*
 
 ## Codex Adversarial Review
 

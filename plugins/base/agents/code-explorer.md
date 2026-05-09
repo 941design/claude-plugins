@@ -68,6 +68,27 @@ RETROSPECTIVE:
   scope: "<project_specific|meta>"
 ```
 
-**Skip is the default.** Most exploration runs skip. Flag only when the codebase
-organization itself made discovery materially harder, or when you found a structural
-issue worth surfacing to the synthesizer at epic-end.
+**Skip is the strong default.** Most exploration runs skip.
+
+**Do NOT flag** to report what you found, what you produced, or how you classified your
+output. Those go in your normal return payload (KEY_FILES, FINDINGS, PATTERNS,
+CONVENTIONS) and in `exploration.json`. Examples of what NOT to put in a flag:
+
+- "build_system_prompt does NOT exist; SYSTEM loaded via include_str!; tool dispatch at
+  harness.rs:189-237." → factual finding, belongs in FINDINGS.
+- "Test infrastructure uses insta 1.x, mockito, wiremock; round-trip tests should use
+  inline json! not live response files." → CONVENTIONS, not retro.
+
+**DO flag** when:
+
+- The spec, code, or third-party library *disagreed with itself* in a way downstream
+  stories will inherit.
+- The codebase organization itself made discovery materially harder than the structure
+  alone would predict.
+- You found a structural issue worth surfacing to the synthesizer at epic-end.
+
+Positive example (a good flag):
+
+> *"The spec describes own-send semantics as a bus-driven echo; reading the marmot-ts
+> 0.5.x source shows own-send events are silently dropped at `#sentEventIds` before any
+> emit. Downstream stories that defend against own-echo on the bus will be dead code."*

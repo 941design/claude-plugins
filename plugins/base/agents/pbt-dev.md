@@ -64,14 +64,31 @@ needed to be, and what surprised you. **Skip for routine, seamless work** — yo
 whether complexity warrants reflection. The architect (your parent) will absorb a
 non-skipped flag into its own retro per the integration-architect's Step 5 rule.
 
+**Skip threshold.** Skip is the strong default. In particular:
+
+- Skip when tests passed first try, no debugging cycles, no spec ambiguity, no surprises.
+- Skip when the only thing you would write is "I implemented the unit per the spec" or
+  "no regressions."
+- Skip when the prose would be a recap of *what you did* rather than a record of *what
+  was harder than it needed to be*.
+
+Do **not** populate to fill the field. `harder_than_needed` requires actual friction
+(missing context in the spec, unclear contract, framework gotchas the architect should
+know about for the next unit). A clean implementation is a skipped retro.
+
+`surprised_by` is for **negative or divergent** surprise only — something that diverged
+from the spec or your expectation enough to be worth flagging up to the architect. Strip
+"no regressions," "clean solution," "all tests pass." If you have nothing else to flag,
+skip the retro entirely.
+
 Append to your Phase 2 return:
 
 ```
 RETROSPECTIVE:
   skipped: <true|false>
   reason: "<if skipped, brief reason — e.g. routine, trivial_change>"
-  harder_than_needed: "<if not skipped, 1–3 sentences>"
-  surprised_by: "<optional, may be empty>"
+  harder_than_needed: "<if not skipped, 1–3 sentences of actual friction>"
+  surprised_by: "<optional; negative or divergent surprise only; may be empty>"
   scope: "<project_specific|meta>"
 ```
 
