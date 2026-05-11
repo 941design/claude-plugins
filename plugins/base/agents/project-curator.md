@@ -216,7 +216,7 @@ work.
 ```
 
 Eligibility:
-- Use the two-word test from `BACKLOG-template.md`: could a future
+- Use the two-word test from `plugins/base/skills/backlog/references/format.md`: could a future
   reader of any spec notice the change is missing? If yes, it is NOT
   mechanical — propose `resolve_finding_via_spec` instead.
 - Cosmetic-only changes (formatter sweeps, import reordering, comment
@@ -321,7 +321,7 @@ bookkeeping cannot have caught:
 - A parallel session created an epic dir while this run was active.
 - The bullet for the current epic is missing entirely (e.g.
   `BACKLOG.md` did not exist at Step 3 but exists now), and the user has
-  since run `/base:init-backlog`.
+  since run `/base:backlog init`.
 - A bullet's path or slug is malformed and the lead's update at Step 6.1
   could not locate it.
 

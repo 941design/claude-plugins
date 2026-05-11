@@ -140,7 +140,7 @@ Create an agent team with two roles:
 1. Update `bug-reports/{slug}-state.json` with final phase and outcome
 2. **Curate project-state proposals.** Spawn `Agent(subagent_type: base:project-curator)` with:
    - The bug report path and `bug-reports/{slug}-result.json`.
-   - Path to `BACKLOG.md` at the repo root if it exists (skip if absent, with a one-time hint to the user that `/base:init-backlog` would unlock backlog/archive proposals).
+   - Path to `BACKLOG.md` at the repo root if it exists (skip if absent, with a one-time hint to the user that `/base:backlog init` would unlock backlog/archive proposals).
    - `docs/adr/` listing — `ls docs/adr/*.md 2>/dev/null` (titles only).
    - Project provenance JSON: `project_slug`, `project_path`, `commit_at_start`, `commit_at_end`.
 

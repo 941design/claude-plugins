@@ -68,7 +68,7 @@ If SCAN finds in-progress epics, ask the user which to resume or whether to star
 Argument form: `backlog:<finding-marker>` where `<finding-marker>` is a substring that uniquely identifies one entry in `BACKLOG.md ## Findings` (typically the path component of its anchor, or the first few words of its text).
 
 ```
-1. Read BACKLOG.md. If missing, abort with: "no BACKLOG.md — run /base:init-backlog first."
+1. Read BACKLOG.md. If missing, abort with: "no BACKLOG.md — run /base:backlog init first."
 2. Locate the matching finding bullet under ## Findings. If zero or >1 matches, abort with the candidates listed; the user re-invokes with a more specific marker.
 3. Derive an epic slug from the finding (kebab-case, ≤40 chars). Confirm with the user via AskUserQuestion if ambiguous.
 4. Scaffold the empty stub by invoking Skill("base:spec-template", args: "<slug>") — that skill creates `specs/epic-<slug>/spec.md` and `acceptance-criteria.md` with title-only content (it deliberately does NOT generate project-specific content; see its SKILL.md). Then the lead **Edit**s the just-created `specs/epic-<slug>/spec.md` to inject the finding's text into `## Problem` and the finding's anchor (when present) into `## Technical Approach` as a starting reference. This pre-fill is the lead's job, not the skill's — keep the inserted text minimal (the finding's verbatim text plus a "Source: BACKLOG.md finding promoted YYYY-MM-DD" line); the user expands it before Step 2 validation.
@@ -177,7 +177,7 @@ clarification messages when a section is missing or an AC ID is malformed
 Before validating, gather lightweight context from project meta-state — this catches the "we're about to relitigate a settled question" case at the cheapest possible point:
 
 - **ADRs**. For each `docs/adr/ADR-*.md` read only the frontmatter block — everything from line 1 through the first blank line that precedes `## Context`, which captures `Title`, `Status`, `Date`, `Type`, `Affects:`, `Supersedes:`, and `Superseded by:` (typically lines 1–9 inclusive; use `awk '/^## /{exit} {print}'` to extract precisely the right span without hardcoding a line count). Identify any ADR whose title OR `Affects:` field plausibly governs this spec's domain. If matches exist, read their full bodies and surface them to the user before validation: "this spec proposes X; ADR-007 constrains <related area>. Confirm consistency." `Status: Superseded` ADRs are skipped — only Accepted (or Proposed, surfaced with that caveat) ADRs are constraints.
-- **Rejection archive**. If `BACKLOG.md` exists, read its `## Archive` section. Every entry in this section is a rejection by virtue of where it lives (the canonical bullet shape is `- YYYY-MM-DD — <text> — <reason>`; there is no per-line tag — see `plugins/base/skills/init-backlog/BACKLOG-template.md`). For each entry whose text shares a topic word or path component with the proposed spec, surface verbatim: "the spec proposes X; archive entry from YYYY-MM-DD rejected a similar approach because <reason>. Reconcile."
+- **Rejection archive**. If `BACKLOG.md` exists, read its `## Archive` section. Every entry in this section is a rejection by virtue of where it lives (the canonical bullet shape is `- YYYY-MM-DD — <text> — <reason>`; there is no per-line tag — see `plugins/base/skills/backlog/references/format.md`). For each entry whose text shares a topic word or path component with the proposed spec, surface verbatim: "the spec proposes X; archive entry from YYYY-MM-DD rejected a similar approach because <reason>. Reconcile."
 
 Both checks are advisory — the user decides whether the new spec is consistent or needs adjustment. The lead does not block on these surfaces; it raises them once and proceeds based on the user's response.
 
@@ -247,7 +247,7 @@ Write `specs/epic-${epic_name}/epic-state.json`:
 
 ### Update BACKLOG.md (atomic — append-epic + consume-pending-finding)
 
-These two `BACKLOG.md` mutations both run only after `epic-state.json` has been successfully written above — the new `specs/epic-<slug>/` directory and its state file are the durable replacement record. Perform them as a single read-modify-write on `BACKLOG.md` so they cannot half-apply: read the file once, prepare both edits in memory, write once. If `BACKLOG.md` does not exist, both substeps are skipped silently; the curator at Step 6 will hint to the user that `/base:init-backlog` would unlock backlog integration.
+These two `BACKLOG.md` mutations both run only after `epic-state.json` has been successfully written above — the new `specs/epic-<slug>/` directory and its state file are the durable replacement record. Perform them as a single read-modify-write on `BACKLOG.md` so they cannot half-apply: read the file once, prepare both edits in memory, write once. If `BACKLOG.md` does not exist, both substeps are skipped silently; the curator at Step 6 will hint to the user that `/base:backlog init` would unlock backlog integration.
 
 1. **Append the epic bullet to `## Epics`** so the in-progress epic is visible to parallel readers and to `/base:orient` from this point forward (the corresponding end-of-run flip to `DONE`/`ESCALATED` is performed unconditionally by the lead at Step 6.1; the curator is not involved in the bullet's lifecycle for this epic):
 
@@ -480,7 +480,7 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
      - The lead's `retro_bundle` (same object the synthesizer gets — for factual signal about abandoned approaches, tightened tests, surprising failures).
      - Paths to all `{story_dir}/result.json` files (for `files_modified`, `files_created`, root-cause descriptions).
      - Paths to `specs/epic-{name}/spec.md` and `acceptance-criteria.md` (the curator may propose `amend_spec`).
-     - Path to `BACKLOG.md` at the repo root if it exists (the curator skips `append_finding`/`append_rejection`/`update_epics_section` proposals when it does not — surface a one-time hint to the user that `/base:init-backlog` would unlock those).
+     - Path to `BACKLOG.md` at the repo root if it exists (the curator skips `append_finding`/`append_rejection`/`update_epics_section` proposals when it does not — surface a one-time hint to the user that `/base:backlog init` would unlock those).
      - `docs/adr/` listing — `ls docs/adr/*.md 2>/dev/null` (titles only, not bodies).
      - Project provenance JSON (same fields as 2a).
 
@@ -488,8 +488,8 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
 
 3. **Adjudicate curator proposals.** For each proposal in the curator's return, present it to the user via `AskUserQuestion`. Batch related proposals into one prompt where possible (e.g. all `append_finding` proposals as one multi-question; never collapse a `promote_to_adr` with a `append_finding` — they require different decisions). For each accepted proposal, the lead applies it directly:
 
-     - **`append_finding`** → append the formatted bullet to `BACKLOG.md ## Findings` (use the format documented in `plugins/base/skills/init-backlog/BACKLOG-template.md`).
-     - **`append_rejection`** → append the bullet to `BACKLOG.md ## Archive` in the canonical format `- YYYY-MM-DD — <text> — <rejection_reason>` (no `[rejected]` prefix; the section header conveys that). See `plugins/base/skills/init-backlog/BACKLOG-template.md`.
+     - **`append_finding`** → append the formatted bullet to `BACKLOG.md ## Findings` (use the format documented in `plugins/base/skills/backlog/references/format.md`).
+     - **`append_rejection`** → append the bullet to `BACKLOG.md ## Archive` in the canonical format `- YYYY-MM-DD — <text> — <rejection_reason>` (no `[rejected]` prefix; the section header conveys that). See `plugins/base/skills/backlog/references/format.md`.
      - **`amend_spec`** → apply the AC patch to `acceptance-criteria.md` AND append an entry to `spec.md ## Amendments` (create the section if it doesn't yet exist; see `base:spec-template`). Both edits are a single logical amendment.
      - **`resolve_finding_via_spec`** → apply the AC patch + append to `## Amendments` (same as `amend_spec`) AND remove the source bullet from `BACKLOG.md ## Findings` matched by `finding_marker`. The amendment entry must cite the resolved finding's text. All three edits are one transactional unit; if any fails, surface the failure rather than partially applying.
      - **`resolve_finding_mechanical`** → remove the source bullet from `BACKLOG.md ## Findings` matched by `finding_marker`. No spec change, no archive entry. The `evidence_commit` is for audit only — do not write it anywhere; git is the record.

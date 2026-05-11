@@ -28,7 +28,7 @@ brief and a ranked menu of moves; the user picks.
 ## Inputs (all read-only)
 
 - **`BACKLOG.md`** at repo root. If missing, the first proposed move is
-  "run `/base:init-backlog` to bootstrap project state." Continue with
+  "run `/base:backlog init` to bootstrap project state." Continue with
   whatever else is detectable.
 - **Every `specs/epic-*/epic-state.json`.** Cross-checked against
   `BACKLOG.md ## Epics` — drift either way is surfaced.
@@ -62,21 +62,21 @@ entry not in `YYYY-MM-DD — text — reason` shape) → emit a single
 high-priority surfacing in "Worth your attention" with the specific
 malformations and a one-line fix suggestion. **Do not stop**; downstream
 rules continue with best-effort parsing. The format is documented in
-`plugins/base/skills/init-backlog/BACKLOG-template.md`; cite it in the
+`plugins/base/skills/backlog/references/format.md`; cite it in the
 surfacing.
 
 ### Rule 1 — Bootstrap
 
-If `BACKLOG.md` is missing → propose `/base:init-backlog` as move #1
+If `BACKLOG.md` is missing → propose `/base:backlog init` as move #1
 with the rationale "N existing epic dirs, M ADRs, no project-state file
-yet — `/base:init-backlog` will scaffold BACKLOG.md AND seed `## Epics`
+yet — `/base:backlog init` will scaffold BACKLOG.md AND seed `## Epics`
 from the N existing dirs in one shot, then you'll be ready to triage."
 **Continue with the remaining rules**; the ones that strictly require
 `BACKLOG.md` (Rules 5–8) skip silently and the others (2, 3, 4, 9)
 still produce useful signal. This matches the Inputs-section contract
 above ("if missing, continue with whatever else is detectable") — the
-seeding write is performed by `init-backlog`, not by this skill (orient
-remains strictly read-only).
+seeding write is performed by the `backlog` skill's `init` op, not by
+this skill (orient remains strictly read-only).
 
 ### Rule 2 — Epic-vs-state drift
 
@@ -93,7 +93,7 @@ For each `specs/epic-*/`:
       every combination, including those that `/base:feature` Step 6.1
       *should* have written but didn't (e.g. crashed mid-write,
       `BACKLOG.md` was missing at Step 6.1 but exists now after a
-      separate `/base:init-backlog` run).
+      separate `/base:backlog init` run).
     - If the spec dir exists on disk but is missing from `## Epics`
       entirely → propose appending a bullet.
     - If `## Epics` lists a spec dir that does not exist on disk → propose
@@ -101,7 +101,7 @@ For each `specs/epic-*/`:
 - **`BACKLOG.md` missing**: report the count of existing epic dirs and
   their statuses (from each `epic-state.json`) as a single bullet under
   "Worth your attention", paired with the Rule-1 bootstrap move. This is
-  exactly the seed material `/base:init-backlog` will write into the
+  exactly the seed material `/base:backlog init` will write into the
   scaffolded `## Epics` on its first run; surfacing it explains *why*
   the bootstrap proposal is non-trivial.
 
@@ -146,7 +146,7 @@ A finding flagged `[bug]` or `[chore]` that has been on the list ≥ 30 days
 without resolution is a candidate for promotion to an epic
 (`/base:feature backlog:<slug>`) or for a `/base:bug` run. Findings that
 have been resolved in the user's head but never closed in BACKLOG should
-get `/base:resolve-finding <marker>` as the suggested next move.
+get `/base:backlog resolve <marker>` as the suggested next move.
 
 ### Rule 9 — ADRs awaiting acceptance
 
@@ -252,5 +252,5 @@ demand. The two together form the maintenance loop:
                                        user picks next move
                                                │
                                                ▼
-                                   /feature, /bug, /adr, /init-backlog, …
+                                   /feature, /bug, /adr, /backlog, …
 ```
