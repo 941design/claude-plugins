@@ -102,10 +102,22 @@ implementation detail — that lives in `## Technical Approach` below.
 ## Design Decisions
 
 Numbered list. Each item states the decision and its rationale, often with
-`file:line` refs to anchor the decision to existing code.
+`file:line` refs to anchor the decision to existing code. When a decision
+is constrained by an ADR, cite it inline.
 
 1. **<Decision>** — <rationale>. Refs: `path/to/file.py:42`.
-2. …
+2. **<Decision>** — <rationale>. Per ADR-007.
+3. …
+
+## Constrained by ADRs
+
+(Optional.) ADRs that constrain the work in this epic. Distinct from
+`## Design Decisions` above — this is a pure pointer list, not the place
+to restate the decision. Use when an ADR is load-bearing for the spec
+(usually `Affects:` of that ADR includes this epic).
+
+- **ADR-007** — Auth flow: bunker-only signing.
+- **ADR-014** — No new gRPC services.
 
 ## Technical Approach
 
@@ -139,19 +151,46 @@ See [`acceptance-criteria.md`](./acceptance-criteria.md).
   Distinct from `## Out of Scope`:
     - **Out of Scope** = "not this epic, may be a future epic".
     - **Non-Goals** = "not the project's direction at all".
+
+## Amendments
+
+(Optional, append-only.) Post-completion changes to this spec. The base
+plugin treats specs as **living documents**: when a backlog finding
+resolves with `[done→spec:specs/epic-<slug>/]`, the change is recorded
+here so the spec stays the durable behavior record without losing the
+historical decision trail.
+
+Each amendment names the date, the AC IDs added or modified, the source
+(finding, bug report, or PR), and a one-line rationale. The actual AC
+text changes happen inline in `## Acceptance Criteria` (or, for the AC
+file, in `acceptance-criteria.md`); this section is the audit trail.
+
+- **2026-05-11** — Added `AC-ERR-7`. Source: BACKLOG finding `auth/login.ts:142`. Rationale: regression test surfaced missing handling for refresh+login race.
+- **2026-05-20** — Tightened `AC-STRUCT-3`. Source: bug report `bug-reports/refresh-loop-report.md`. Rationale: original AC allowed unbounded retry; tightened to 3.
+
+`epic-state.json` does NOT re-open when the spec is amended; it remains
+the workflow's run record. Spec history is recorded here.
 ```
 
 ### Section rules
 
-- **All section headings above are required**, even if a section's content
-  is "None known" (write that explicitly — empty sections are wrong; the
-  point is to force the author to think about each one).
+- **Required sections** (must appear, even if content is "None known" —
+  write that explicitly): `## Problem`, `## Solution`, `## Scope` (with
+  `### In Scope` and `### Out of Scope`), `## Design Decisions`,
+  `## Technical Approach`, `## Stories`, `## Acceptance Criteria`,
+  `## Relationship to Other Epics`, `## Non-Goals`.
+- **Optional sections**: `## Constrained by ADRs` (omit when no ADRs
+  apply) and `## Amendments` (omit until the first amendment is
+  recorded; once present, append-only).
 - **The spec describes intent.** It must not duplicate prose from
   `acceptance-criteria.md`. The AC file describes observable assertions;
   the spec describes what we are doing and why.
 - **Story IDs (`S1`, `S2`, …) are stable references.** If a story is
   removed, do not renumber the rest — leave a one-line "S2 — *removed*"
   entry so existing references stay valid.
+- **Amendments are append-only.** Never rewrite or reorder existing
+  entries. If a prior amendment was wrong, add a new entry that
+  supersedes it (with `Supersedes: 2026-05-11 entry`).
 
 ---
 
@@ -236,8 +275,10 @@ The form is `**AC-<TAG>-<N>**` where:
 |------|-----------|--------------------------|
 | Intent / motivation | ✓ | ✗ |
 | Design decisions and rationale | ✓ | ✗ |
+| ADR pointers (when an ADR constrains the spec) | ✓ | ✗ |
 | Code sketches | ✓ (illustrative) | ✗ |
 | Story preview | ✓ | ✗ |
+| Amendment audit trail | ✓ (`## Amendments`) | ✗ |
 | Observable assertions | ✗ | ✓ |
 | Test-checkable invariants | ✗ | ✓ |
 | Terminology used by ACs | ✗ | ✓ |
@@ -246,6 +287,12 @@ A reader of `spec.md` alone should understand *what we are building and
 why*. A reader of `acceptance-criteria.md` alone should know *what passes
 or fails when implementation is done*. Each file stands on its own; prose
 is not duplicated between them.
+
+The actual AC text changes that an `## Amendments` entry refers to live
+inline in `acceptance-criteria.md` (new ACs appended in the relevant
+story section, tightened ACs edited in place). The `## Amendments`
+section in `spec.md` is the audit trail; the AC file is the live
+behavior contract.
 
 ---
 
