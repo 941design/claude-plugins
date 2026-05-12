@@ -1,0 +1,72 @@
+{
+  "epic_name": "lean-lead-decider",
+  "story_order": ["S1", "S2", "S3", "S4", "S5"],
+  "stories": {
+    "S1": {
+      "id": "S1",
+      "name": "lead-model-and-decider-role",
+      "title": "Lead model + Decider role",
+      "description": "Change frontmatter model from opus to sonnet; replace the three-role team composition (Planner/Architect/Verifier) in Step 4 with a single Decider teammate role block (Opus, response types RETRY/ESCALATE/ACCEPT/REJECT).",
+      "owning_module": "plugins/base/commands/feature.md",
+      "acceptance_criteria": ["AC-COORD-1", "AC-COORD-2"],
+      "status": "done",
+      "scope": {
+        "in_scope": ["frontmatter model line", "Step 4 Team Composition section (full replacement)"],
+        "out_of_scope": ["Step 5 logic", "Crash Recovery section", "spawning conventions preamble"]
+      }
+    },
+    "S2": {
+      "id": "S2",
+      "name": "planning-via-direct-subagent",
+      "title": "Planning via direct subagent",
+      "description": "Rewrite the planning phase: lead spawns base:story-planner directly via the Agent tool, passing spec/exploration/architecture paths; lead reads stories.json directly; if gaps need judgment, lead consults Decider via SendMessage rather than spawning another planner teammate.",
+      "owning_module": "plugins/base/commands/feature.md",
+      "acceptance_criteria": ["AC-PLAN-1", "AC-PLAN-2"],
+      "status": "done",
+      "scope": {
+        "in_scope": ["Step 4 'Planning phase' subsection or Step 5 planning step"],
+        "out_of_scope": ["story-planner agent definition itself"]
+      }
+    },
+    "S3": {
+      "id": "S3",
+      "name": "per-story-implementation-subagent",
+      "title": "Per-story implementation subagent",
+      "description": "Rewrite Step 5 implementation loop so that for each pending story the lead spawns a fresh base:integration-architect via the Agent tool with no result.json or artifacts from prior stories. No persistent architect teammate; no SendMessage to an architect role.",
+      "owning_module": "plugins/base/commands/feature.md",
+      "acceptance_criteria": ["AC-IMPL-1", "AC-IMPL-2"],
+      "status": "done",
+      "scope": {
+        "in_scope": ["Step 5 implementation loop"],
+        "out_of_scope": ["integration-architect agent definition itself"]
+      }
+    },
+    "S4": {
+      "id": "S4",
+      "name": "per-story-verification-subagents",
+      "title": "Per-story verification subagents",
+      "description": "Rewrite Step 5 verification block so that the lead spawns base:verification-examiner subagents per question (parallel where independent) after each integration-architect completes. No persistent verifier teammate; no SendMessage to a verifier role.",
+      "owning_module": "plugins/base/commands/feature.md",
+      "acceptance_criteria": ["AC-VER-1", "AC-VER-2"],
+      "status": "done",
+      "scope": {
+        "in_scope": ["Step 5 verification block"],
+        "out_of_scope": ["verification-examiner agent definition itself"]
+      }
+    },
+    "S5": {
+      "id": "S5",
+      "name": "decision-routing-and-crash-recovery",
+      "title": "Decision routing + crash recovery",
+      "description": "Add fast-path rules (lead handles autonomously) and escalation triggers (Decider consulted) to Step 5; rewrite Crash Recovery to instruct recreation of the Decider teammate only.",
+      "owning_module": "plugins/base/commands/feature.md",
+      "acceptance_criteria": ["AC-COORD-3", "AC-COORD-4", "AC-CRASH-1"],
+      "status": "done",
+      "scope": {
+        "in_scope": ["Step 5 decision routing rules", "Crash Recovery section"],
+        "out_of_scope": ["Strict Artifact Requirements section"]
+      }
+    }
+  },
+  "seams": []
+}

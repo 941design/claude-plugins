@@ -1,0 +1,13 @@
+{
+  "story_id": "S2",
+  "status": "done",
+  "files_modified": ["plugins/base/commands/feature.md"],
+  "changes": [
+    "Added '### Planning Phase' subsection at end of Step 4 (after Decider role block)",
+    "Planning phase spawns base:story-planner via Agent tool",
+    "Lead reads stories.json directly; minor issues → spawn another base:story-planner; judgment issues → SendMessage(Decider)"
+  ],
+  "acceptance_criteria_addressed": ["AC-PLAN-1", "AC-PLAN-2"],
+  "verification_rounds": 0,
+  "final_outcome": "accepted_pending_phase_e_audit"
+}

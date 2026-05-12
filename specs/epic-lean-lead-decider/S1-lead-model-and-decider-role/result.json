@@ -1,0 +1,13 @@
+{
+  "story_id": "S1",
+  "status": "done",
+  "files_modified": ["plugins/base/commands/feature.md"],
+  "changes": [
+    "Frontmatter: model: opus → sonnet",
+    "Step 4: replaced Planner + Architect + Verifier role blocks and 'When to Scale Up' subsection with single Decider role block (model: opus, response types RETRY/ESCALATE/ACCEPT/REJECT)"
+  ],
+  "acceptance_criteria_addressed": ["AC-COORD-1", "AC-COORD-2"],
+  "verification_rounds": 0,
+  "final_outcome": "accepted_pending_phase_e_audit",
+  "notes": "Lean execution — direct Edit by lead; phase-E verification-examiner audit will validate ACs against final feature.md."
+}

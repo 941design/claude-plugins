@@ -1,0 +1,13 @@
+{
+  "story_id": "S5",
+  "status": "done",
+  "files_modified": ["plugins/base/commands/feature.md"],
+  "changes": [
+    "Step 5 (loop step 4): defined FAST PATH — pass (lead handles autonomously) and FAST PATH — first retry (lead spawns fresh integration-architect with examiner findings)",
+    "Step 5 (loop step 4): defined ESCALATE triggers including remediation_round ≥ 1 still failing, PARTIAL severity ≥ 7 with ambiguous root cause, examiner contradictions, spec/architecture conflicts, max-rounds exhausted; lead SendMessage(Decider) with response routing for RETRY/ESCALATE/ACCEPT/REJECT",
+    "Crash Recovery: replaced 'recreate team with three roles' step with 'recreate Decider teammate only'; resumption uses Step 5 loop from first incomplete story"
+  ],
+  "acceptance_criteria_addressed": ["AC-COORD-3", "AC-COORD-4", "AC-CRASH-1"],
+  "verification_rounds": 0,
+  "final_outcome": "accepted_pending_phase_e_audit"
+}
