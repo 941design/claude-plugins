@@ -150,6 +150,12 @@ Where:
 Do **not** invoke `AskUserQuestion`. Do not present any confirmation prompt. Fall
 through immediately to Step 5 with the selected candidate.
 
+The Skill dispatch in Step 6 will append ` auto` to the args when `mode == auto`,
+signaling non-interactive mode to the downstream skill (`/base:feature` or `/base:bug`).
+If the downstream skill cannot proceed without user input, it will append a question
+finding to `BACKLOG.md` and return the literal abort signal `ABORT:UNDERSPECIFIED`,
+which Step 6a inspects.
+
 ---
 
 ### IF mode == detail
@@ -269,12 +275,42 @@ until exactly one match.
 
 ## Step 6: Dispatch via Skill
 
-Route by the selected finding's classification (from Step 3):
+Route by the selected finding's classification (from Step 3). The args differ by
+mode — auto mode appends a trailing ` auto` token that downstream skills detect for
+non-interactive mode.
 
 ```
+[when mode == detail]
 bug             → Skill("base:bug",     args: "backlog:<marker>")
 feature-work    → Skill("base:feature", args: "backlog:<marker>")
+
+[when mode == auto]
+bug             → Skill("base:bug",     args: "backlog:<marker> auto")
+feature-work    → Skill("base:feature", args: "backlog:<marker> auto")
 ```
+
+---
+
+## Step 6a: Auto-Mode Abort Check (auto mode only)
+
+This step runs only when `mode == auto`. Skip entirely in detail mode.
+
+After the Skill call in Step 6 returns in auto mode, inspect the return output for the
+literal string `ABORT:UNDERSPECIFIED`. If present:
+
+1. Extract the gap description: take all text following the first `ABORT:UNDERSPECIFIED:`
+   occurrence in the return output, trimmed. Use only the first such line if multiple exist.
+2. Print:
+
+```
+Auto-dispatch aborted.
+Reason: {extracted gap description}
+A question finding has been added to BACKLOG.md.
+Run /base:next (without auto) to work on the spec interactively.
+```
+
+Then exit. Do NOT attempt the next candidate. Auto mode processes exactly one item
+regardless of result (success or abort).
 
 ---
 
@@ -282,3 +318,6 @@ feature-work    → Skill("base:feature", args: "backlog:<marker>")
 
 Exit after the Skill call returns. Report the dispatched finding and which workflow
 received it.
+
+In auto mode, Step 7 is reached after either a successful dispatch or an abort —
+the skill exits after one dispatch attempt in either case.

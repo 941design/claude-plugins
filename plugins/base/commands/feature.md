@@ -44,6 +44,60 @@ in Step 6.
 
 ## Input: $ARGUMENTS
 
+### Non-Interactive Mode Detection
+
+IF $ARGUMENTS ends with the literal token ` auto` (space + "auto", case-sensitive):
+    non_interactive = true
+    Strip the trailing ` auto` token from $ARGUMENTS before Step 1 processes it.
+ELSE:
+    non_interactive = false
+
+When `non_interactive = true`, every `AskUserQuestion` call site in this document
+has a paired abort branch — see Step 1 (slug derivation, SCAN), Step 1.5 (RECONCILE
+adjudication), Step 2 (clarification rounds), and Step 5 (ESCALATE). At each such
+site, instead of invoking `AskUserQuestion`, append a question finding to
+`BACKLOG.md ## Findings` and output `ABORT:UNDERSPECIFIED: <reason>` then exit.
+
+The BACKLOG.md write protocol at every such site: read-modify-write the file —
+read it, locate the `## Findings` section heading, append the new bullet immediately
+after that heading line, write back. If `## Findings` is absent, create the section.
+If `BACKLOG.md` does not exist, skip the finding write silently (still output the
+ABORT signal and exit).
+
+**Propagation to subagents and teammates.** The `non_interactive` flag does not
+stop at the lead. Subagents (`base:spec-validator`, `base:code-explorer`,
+`base:story-planner`, `base:integration-architect`, `base:verification-examiner`)
+and TeamCreate teammates (`Decider`) each have their own prompts and can
+independently invoke `AskUserQuestion` at their own decision points. When
+`non_interactive = true`, every site that spawns one of those agents or defines a
+teammate role MUST append the following instruction to the briefing:
+
+> **Non-interactive mode:** You are operating without a human in the loop. Do NOT
+> invoke `AskUserQuestion` under any circumstances. If you reach a decision point
+> that requires human judgment to resolve — a design choice, an ambiguous spec, a
+> conflict you cannot settle from available context — output the single line
+> `ABORT:UNDERSPECIFIED: <concise description of what needs specifying>` as the
+> first line of your response and stop immediately. Do not guess, do not default
+> silently, do not proceed with incomplete information.
+
+And after every Agent spawn return or teammate message receive, when
+`non_interactive = true`, apply this catch:
+
+```
+IF the return/message contains the literal string "ABORT:UNDERSPECIFIED":
+    Extract the gap text: everything after the first "ABORT:UNDERSPECIFIED:" on that line, trimmed.
+    Append a question finding to BACKLOG.md ## Findings (read-modify-write):
+        "- {relevant_path} — Is this work ready for auto-dispatch? {gap text}. Resolve then remove this finding. (YYYY-MM-DD)"
+    Where {relevant_path} is the most relevant file path available in context
+    (spec.md path, story result.json path, exploration target, or "-" if none).
+    Output: "ABORT:UNDERSPECIFIED: {gap text}" and exit the current skill.
+```
+
+The subagent does NOT write the backlog finding — only the lead does, when it
+catches the cascaded signal. Subagents that are pure data processors with no
+human-judgment decision points (`base:retro-synthesizer`, `base:project-curator`)
+are exempt from both the instruction injection and the catch.
+
 ---
 
 ## Step 1: Determine What We're Working With
@@ -63,6 +117,10 @@ ELSE:
 
 If SCAN finds in-progress epics, ask the user which to resume or whether to start fresh. SCAN should also note whether `BACKLOG.md` exists and has open Findings — if so, mention it as one option ("Or run `/base:orient` to see the project-wide picture") without making it the default.
 
+**Non-interactive abort.** When `non_interactive = true` and mode resolves to SCAN
+(no argument), abort immediately: output `ABORT:UNDERSPECIFIED: auto mode requires
+an explicit backlog marker or spec path; cannot scan interactively.` and exit.
+
 ### BACKLOG_PROMOTE mode
 
 Argument form: `backlog:<finding-marker>` where `<finding-marker>` is a substring that uniquely identifies one entry in `BACKLOG.md ## Findings` (typically the path component of its anchor, or the first few words of its text).
@@ -70,7 +128,7 @@ Argument form: `backlog:<finding-marker>` where `<finding-marker>` is a substrin
 ```
 1. Read BACKLOG.md. If missing, abort with: "no BACKLOG.md — run /base:backlog init first."
 2. Locate the matching finding bullet under ## Findings. If zero or >1 matches, abort with the candidates listed; the user re-invokes with a more specific marker.
-3. Derive an epic slug from the finding (kebab-case, ≤40 chars). Confirm with the user via AskUserQuestion if ambiguous.
+3. Derive an epic slug from the finding (kebab-case, ≤40 chars). Confirm with the user via AskUserQuestion if ambiguous. **When `non_interactive = true`, skip `AskUserQuestion` and derive the slug deterministically: take the first 8 words of the finding text, kebab-case them. No confirmation.**
 4. Scaffold the empty stub by invoking Skill("base:spec-template", args: "<slug>") — that skill creates `specs/epic-<slug>/spec.md` and `acceptance-criteria.md` with title-only content (it deliberately does NOT generate project-specific content; see its SKILL.md). Then the lead **Edit**s the just-created `specs/epic-<slug>/spec.md` to inject the finding's text into `## Problem` and the finding's anchor (when present) into `## Technical Approach` as a starting reference. This pre-fill is the lead's job, not the skill's — keep the inserted text minimal (the finding's verbatim text plus a "Source: BACKLOG.md finding promoted YYYY-MM-DD" line); the user expands it before Step 2 validation.
 5. Capture the finding marker in an in-session variable `pending_finding_removal = <marker>`. **Do NOT remove the bullet yet** — the source finding stays in `## Findings` until Step 3 has successfully written `epic-state.json`. This makes promotion atomic: if Step 2 validation aborts or the user abandons the run, the finding is still in the backlog (and the orphaned `specs/epic-<slug>/` stub is detectable by `/base:orient` Rule 2 as drift).
 6. Set the spec file path to `specs/epic-<slug>/spec.md`, capture the slug as the in-session variable `promoted_slug = <slug>` (Step 3 will pin `epic_name` to this value rather than re-deriving from the title — the user is allowed to edit the title before validation, and re-deriving would orphan the promoted stub), and fall through to NEW mode (Step 2). Mark the in-session mode as `BACKLOG_PROMOTE` so Step 3 can skip the redundant copy and consume `pending_finding_removal`.
@@ -139,6 +197,13 @@ If every verdict is `holds` or `unverifiable`, log the result and proceed to Ste
 
 If ANY verdict is `partially-holds` or `violated`, present an adjudication menu via `AskUserQuestion`. For each non-holds AC, the user picks one of:
 
+**Non-interactive abort.** When `non_interactive = true`, do NOT present the adjudication menu. Instead, append the following question finding to `BACKLOG.md ## Findings` (read-modify-write the file):
+```
+- specs/epic-{slug}/spec.md — Is spec for epic-{slug} ready? Auto-dispatch aborted: RECONCILE found unresolved violations requiring adjudication. Resolve then remove this finding. (YYYY-MM-DD)
+```
+Output `ABORT:UNDERSPECIFIED: RECONCILE requires human adjudication.` and exit.
+
+
 - **`keep`** — the AC stays unchanged. Use this both when "the AC is correct, the code is wrong" (defect to be fixed during this epic) AND when "the AC is correct and the code already satisfies it" (the verification examiner will find it satisfied during normal flow — usually fast-path pass with no architect work). RECONCILE does not pre-mark stories `done`; that pathway corrupts crash-recovery's artifact-validation contract (each `done` story must own all four artifacts, which RECONCILE does not produce).
 - **`retire`** — the AC is no longer applicable; replace its line in `acceptance-criteria.md` with `**AC-<TAG>-N** — *retired (RECONCILE 20YY-MM-DD)*` and append an entry to `spec.md ## Amendments`.
 - **`rewrite`** — the AC needs new wording; user supplies replacement text inline. Edit in place; append amendment.
@@ -185,7 +250,15 @@ For NEW mode (spec just authored or scaffolded from BACKLOG_PROMOTE), this is th
 
 If gaps exist, use AskUserQuestion to get clarifications. Update the spec. Max 3 rounds — if still unclear, stop and explain what's missing.
 
-For complex specs, use the Agent tool with `subagent_type: base:spec-validator` for thorough analysis. Pass the discovered ADRs and matching archive entries to the validator as input context. If its return contains a `RETROSPECTIVE:` block with `skipped: false`, capture it into `retro_bundle.spec_validation` (see "Retrospective collection (cross-cutting)" near the top of this file).
+**Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion` for spec clarifications. Instead, capture the first gap identified and append a question finding to `BACKLOG.md ## Findings`:
+```
+- specs/epic-{slug}/spec.md — Is spec for epic-{slug} ready? Auto-dispatch aborted: {first gap identified}. Finish specifying then remove this finding. (YYYY-MM-DD)
+```
+Output `ABORT:UNDERSPECIFIED: {first gap}` and exit.
+
+For complex specs, use the Agent tool with `subagent_type: base:spec-validator` for thorough analysis. Pass the discovered ADRs and matching archive entries to the validator as input context. When `non_interactive = true`, include the non-interactive mode instruction (see Non-Interactive Mode Detection block above) in the spawn prompt — the validator might otherwise surface clarification needs via `AskUserQuestion`. If its return contains a `RETROSPECTIVE:` block with `skipped: false`, capture it into `retro_bundle.spec_validation` (see "Retrospective collection (cross-cutting)" near the top of this file).
+
+When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the spec-validator return before processing the retrospective. Use `<spec_file>` as `{relevant_path}`.
 
 ---
 
@@ -268,7 +341,11 @@ Use the Agent tool with `subagent_type: base:code-explorer` to launch 2-3 explor
 - **architecture**: Module boundaries, abstraction layers, data flow
 - **testing-and-conventions**: Test framework, conventions, E2E infrastructure
 
+When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to each explorer's prompt.
+
 Merge results into `specs/epic-{name}/exploration.json`. For each explorer return that contains a `RETROSPECTIVE:` block with `skipped: false`, append it to `retro_bundle.exploration` (one entry per non-skipped flag, with the focus name preserved).
+
+When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to each explorer return before merging. Use `specs/epic-{name}/spec.md` as `{relevant_path}`.
 
 ### Initialize Mocks Registry
 
@@ -288,7 +365,14 @@ After codebase exploration, before creating the team, produce `specs/epic-{name}
 Check `specs/epic-{name}/spec.md` YAML frontmatter for `arch_debate: true`.
 
 **If `arch_debate: true`:**
-Invoke `Skill("base:arch-debate", args: "--epic {epic_name} --spec specs/epic-{name}/spec.md")`.
+
+When `non_interactive = true`, do NOT invoke the skill — `base:arch-debate` requires human deliberation and is not auto-dispatchable. Instead, append a question finding to `BACKLOG.md ## Findings` (read-modify-write):
+```
+- specs/epic-{name}/spec.md — Is spec for epic-{name} ready for auto-dispatch? arch_debate: true requires human deliberation; not auto-dispatchable. Resolve (run /base:feature specs/epic-{name} interactively) then remove this finding. (YYYY-MM-DD)
+```
+Output `ABORT:UNDERSPECIFIED: arch_debate: true requires human deliberation; not auto-dispatchable.` and exit.
+
+Otherwise (interactive mode), invoke `Skill("base:arch-debate", args: "--epic {epic_name} --spec specs/epic-{name}/spec.md")`.
 The skill reads `exploration.json`, runs a two-round Proposer ↔ Codex adversary debate, and outputs:
 - `docs/adr/ADR-{N:03d}-{epic-name}.md` — the decision record
 - `specs/epic-{name}/architecture.md` — the operational document all agents read
@@ -330,6 +414,8 @@ Create an agent team with one role. The lead (this session, running on Sonnet) d
 > You do not spawn subagents. You do not manage state files. You do not read
 > artifacts yourself unless the lead provides them in context.
 
+When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Decider's role definition. Additionally, because the Decider's `ESCALATE` response routes back to `AskUserQuestion` in the lead, append: "When `non_interactive = true`, if you would respond `ESCALATE`, respond `ABORT:UNDERSPECIFIED: <reason>` instead — the lead will catch this and persist the gap to the backlog rather than asking the user."
+
 ### Planning Phase
 
 After creating the Decider, run the planning phase. The planner runs in
@@ -337,25 +423,42 @@ three modes; spawn it once per mode (fresh subagent each time).
 
 1. Spawn `Agent(subagent_type: base:story-planner)` in **Mode 1** with: spec
    path, exploration.json path, architecture.md path. Output:
-   `acceptance-criteria.md`. Wait for completion.
+   `acceptance-criteria.md`. When `non_interactive = true`, include the
+   non-interactive mode instruction (see Non-Interactive Mode Detection block
+   above) in the spawn prompt. Wait for completion. When `non_interactive = true`,
+   apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection
+   block above) to the planner return before processing. Use
+   `specs/epic-{name}/spec.md` as `{relevant_path}`.
 2. Spawn `Agent(subagent_type: base:story-planner)` in **Mode 2** with: spec
    path, acceptance-criteria.md path, architecture.md path. Output:
-   `stories.json`. Wait for completion.
+   `stories.json`. When `non_interactive = true`, include the non-interactive
+   mode instruction in the spawn prompt. Wait for completion. When
+   `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch to the
+   planner return before processing. Use `specs/epic-{name}/spec.md` as
+   `{relevant_path}`.
 3. Read `stories.json` directly. Sanity check: all ACs covered,
    `story_order` defined, no duplicate story IDs.
    - If issues are minor and unambiguous (typos, missing scope boundary,
-     missing AC reference): re-spawn Mode 2 with targeted corrections.
+     missing AC reference): re-spawn Mode 2 with targeted corrections (apply
+     the same non-interactive instruction injection and ABORT catch as above).
    - If issues require judgment (AC interpretation, story split
      disagreement, scope ambiguity): `SendMessage(Decider)` with the gap
      and the specific question. Apply the Decider's response before
-     proceeding.
+     proceeding. When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED
+     catch to the Decider's message before acting on it — if it contains
+     `ABORT:UNDERSPECIFIED`, the lead persists the gap to BACKLOG.md and
+     exits. Use `specs/epic-{name}/spec.md` as `{relevant_path}`.
 4. Spawn `Agent(subagent_type: base:story-planner)` in **Mode 3** with:
    stories.json path, acceptance-criteria.md path, architecture.md path.
    Output: one `{story_dir}/verification.json` per story containing the
    pre-impl commitment set. The planner creates the story directories.
-   Wait for completion. Sanity check: every story listed in
+   When `non_interactive = true`, include the non-interactive mode instruction
+   in the spawn prompt. Wait for completion. Sanity check: every story listed in
    `stories.json` has a `verification.json` with at least 5 pre-impl
-   records plus one SPEC record per AC in its `acceptance_criteria`.
+   records plus one SPEC record per AC in its `acceptance_criteria`. When
+   `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch to the
+   planner return before processing. Use `specs/epic-{name}/spec.md` as
+   `{relevant_path}`.
 5. When all three modes have produced their artifacts, proceed to the
    implementation loop in Step 5.
 
@@ -392,15 +495,22 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
        - {story_dir}/verification.json (path) — pre-authored by the
          story-planner in Mode 3; pre-impl questions are immutable, the
          architect appends post-impl records only.
+     When `non_interactive = true`, include the non-interactive mode instruction
+     (see Non-Interactive Mode Detection block above) in the spawn prompt.
      Context MUST NOT include result.json or artifacts from prior stories — every story gets a fresh subagent with a clean context window. **Capture the architect's agentId** (returned by the Agent tool) and keep it for this story so Step 5 (the optional retro probe) can re-engage the same architect by agentId. Wait for the subagent to write {story_dir}/result.json.
+
+     When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see
+     Non-Interactive Mode Detection block above) to the architect return. Use
+     `{story_dir}/result.json` as `{relevant_path}`.
 
      If {story_dir}/verification.json is missing for this story, the
      planner did not complete Mode 3 — re-spawn `base:story-planner` in
-     Mode 3 for this story before spawning the architect.
+     Mode 3 for this story before spawning the architect (apply the same
+     non-interactive instruction injection and ABORT catch as in Step 4).
 
   3. Read {story_dir}/verification.json.
-     Spawn Agent(subagent_type: base:verification-examiner) for each verification question, or each batch of related questions. Independent batches MUST be sent in parallel — single message, multiple Agent tool calls. Each examiner returns YES, NO, or PARTIAL with severity and evidence.
-     Collect all results. For each examiner return that contains a `RETROSPECTIVE:` block with `skipped: false`, append `{story_id, flag}` to `retro_bundle.examiners` (see "Retrospective collection (cross-cutting)" near the top of this file).
+     Spawn Agent(subagent_type: base:verification-examiner) for each verification question, or each batch of related questions. Independent batches MUST be sent in parallel — single message, multiple Agent tool calls. When `non_interactive = true`, include the non-interactive mode instruction (see Non-Interactive Mode Detection block above) in each examiner's spawn prompt. Each examiner returns YES, NO, or PARTIAL with severity and evidence.
+     Collect all results. When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch to each examiner return before tallying. Use `{story_dir}/result.json` as `{relevant_path}`. For each examiner return that contains a `RETROSPECTIVE:` block with `skipped: false`, append `{story_id, flag}` to `retro_bundle.examiners` (see "Retrospective collection (cross-cutting)" near the top of this file).
 
   4. Apply decision rules:
 
@@ -428,11 +538,18 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
          - Architecture seam dispute
          - Story has hit max remediation rounds (5)
        → SendMessage(Decider) with: story ID, verification.json summary, examiner results, remediation history, and a specific question.
+       → When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the Decider's message before acting on it. Use `{story_dir}/result.json` as `{relevant_path}`. If the message contains `ABORT:UNDERSPECIFIED`, the lead persists the gap to BACKLOG.md and exits — do not also fall through to the ESCALATE branch.
        → Execute the Decider's response:
-           RETRY    → spawn a fresh Agent(subagent_type: base:integration-architect) with the Decider's remediation prompt; re-run step 3.
+           RETRY    → spawn a fresh Agent(subagent_type: base:integration-architect) with the Decider's remediation prompt (apply the same non-interactive instruction injection and ABORT catch as bullet 2 above); re-run step 3.
            ESCALATE → mark the story escalated in stories.json and epic-state.json; surface to the user via AskUserQuestion.
            ACCEPT   → update result.json with the Decider's caveats; mark done.
            REJECT   → treat as a remediation round; re-run step 2 with the Decider's failure list.
+
+     **Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion` for escalations. Instead, append a question finding to `BACKLOG.md ## Findings`:
+     ```
+     - specs/epic-{slug}/{story-id}/result.json — Is spec for epic-{slug} story {story-id} ready? Auto-dispatch aborted: story escalated — {escalation reason}. Manual resolution required. Remove this finding when resolved. (YYYY-MM-DD)
+     ```
+     Output `ABORT:UNDERSPECIFIED: story {story-id} escalated — {reason}` and exit.
 
   5. **Optional retro probe** (per story, end-of-iteration). After bullet 4 has reached a terminal state for this story (FAST PATH pass, FAST PATH retry-then-pass, or post-Decider RETRY/ACCEPT/REJECT settled), read `{story_dir}/result.json.retrospective`.
        - If `retrospective.skipped: true` AND `result.json.remediation_rounds > 0`, append a discrepancy note to `retro_bundle.discrepancies` (e.g. `"S{id} retro skipped despite N remediation rounds"`). Do NOT probe — that punishes skip-allowed.

@@ -28,6 +28,60 @@ is not written to disk; it is passed to `base:bug-retro-synthesizer` in Step 4.
 
 ## Input: $ARGUMENTS
 
+### Non-Interactive Mode Detection
+
+IF $ARGUMENTS ends with the literal token ` auto` (space + "auto", case-sensitive):
+    non_interactive = true
+    Strip the trailing ` auto` token from $ARGUMENTS before Step 1 processes it.
+ELSE:
+    non_interactive = false
+
+When `non_interactive = true`, every `AskUserQuestion` call site in this document
+has a paired abort branch — see Step 1 (no-argument gather, BACKLOG_PROMOTE slug
+conflict and ambiguity) and Step 3 (ESCALATE). At each such site, instead of
+invoking `AskUserQuestion`, append a question finding to `BACKLOG.md ## Findings`
+and output `ABORT:UNDERSPECIFIED: <reason>` then exit.
+
+The BACKLOG.md write protocol at every such site: read-modify-write the file —
+read it, locate the `## Findings` section heading, append the new bullet immediately
+after that heading line, write back. If `## Findings` is absent, create the section.
+If `BACKLOG.md` does not exist, skip the finding write silently (still output the
+ABORT signal and exit).
+
+**Propagation to subagents and teammates.** The `non_interactive` flag does not
+stop at the lead. Subagents (`base:code-explorer`, `base:verification-examiner`)
+and TeamCreate teammates (`Fixer`, `Reviewer`, `Decider`) each have their own
+prompts and can independently invoke `AskUserQuestion` at their own decision
+points. When `non_interactive = true`, every site that spawns one of those agents
+or defines a teammate role MUST append the following instruction to the briefing:
+
+> **Non-interactive mode:** You are operating without a human in the loop. Do NOT
+> invoke `AskUserQuestion` under any circumstances. If you reach a decision point
+> that requires human judgment to resolve — a design choice, an ambiguous spec, a
+> conflict you cannot settle from available context — output the single line
+> `ABORT:UNDERSPECIFIED: <concise description of what needs specifying>` as the
+> first line of your response and stop immediately. Do not guess, do not default
+> silently, do not proceed with incomplete information.
+
+And after every Agent spawn return or teammate message receive, when
+`non_interactive = true`, apply this catch:
+
+```
+IF the return/message contains the literal string "ABORT:UNDERSPECIFIED":
+    Extract the gap text: everything after the first "ABORT:UNDERSPECIFIED:" on that line, trimmed.
+    Append a question finding to BACKLOG.md ## Findings (read-modify-write):
+        "- {relevant_path} — Is this work ready for auto-dispatch? {gap text}. Resolve then remove this finding. (YYYY-MM-DD)"
+    Where {relevant_path} is the most relevant file path available in context
+    (bug report path, result.json path, or "-" if none).
+    Output: "ABORT:UNDERSPECIFIED: {gap text}" and exit the current skill.
+```
+
+The subagent does NOT write the backlog finding — only the lead does, when it
+catches the cascaded signal. Subagents that are pure data processors with no
+human-judgment decision points (`base:bug-retro-synthesizer`,
+`base:project-curator`) are exempt from both the instruction injection and the
+catch.
+
 ---
 
 ## Step 1: Understand the Bug
@@ -52,6 +106,10 @@ ELSE:
     - Expected vs actual behavior?
     - Any error messages?
     Write bug report to bug-reports/{slug}-report.md
+
+    When `non_interactive = true`, do NOT use `AskUserQuestion`. Output
+    `ABORT:UNDERSPECIFIED: auto mode requires a backlog marker or bug report file
+    path; cannot gather bug details interactively.` and exit.
 ```
 
 ### BACKLOG_PROMOTE mode
@@ -79,8 +137,12 @@ uniquely identifies one entry in `BACKLOG.md ## Findings`.
 
 4. Derive a kebab-case slug from the finding's text (≤40 chars).
    Confirm via AskUserQuestion if ambiguous.
+   **When `non_interactive = true`, skip `AskUserQuestion` and derive the slug
+   deterministically from the first 8 words of the finding text, kebab-cased.**
    If bug-reports/{slug}-report.md already exists, confirm via AskUserQuestion with a
    numbered-suffix suggestion (e.g. {slug}-2) — do NOT silently overwrite.
+   **When `non_interactive = true`, skip `AskUserQuestion` and automatically append
+   `-2` (or the next available suffix) to the slug without confirmation.**
 
 5. Write bug-reports/{slug}-report.md with:
    - The finding's text in the description section.
@@ -104,7 +166,11 @@ Use the Agent tool with `subagent_type: base:code-explorer` to launch 2 explorer
 - **Agent 1**: Bug symptoms — error messages, affected components, recent changes
 - **Agent 2**: Architecture — dependencies, integration points, similar past bugs
 
+When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to each explorer's prompt.
+
 Read 5-10 key files to understand the affected area.
+
+When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to each explorer return before merging. Use the bug report path (`bug-reports/{slug}-report.md`) as `{relevant_path}`.
 
 For each explorer return that contains a `RETROSPECTIVE:` block with `skipped: false`,
 append it to `retro_bundle.exploration`.
@@ -189,6 +255,8 @@ and judgment calls.
 >
 > Consult `skills/languages/{language}.md` for language-specific testing and debugging conventions.
 
+When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Fixer's role definition as a safeguard — step 1 (validate/read bug report with gaps) and the "If stuck" codex delegation do not use `AskUserQuestion` directly, but the propagation guarantees consistent behavior if the fixer reaches any decision point requiring human judgment.
+
 **Reviewer** (1 teammate)
 > You verify bug fixes independently and skeptically. When the lead messages you:
 > 1. Read the bug report, `bug-reports/{name}-result.json`, and `bug-reports/{name}-contract.json`.
@@ -213,6 +281,8 @@ and judgment calls.
 > 11. When satisfied, message the lead with `ACCEPTED`, verification summary, final test counts, and any non-blocking caveats.
 > 12. If not fixable after repeated rounds, message the lead with `REJECTED` and the blocking reasons.
 
+When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Reviewer's role definition.
+
 **Decider** (1 teammate, model: opus)
 > You are the decision authority for this bug fix. You are consulted only when the lead escalates a non-trivial judgment call. Routine outcomes (pass, first retry on a clear implementation miss) are handled by the lead.
 >
@@ -223,6 +293,8 @@ and judgment calls.
 >   REJECT — enumerate the specific failures that block acceptance.
 >
 > You do not spawn subagents. You do not manage state files. You do not write files.
+
+When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Decider's role definition. Additionally, because the Decider's `ESCALATE` response routes back to `AskUserQuestion` in the lead, append: "When `non_interactive = true`, if you would respond `ESCALATE`, respond `ABORT:UNDERSPECIFIED: <reason>` instead — the lead will catch this and persist the gap to the backlog rather than asking the user."
 
 ---
 
@@ -244,10 +316,11 @@ rules, and state transitions.
    - bug-reports/{slug}-contract.json
    - bug-reports/{slug}-result.json
    Update state file phase to FIX_READY.
+   When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the fixer's message before proceeding. Use `bug-reports/{slug}-result.json` as `{relevant_path}`.
 
 3. Read bug-reports/{slug}-result.json.
-   Spawn Agent(subagent_type: base:verification-examiner) for each verification question, or each batch of related questions. Independent batches MUST be sent in parallel — single message, multiple Agent tool calls.
-   Collect all results. For each examiner return that contains a `RETROSPECTIVE:` block with `skipped: false`, append `{question_id, flag}` to `retro_bundle.examiners`.
+   Spawn Agent(subagent_type: base:verification-examiner) for each verification question, or each batch of related questions. Independent batches MUST be sent in parallel — single message, multiple Agent tool calls. When `non_interactive = true`, include the non-interactive mode instruction (see Non-Interactive Mode Detection block above) in each examiner's spawn prompt.
+   Collect all results. When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch to each examiner return before tallying. Use `bug-reports/{slug}-result.json` as `{relevant_path}`. For each examiner return that contains a `RETROSPECTIVE:` block with `skipped: false`, append `{question_id, flag}` to `retro_bundle.examiners`.
 
 4. Message the reviewer with:
    - bug report path
@@ -255,6 +328,7 @@ rules, and state transitions.
    - result path
    - examiner results
    - remediation history so far
+   When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the reviewer's verdict message before acting on it. Use `bug-reports/{slug}-result.json` as `{relevant_path}`.
    If the reviewer returns a `RETROSPECTIVE:` block with `skipped: false`, store it in `retro_bundle.reviewer`.
 
 5. Apply decision rules:
@@ -293,11 +367,18 @@ rules, and state transitions.
        - reviewer and examiner evidence materially disagree
        - bug fix has hit max remediation rounds (3)
      → SendMessage(Decider) with: bug name, bug report summary, fix contract, fixer result, examiner results, reviewer verdict, remediation history, and a specific question.
+     → When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the Decider's message before acting on it. Use `bug-reports/{slug}-result.json` as `{relevant_path}`. If the message contains `ABORT:UNDERSPECIFIED`, the lead persists the gap to BACKLOG.md and exits — do not also fall through to the ESCALATE branch.
      → Execute the Decider's response:
          RETRY    → increment remediation_round; update state file phase to REMEDIATING; message the fixer with the Decider's remediation prompt; re-run steps 2-4.
          ESCALATE → update state file as escalated; surface to the user via AskUserQuestion.
          ACCEPT   → record the caveats in bug-reports/{slug}-result.json; proceed to Step 4.
          REJECT   → treat as a remediation round; message the fixer with the Decider's failure list; re-run steps 2-4.
+
+   **Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion`. Instead, append a question finding to `BACKLOG.md ## Findings`:
+   ```
+   - bug-reports/{slug}-result.json — Is bug-fix spec for {slug} complete? Auto-dispatch aborted: fix escalated — {escalation reason}. Manual resolution required. Remove this finding when resolved. (YYYY-MM-DD)
+   ```
+   Output `ABORT:UNDERSPECIFIED: bug fix for {slug} escalated — {reason}` and exit.
 
 6. Retrospective discrepancy check:
    - If bug-reports/{slug}-result.json has `retrospective.skipped: true` AND remediation_round > 0, append a discrepancy note to `retro_bundle.discrepancies`.
