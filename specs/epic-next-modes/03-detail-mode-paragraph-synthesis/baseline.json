@@ -1,0 +1,10 @@
+{
+  "captured_at": "2026-05-12T13:45:00Z",
+  "file": "plugins/base/commands/next.md",
+  "detail_stub_lines": "155-163",
+  "detail_stub_text": "### IF mode == detail\n\n```\n# See Step 4a (paragraph synthesis) and the rendering block below — implemented by S3.\n# Story 03 of epic-next-modes adds: per-candidate paragraph synthesis, the\n# \"## Top 3 actionable findings\" rendering, and the AskUserQuestion call with\n# conditional Dispatch #2 / Dispatch #3 / Abort options.\nSTUB — implemented by epic-next-modes S3\n```",
+  "step_4a_present": false,
+  "test_runner": "none",
+  "baseline_tests": 0,
+  "notes": "S1 (Step 0) and S2 (Step 4 mode-branching, auto branch, detail stub, question-halt pre-branch invariant) are already landed. S3 replaces the detail stub and inserts Step 4a."
+}

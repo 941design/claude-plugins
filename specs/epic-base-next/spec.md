@@ -290,3 +290,5 @@ requires persisting `backlog_marker` to `bug-reports/{slug}-state.json`
 and a Crash Recovery instruction to restore `pending_finding_removal`
 from it. Surfaced by `base:project-curator`; acknowledged by user
 2026-05-12.
+
+**2026-05-12 — Added detail / auto modes (epic-next-modes).** AC-NEXT-2 was tightened to accept either no argument (interpreted as `detail` mode) or the literal token `auto` (interpreted as `auto` mode), with the `argument-hint` frontmatter updated to reflect this grammar. AC-NEXT-9 was made mode-conditional: the 1-finding silent-dispatch path now only applies in `auto` mode; `detail` mode always renders the synthesised paragraph and confirms via `AskUserQuestion`. AC-NEXT-10 was split into AC-NEXT-10a (detail-mode rendering contract: top-3 paragraphs + classification labels + four-choice AskUserQuestion with conditional Dispatch #2/#3 inclusion) and AC-NEXT-10b (auto-mode dispatch contract: skip prompt entirely, print one-line `Dispatching as …` notice). Source: BACKLOG.md finding promoted 2026-05-12 on `plugins/base/commands/next.md:93-115`. Implementation lives in `plugins/base/commands/next.md` (Step 0, reworked Step 4, new Step 4a).

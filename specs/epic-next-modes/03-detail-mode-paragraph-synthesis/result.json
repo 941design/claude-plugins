@@ -1,0 +1,27 @@
+{
+  "story_id": "03",
+  "status": "done",
+  "final_outcome": "accepted",
+  "completed_at": "2026-05-12T14:00:00Z",
+  "remediation_rounds": 0,
+  "verification_rounds": 1,
+  "files_created": [
+    "specs/epic-next-modes/03-detail-mode-paragraph-synthesis/architecture.json",
+    "specs/epic-next-modes/03-detail-mode-paragraph-synthesis/baseline.json",
+    "specs/epic-next-modes/03-detail-mode-paragraph-synthesis/result.json"
+  ],
+  "files_modified": [
+    "plugins/base/commands/next.md",
+    "specs/epic-next-modes/03-detail-mode-paragraph-synthesis/verification.json"
+  ],
+  "tests_added": {},
+  "test_counts": {
+    "baseline": 0,
+    "final": 0
+  },
+  "mocks": [],
+  "retrospective": {
+    "skipped": true,
+    "reason": "clean_run"
+  }
+}

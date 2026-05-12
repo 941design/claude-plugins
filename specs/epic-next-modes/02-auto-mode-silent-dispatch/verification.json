@@ -1,0 +1,98 @@
+{
+  "story_id": "02",
+  "story_name": "auto-mode-silent-dispatch",
+  "authored_by": "story-planner",
+  "authored_at": "2026-05-12T12:00:00Z",
+  "questions": [
+    {
+      "id": "VQ-02-001",
+      "type": "SPEC",
+      "ac_id": "AC-AUTO-1",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 4's auto branch contain no invocation of AskUserQuestion, and does the prose explicitly state that no confirmation prompt is presented before falling through to Step 5?",
+      "check_method": "Read plugins/base/commands/next.md and locate Step 4. Identify the auto branch (the IF mode == auto block or equivalent). Confirm that the string 'AskUserQuestion' does not appear anywhere within the auto branch. Confirm the prose or pseudocode explicitly states the step falls through to Step 5 without prompting the user. Verdict YES only if both conditions are satisfied."
+    },
+    {
+      "id": "VQ-02-002",
+      "type": "SPEC",
+      "ac_id": "AC-AUTO-2",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 4's auto branch contain a prose or pseudocode clause specifying the one-line notice format 'Dispatching as <classification>: <truncated-bullet>', where <classification> is bug or feature-work and <truncated-bullet> is a non-empty excerpt of the selected finding's bullet text?",
+      "check_method": "Read plugins/base/commands/next.md and locate Step 4's auto branch. Confirm the auto branch prose describes a notice line whose form is 'Dispatching as <classification>: <truncated-bullet>' (verbatim pattern or equivalent). Confirm the prose identifies 'bug' and 'feature-work' as the allowed classification values and specifies that <truncated-bullet> is a non-empty excerpt of the finding's bullet text. Verdict YES only if the notice format clause and both classification names are present."
+    },
+    {
+      "id": "VQ-02-003",
+      "type": "SPEC",
+      "ac_id": "AC-AUTO-3",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 4's auto branch explicitly name the selection rule as 'the first actionable finding in document order' (or an equivalent phrase), and state that this is the candidate passed to Step 5?",
+      "check_method": "Read plugins/base/commands/next.md and locate Step 4's auto branch. Confirm the prose contains a phrase equivalent to 'first actionable in document order' or 'document-order position 1'. Confirm the branch identifies this candidate as the one that falls through to Step 5. Verdict YES only if the selection rule is named explicitly and the fall-through to Step 5 with that candidate is stated."
+    },
+    {
+      "id": "VQ-02-004",
+      "type": "SPEC",
+      "ac_id": "AC-INV-1",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 4 place the question-halt check at or before the mode branching point, so that it applies regardless of whether mode is auto or detail?",
+      "check_method": "Read plugins/base/commands/next.md and locate Step 4. Identify where the mode branch (IF mode == auto / IF mode == detail) begins. Confirm that the question-halt logic (the check for a leading 'question' classification that halts dispatch and emits the resolution-paths nudge) appears textually before or at the branch point — not inside either branch. Confirm the question-halt clause names both modes (or explicitly states it applies regardless of mode). Verdict YES only if question-halt is positioned before or at the branch, not inside a mode-specific sub-block."
+    },
+    {
+      "id": "VQ-02-005",
+      "type": "QUALITY",
+      "phase": "pre-impl",
+      "question": "Does the one-line notice format described in the auto branch match the exact wording specified in AC-AUTO-2 ('Dispatching as <classification>: <truncated-bullet>') without paraphrase or synonym substitution?",
+      "check_method": "Read plugins/base/commands/next.md Step 4 auto branch. Extract the notice format template clause. Compare it character-by-character to the AC-AUTO-2 template 'Dispatching as <classification>: <truncated-bullet>'. If placeholders are named differently (e.g., '<type>' instead of '<classification>'), confirm the surrounding prose maps them unambiguously to the AC values. Verdict YES only if the format matches AC-AUTO-2 verbatim or the mapping is unambiguous."
+    },
+    {
+      "id": "VQ-02-006",
+      "type": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Does Step 4's auto branch introduce no telemetry, no state writes, and no file edits — consistent with architecture.md Implementation Constraint 6 (stateless dispatcher, no logging)?",
+      "check_method": "Read plugins/base/commands/next.md Step 4 auto branch. Confirm there is no mention of writing to any file, appending to any log, persisting the dispatch decision, or emitting metrics. The one-line 'Dispatching as …' notice is UX feedback only; confirm it is not described as being logged or written anywhere. Confirm no Edit, Bash write, or file-append instruction appears in the auto branch. Verdict YES only if the branch is stateless and write-free."
+    },
+    {
+      "id": "VQ-02-007",
+      "type": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Could the commands module (plugins/base/commands/next.md) be deleted and rewritten without modifying any file outside its dependencies_allowed list? If not, which cross-module dependencies exist and do they flow through declared seam contracts in architecture.md?",
+      "check_method": "Read architecture.md and identify the dependencies_allowed list for the commands module. Read plugins/base/commands/next.md Step 4 auto branch and confirm no cross-module references are introduced (no new agent invocations, no skill imports, no schema references beyond what was already permitted). Confirm S2 makes no edits to plugins/base/agents/, plugins/base/skills/, plugins/base/schemas/, or specs/. If any cross-module reference exists, confirm it flows through a declared seam (ModeVariable seam from S1). Verdict YES only if the module remains self-contained within permitted dependencies."
+    },
+    {
+      "id": "VQ-02-008",
+      "type": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Does Step 4 contain a detail-branch stub (placeholder directing to Step 4a / S3) so that the branching skeleton is complete, and does the stub not contain any substantive detail-mode implementation that belongs to S3?",
+      "check_method": "Read plugins/base/commands/next.md Step 4. Confirm that the detail branch (IF mode == detail) contains a stub or placeholder note (e.g., referencing Step 4a or S3) rather than a full implementation. Confirm the stub does not accidentally implement any of the paragraph synthesis, AskUserQuestion call with conditional options, or rendering template that AC-DETAIL-1, AC-DETAIL-2, AC-DETAIL-3 specify (those belong to S3). Verdict YES only if a stub exists and no S3 scope has leaked into S2's implementation."
+    },
+    {
+      "id": "VQ-02-009",
+      "type": "SECURITY",
+      "phase": "pre-impl",
+      "question": "Does Step 4's auto branch handle the case where the $ARGUMENTS token is not 'auto' at the mode branching point — relying solely on Step 0's guard — and does it contain no duplicate argument-parsing logic that could diverge from Step 0's case-sensitive exact-match rule?",
+      "check_method": "Read plugins/base/commands/next.md. Confirm Step 4's mode branch evaluates the 'mode' variable set by Step 0, not the raw $ARGUMENTS string. Confirm there is no secondary token-matching logic within Step 4 that could accept 'Auto', 'AUTO', or '--auto' as auto mode. If the mode variable is checked, confirm the check is 'mode == auto' or equivalent. Verdict YES only if argument parsing is delegated entirely to Step 0 and Step 4 branches only on the already-parsed mode value."
+    },
+    {
+      "id": "VQ-02-010",
+      "type": "SPEC",
+      "ac_id": "AC-AUTO-2",
+      "phase": "post-impl",
+      "question": "Does the `<truncated-bullet>` clause in the auto branch specify a concrete truncation rule (approximately 60 characters, appending '…' if longer), and is this rule sufficient for a runtime model to produce a consistent non-empty excerpt?",
+      "check_method": "Read plugins/base/commands/next.md Step 4 auto branch. Locate the truncated-bullet definition. Confirm a character-count bound and an ellipsis indicator are present. Confirm the rule cannot produce an empty excerpt (the spec requires a non-empty excerpt). Verdict YES only if both a bound and a non-empty guarantee are present."
+    },
+    {
+      "id": "VQ-02-011",
+      "type": "ARCHITECTURE",
+      "ac_id": "AC-INV-1",
+      "phase": "post-impl",
+      "question": "Does the cross-reference preamble in Step 4 name both 'auto' mode and 'detail' mode explicitly when stating that neither mode bypasses the question-halt, so that an examiner reading Step 4 in isolation sees the invariant without having to inspect Step 3?",
+      "check_method": "Read plugins/base/commands/next.md Step 4's opening paragraph (before the IF mode == auto heading). Confirm the prose explicitly names both 'auto' and 'detail' modes when stating the question-halt invariant. Confirm it references Step 3 as the location of the check. Verdict YES only if both mode names and the Step 3 reference are present in the preamble."
+    },
+    {
+      "id": "VQ-02-012",
+      "type": "QUALITY",
+      "phase": "post-impl",
+      "question": "Does the detail-branch stub in Step 4 contain enough information for S3's implementer to understand the scope boundary — specifically naming Step 4a, the '## Top 3 actionable findings' rendering, and the AskUserQuestion call with conditional Dispatch #2 / Dispatch #3 / Abort options?",
+      "check_method": "Read plugins/base/commands/next.md Step 4's IF mode == detail block. Confirm the stub mentions Step 4a, the '## Top 3 actionable findings' rendering, and the conditional Dispatch #2 / Dispatch #3 / Abort AskUserQuestion call. Confirm it includes 'STUB — implemented by epic-next-modes S3' or equivalent. Verdict YES only if all three scope items and the S3 attribution are present."
+    }
+  ]
+}

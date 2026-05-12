@@ -1,0 +1,205 @@
+{
+  "$schema": "../../plugins/base/schemas/stories.schema.json",
+  "epic_name": "next-modes",
+  "created_at": "2026-05-12T12:00:00Z",
+  "total_stories": 4,
+  "story_order": ["01", "02", "03", "04"],
+  "story_order_rationale": "S1 must precede S2 and S3 because it defines the `mode` variable that Steps 4 / 4a branch on. S2 precedes S3 because the auto branch is the lighter of the two and validates that the branching skeleton is correct before the more complex detail/synthesis branch is wired in. S4 must be last because its amendment text explicitly cites the behavior that S2 and S3 implement — authoring the amendment before the implementation is landed would cite a contract that does not yet exist in the command file. AC-INV-1 (question-halt cross-cutting invariant) is assigned to S2 because that is the story that introduces the Step 4 branching point; the question-halt check must be placed at or before that branch, making S2 the natural owner. S3 inherits the already-placed check and AC-INV-1 is not duplicated.",
+  "dependency_notes": "S1 → S2 and S3: all three edit `plugins/base/commands/next.md` sequentially. The schema's no-shared-module-ownership rule is explicitly overridden here because the spec's ## Stories section assigns all three stories to the same file by design — the stories are sequential layers on the same document, not concurrent feature teams. S4 edits different files (`specs/epic-base-next/`) and has a distinct owning module. No temporary mocks are needed; S2 and S3 can be authored as sequential passes on the same file once S1 is complete.",
+  "mock_resolution_plan": "No temporary mocks are introduced by this epic. All stories edit existing Markdown files; verification is Read-based textual assertion. No mock registry entries are needed.",
+  "seams": [
+    {
+      "data": "mode variable: the parsed invocation mode set by Step 0",
+      "contract": {
+        "type_name": "ModeVariable",
+        "fields": [
+          { "name": "mode", "type": "string" }
+        ],
+        "invariants": [
+          "mode is exactly one of the two string literals 'detail' or 'auto'",
+          "mode is set by Step 0 before any other step executes",
+          "An empty or whitespace-only $ARGUMENTS produces mode = 'detail'",
+          "The token 'auto' (case-sensitive exact match) produces mode = 'auto'",
+          "Any other non-empty token causes Step 0 to exit with a usage hint before setting mode"
+        ]
+      },
+      "source": { "story": "01", "artifact": "plugins/base/commands/next.md Step 0" },
+      "destination": { "story": "02", "artifact": "plugins/base/commands/next.md Step 4 auto branch" }
+    },
+    {
+      "data": "mode variable consumed by detail branch",
+      "contract": {
+        "type_name": "ModeVariable",
+        "fields": [
+          { "name": "mode", "type": "string" }
+        ],
+        "invariants": [
+          "mode is exactly one of the two string literals 'detail' or 'auto'",
+          "mode is set by Step 0 before any other step executes"
+        ]
+      },
+      "source": { "story": "01", "artifact": "plugins/base/commands/next.md Step 0" },
+      "destination": { "story": "03", "artifact": "plugins/base/commands/next.md Step 4 detail branch and Step 4a" }
+    },
+    {
+      "data": "S2 and S3 implemented behavior: the basis for S4 amendment text",
+      "contract": {
+        "type_name": "ImplementedDispatcherBehavior",
+        "fields": [
+          { "name": "auto_branch_no_prompt", "type": "boolean" },
+          { "name": "auto_branch_notice_line_format", "type": "string" },
+          { "name": "detail_branch_top3_format", "type": "string" },
+          { "name": "detail_branch_ask_user_question_options", "type": "string" },
+          { "name": "question_halt_preserved", "type": "boolean" }
+        ],
+        "invariants": [
+          "auto branch in Step 4 never calls AskUserQuestion before falling through to Step 5",
+          "detail branch in Step 4 renders paragraphs via Step 4a for up to 3 candidates before calling AskUserQuestion",
+          "question-halt check exists at or before Step 4 branching point",
+          "S4 amendment text references AC-NEXT-2, AC-NEXT-9, AC-NEXT-10 using the behavior now described in the command file"
+        ]
+      },
+      "source": { "story": "02", "artifact": "plugins/base/commands/next.md Step 4 auto branch" },
+      "intermediaries": [
+        { "story": "03", "artifact": "plugins/base/commands/next.md Step 4 detail branch and Step 4a" }
+      ],
+      "destination": { "story": "04", "artifact": "specs/epic-base-next/acceptance-criteria.md and specs/epic-base-next/spec.md" }
+    }
+  ],
+  "stories": [
+    {
+      "id": "01",
+      "name": "mode-argument-parsing",
+      "status_history": [{"status": "in_progress", "at": "2026-05-12T12:30:00Z"}],
+      "title": "S1 — Mode argument parsing",
+      "description": "Edit `plugins/base/commands/next.md` to add Step 0 (parse $ARGUMENTS into mode ∈ {detail, auto}) and update the YAML frontmatter (argument-hint, description, allowed-tools adding Grep). Step 0 is inserted before the existing Step 1. No other steps change. Verification is Read-based: the examiner reads the file and confirms Step 0 prose contains the required clauses and the frontmatter fields contain the required values.",
+      "acceptance_criteria": [
+        "AC-MODE-1",
+        "AC-MODE-2",
+        "AC-MODE-3",
+        "AC-STRUCT-1"
+      ],
+      "scope": {
+        "includes": [
+          "YAML frontmatter block of plugins/base/commands/next.md: argument-hint field set to '(no args = detail) | auto', description field mentioning both modes, allowed-tools gaining Grep",
+          "New Step 0 prose/pseudocode block in plugins/base/commands/next.md: empty/whitespace → mode=detail; token 'auto' → mode=auto; any other token → exit with usage hint naming both forms"
+        ],
+        "excludes": [
+          "Step 1, Step 2, Step 3, Step 4, Step 5, Step 6, Step 7 — all unchanged",
+          "Any change to specs/epic-base-next/ files",
+          "Any new file creation"
+        ]
+      },
+      "complexity": "low",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "done",
+      "owning_module": "commands",
+      "creates_seam": true,
+      "consumes_seams": [],
+      "notes": "This story creates the ModeVariable seam contract consumed by S2 and S3. The frontmatter change and Step 0 insertion are atomic — an examiner who sees the frontmatter updated but Step 0 absent (or vice versa) flags a SPEC failure per architecture.md Boundary Rule 5."
+    },
+    {
+      "id": "02",
+      "name": "auto-mode-silent-dispatch",
+      "status_history": [{"status": "in_progress", "at": "2026-05-12T13:00:00Z"}],
+      "title": "S2 — Auto-mode silent dispatch",
+      "description": "Rework Step 4 of `plugins/base/commands/next.md` to branch on `mode`. Implement the `auto` branch: no AskUserQuestion call, print one-line 'Dispatching as <classification>: <truncated-bullet>' notice, fall through to Step 5 with the first actionable finding in document order. Preserve the question-halt invariant at or before the Step 4 branching point (AC-INV-1). Verification is Read-based: examiner confirms (a) auto branch prose contains required clauses, (b) no AskUserQuestion invocation in auto branch, (c) question-halt check precedes both branches.",
+      "acceptance_criteria": [
+        "AC-AUTO-1",
+        "AC-AUTO-2",
+        "AC-AUTO-3",
+        "AC-INV-1"
+      ],
+      "scope": {
+        "includes": [
+          "Reworked Step 4 of plugins/base/commands/next.md: top-level mode branch (IF mode == auto / IF mode == detail)",
+          "auto branch prose: no AskUserQuestion; one-line notice 'Dispatching as <classification>: <truncated-bullet>'; explicit statement that first actionable in document order is selected; fall-through to Step 5",
+          "question-halt logic placed at or before the Step 4 branching point, so it runs regardless of which mode branch executes",
+          "detail branch stub (placeholder directing to Step 4a / S3) to make the branching skeleton complete"
+        ],
+        "excludes": [
+          "Step 4a (paragraph synthesis) — belongs to S3",
+          "detail branch full rendering — belongs to S3",
+          "Any change to frontmatter or Step 0 — belongs to S1",
+          "Any change to specs/epic-base-next/ files — belongs to S4"
+        ]
+      },
+      "complexity": "low",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "done",
+      "owning_module": "commands",
+      "creates_seam": false,
+      "consumes_seams": ["ModeVariable"],
+      "notes": "AC-INV-1 is assigned here because S2 is the story that introduces the Step 4 branching point. The question-halt check must be positioned before the branch so that it fires in both modes. S3 inherits the already-placed check and does not need to re-specify it. The spec author explicitly labels AC-INV-1 as cross-cutting and notes it could go in S2 or S3; S2 is the correct owner because the positioning decision is structural (before the branch, not inside a branch)."
+    },
+    {
+      "id": "03",
+      "name": "detail-mode-paragraph-synthesis",
+      "status_history": [{"status": "in_progress", "at": "2026-05-12T13:45:00Z"}],
+      "title": "S3 — Detail-mode paragraph synthesis and rendering",
+      "description": "Implement Step 4a (paragraph synthesis routine) and the detail branch of Step 4 in `plugins/base/commands/next.md`. Step 4a specifies: anchor parsing, Read window arithmetic (offset = max(1, line-10), limit = 21), fallback to bullet-only with '(anchor file missing)' appended on any read failure, optional Grep for nearest heading, and 3–5 sentence what/where/goal composition. The detail branch of Step 4 specifies: take up to 3 actionable findings, invoke Step 4a per candidate, render the '## Top 3 actionable findings' block, call AskUserQuestion with conditional options (Dispatch #1 always, Dispatch #2/#3 only when those candidates exist, Abort always), and continue to Step 5 on selection. Verification is Read-based.",
+      "acceptance_criteria": [
+        "AC-DETAIL-1",
+        "AC-DETAIL-2",
+        "AC-DETAIL-3",
+        "AC-PARA-1",
+        "AC-PARA-2",
+        "AC-PARA-3"
+      ],
+      "scope": {
+        "includes": [
+          "New Step 4a in plugins/base/commands/next.md: anchor parsing (path:line / path / '-' forms), Read window arithmetic with explicit max(1, line-10) and limit=21, first-30-lines fallback for path-only form, any-failure fallback appending '(anchor file missing)', optional Grep step, 3-5 sentence paragraph specification",
+          "detail branch of Step 4: up to-3-candidate loop, per-candidate Step 4a invocation, '## Top 3 actionable findings' rendering template, AskUserQuestion with conditional Dispatch #2 / Dispatch #3 options and always-present Dispatch #1 and Abort, on-selection fall-through to Step 5",
+          "AC-DETAIL-3 compliance: no special-case branch inside detail mode that skips synthesis or the prompt for the single-finding scenario"
+        ],
+        "excludes": [
+          "auto branch of Step 4 — belongs to S2 (already implemented)",
+          "question-halt logic — belongs to S2 (already placed before the branch)",
+          "Any change to frontmatter or Step 0 — belongs to S1",
+          "Any change to specs/epic-base-next/ files — belongs to S4"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "done",
+      "owning_module": "commands",
+      "creates_seam": false,
+      "consumes_seams": ["ModeVariable"],
+      "notes": "The sentence '(anchor file missing)' must appear verbatim in Step 4a — architecture.md Implementation Constraint 4 is explicit. The Read window arithmetic 'offset = max(1, line-10)' and 'limit = 21' must appear verbatim or as equivalent unambiguous arithmetic — architecture.md Implementation Constraint 3. Paragraph reads for up to 3 candidates MAY run in parallel (per spec Technical Approach section)."
+    },
+    {
+      "id": "04",
+      "name": "amend-epic-base-next",
+      "status_history": [{"status": "in_progress", "at": "2026-05-12T14:15:00Z"}],
+      "title": "S4 — Amend epic-base-next",
+      "description": "Write amendments to two files in `specs/epic-base-next/`: (1) `acceptance-criteria.md` — patch AC-NEXT-2 to accept two modes, revise AC-NEXT-9 to be mode-conditional, and split AC-NEXT-10 into AC-NEXT-10a (detail rendering contract) and AC-NEXT-10b (auto dispatch contract); (2) `spec.md` — append a `## Amendments` section with a dated 2026-05-12 entry citing this epic (epic-next-modes), naming AC-NEXT-2, AC-NEXT-9, AC-NEXT-10 as amended, and citing the source finding at plugins/base/commands/next.md:93-115. Verification is Read-based: examiner reads both files and confirms required clauses are present.",
+      "acceptance_criteria": [
+        "AC-AMEND-1",
+        "AC-AMEND-2"
+      ],
+      "scope": {
+        "includes": [
+          "specs/epic-base-next/acceptance-criteria.md: AC-NEXT-2 amended to include two-mode grammar clause verbatim; AC-NEXT-9 made mode-conditional (auto silent for any count, detail always renders+confirms); AC-NEXT-10 split into AC-NEXT-10a and AC-NEXT-10b",
+          "specs/epic-base-next/spec.md: ## Amendments section appended with entry dated 2026-05-12 referencing epic-next-modes, naming AC-NEXT-2/AC-NEXT-9/AC-NEXT-10, citing plugins/base/commands/next.md:93-115"
+        ],
+        "excludes": [
+          "Any change to plugins/base/commands/next.md — belongs to S1/S2/S3 (already complete)",
+          "Any other file in specs/epic-base-next/ beyond spec.md and acceptance-criteria.md",
+          "Any change to specs/epic-next-modes/ files",
+          "Version bumps or release steps"
+        ]
+      },
+      "complexity": "low",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "done",
+      "owning_module": "specs",
+      "creates_seam": false,
+      "consumes_seams": ["ImplementedDispatcherBehavior"],
+      "notes": "S4 is intentionally last because its amendment text must cite the behavior that S2 and S3 implement in next.md. Authoring amendments before those stories land risks citing a contract that differs from the actual text. The amendment to AC-NEXT-9 must make it mode-conditional — the pre-existing 'one actionable finding dispatches silently' clause becomes 'in auto mode, any count dispatches silently; in detail mode, any count renders+confirms'."
+    }
+  ]
+}

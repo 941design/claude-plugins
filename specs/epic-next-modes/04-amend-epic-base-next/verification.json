@@ -1,0 +1,59 @@
+{
+  "story_id": "04",
+  "story_name": "amend-epic-base-next",
+  "authored_by": "story-planner",
+  "authored_at": "2026-05-12T12:00:00Z",
+  "questions": [
+    {
+      "id": "VQ-04-001",
+      "type": "SPEC",
+      "ac_id": "AC-AMEND-1",
+      "phase": "pre-impl",
+      "question": "Does specs/epic-base-next/acceptance-criteria.md contain the three required patches — AC-NEXT-2 amended to include the two-mode grammar clause, AC-NEXT-9 made mode-conditional, and AC-NEXT-10 split into AC-NEXT-10a and AC-NEXT-10b — each with the content specified in AC-AMEND-1?",
+      "check_method": "Read specs/epic-base-next/acceptance-criteria.md. Verify three conditions: (1) AC-NEXT-2 contains the clause 'MUST accept either no argument (interpreted as detail mode) or the literal token auto (interpreted as auto mode). MUST exit with a usage hint on any other argument. The argument-hint frontmatter field MUST be updated to reflect this two-mode grammar.' (verbatim or meaning-preserving). (2) AC-NEXT-9 contains a mode-conditional formulation distinguishing auto mode (silent dispatch for any actionable count) from detail mode (render paragraph and confirm regardless of count). (3) AC-NEXT-10a exists describing the detail-mode rendering contract (top-3 paragraphs, classification labels, three conditional choice options) and AC-NEXT-10b exists describing the auto-mode dispatch contract (skip prompt, fall through to Step 5 with document-order top candidate). Verdict YES only if all three patches are present."
+    },
+    {
+      "id": "VQ-04-002",
+      "type": "SPEC",
+      "ac_id": "AC-AMEND-2",
+      "phase": "pre-impl",
+      "question": "Does specs/epic-base-next/spec.md contain a '## Amendments' section with an entry dated 2026-05-12 that references epic-next-modes, names AC-NEXT-2, AC-NEXT-9, and AC-NEXT-10 as amended, and cites the source finding at plugins/base/commands/next.md:93-115?",
+      "check_method": "Read specs/epic-base-next/spec.md. Confirm a '## Amendments' section exists. Within it, confirm an entry that contains: (a) the date '2026-05-12', (b) a reference to 'epic-next-modes' by that exact slug, (c) names 'AC-NEXT-2', 'AC-NEXT-9', and 'AC-NEXT-10' as the amended ACs, and (d) a citation of 'plugins/base/commands/next.md:93-115' as the source finding. All four elements must be present. Verdict YES only if all four are found in the Amendments section."
+    },
+    {
+      "id": "VQ-04-003",
+      "type": "QUALITY",
+      "phase": "pre-impl",
+      "question": "Does specs/epic-base-next/acceptance-criteria.md preserve the original file's header level and bullet style after the S4 edits, with AC-NEXT-10a and AC-NEXT-10b formatted consistently with the surrounding AC entries?",
+      "check_method": "Read specs/epic-base-next/acceptance-criteria.md. Confirm that AC-NEXT-10a and AC-NEXT-10b use the same heading level and bold/bullet formatting convention as the pre-existing AC entries (e.g., '**AC-NEXT-10a**' if the file uses bold-ID style, or '### AC-NEXT-10a' if it uses heading style). Confirm the amended AC-NEXT-2 and AC-NEXT-9 entries retain their original ID labels and do not introduce a different formatting pattern. Confirm no prose artifacts (e.g., 'AMENDED:', 'OLD:', 'NEW:') from an editing process were left in the file. Verdict YES only if formatting is consistent and no artifacts remain."
+    },
+    {
+      "id": "VQ-04-004",
+      "type": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Does S4 limit its edits strictly to specs/epic-base-next/acceptance-criteria.md and specs/epic-base-next/spec.md, with no changes to plugins/base/commands/next.md or any other file in specs/epic-base-next/?",
+      "check_method": "Read specs/epic-base-next/acceptance-criteria.md and specs/epic-base-next/spec.md to confirm they contain the S4 amendments. Then read plugins/base/commands/next.md and confirm it does not contain any S4-specific amendment prose (the file should only contain S1/S2/S3 content). List the files under specs/epic-base-next/ using a directory listing and confirm no new files were created there. Confirm specs/epic-next-modes/ files are unchanged by S4. Verdict YES only if S4's edits are confined to the two specified files."
+    },
+    {
+      "id": "VQ-04-005",
+      "type": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Could the specs module (specs/epic-base-next/) be deleted and rewritten without modifying any file outside its dependencies_allowed list? If not, which cross-module dependencies exist and do they flow through declared seam contracts in architecture.md?",
+      "check_method": "Read architecture.md and identify the dependencies_allowed list for the specs module and the cross-epic amendment convention (Boundary Rule 4). Confirm that the ## Amendments section in spec.md cites epic-next-modes by slug (the ImplementedDispatcherBehavior seam contract's destination artifact) and does not introduce any reference to files outside specs/epic-base-next/ beyond the source-finding citation (plugins/base/commands/next.md:93-115). Confirm the amendment flows through the declared ImplementedDispatcherBehavior seam in architecture.md. Verdict YES only if the cross-module reference is the source-finding citation and it aligns with the declared seam contract."
+    },
+    {
+      "id": "VQ-04-006",
+      "type": "QUALITY",
+      "phase": "post-impl",
+      "question": "Does the new Amendments entry in specs/epic-base-next/spec.md appear after both pre-existing 2026-05-12 entries (AC-ORIENT-1 and AC-BUG-9), preserving append-only ordering?",
+      "check_method": "Read specs/epic-base-next/spec.md ## Amendments. Confirm the order is: (1) AC-ORIENT-1 entry, (2) AC-BUG-9 entry, (3) epic-next-modes entry. Confirm no existing entry was moved or deleted. Verdict YES only if the append-only order is preserved."
+    },
+    {
+      "id": "VQ-04-007",
+      "type": "SPEC",
+      "phase": "post-impl",
+      "question": "Does AC-NEXT-10b in specs/epic-base-next/acceptance-criteria.md contain both the 'skip the prompt entirely' clause and the exact notice format 'Dispatching as <classification>: <truncated-bullet>', matching the behavior specified in next.md Step 4 auto branch?",
+      "check_method": "Read specs/epic-base-next/acceptance-criteria.md. Locate AC-NEXT-10b. Confirm it contains the phrase 'skip the prompt entirely' (or semantically equivalent no-AskUserQuestion clause) and the notice format string 'Dispatching as <classification>: <truncated-bullet>'. Cross-check with plugins/base/commands/next.md Step 4 auto branch to confirm the format strings match. Verdict YES only if both clauses are present and consistent with next.md."
+    }
+  ]
+}

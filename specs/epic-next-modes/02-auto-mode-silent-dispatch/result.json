@@ -1,0 +1,27 @@
+{
+  "story_id": "02",
+  "status": "done",
+  "final_outcome": "accepted",
+  "completed_at": "2026-05-12T13:30:00Z",
+  "verification_rounds": 1,
+  "files_created": [
+    "specs/epic-next-modes/02-auto-mode-silent-dispatch/architecture.json",
+    "specs/epic-next-modes/02-auto-mode-silent-dispatch/baseline.json",
+    "specs/epic-next-modes/02-auto-mode-silent-dispatch/result.json"
+  ],
+  "files_modified": [
+    "plugins/base/commands/next.md",
+    "specs/epic-next-modes/02-auto-mode-silent-dispatch/verification.json"
+  ],
+  "tests_added": {},
+  "test_counts": {
+    "baseline": 0,
+    "final": 0
+  },
+  "mocks": [],
+  "remediation_rounds": 0,
+  "retrospective": {
+    "skipped": true,
+    "reason": "clean_run"
+  }
+}

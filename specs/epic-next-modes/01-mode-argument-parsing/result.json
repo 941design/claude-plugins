@@ -1,0 +1,29 @@
+{
+  "story_id": "01",
+  "status": "done",
+  "final_outcome": "accepted",
+  "completed_at": "2026-05-12T12:45:00Z",
+  "remediation_rounds": 0,
+  "verification_rounds": 1,
+  "files_created": [
+    "specs/epic-next-modes/01-mode-argument-parsing/architecture.json",
+    "specs/epic-next-modes/01-mode-argument-parsing/baseline.json",
+    "specs/epic-next-modes/01-mode-argument-parsing/result.json"
+  ],
+  "files_modified": [
+    "plugins/base/commands/next.md",
+    "specs/epic-next-modes/01-mode-argument-parsing/verification.json"
+  ],
+  "tests_added": {
+    "read_based_textual_assertion": 7
+  },
+  "test_counts": {
+    "baseline": 0,
+    "final": 0
+  },
+  "mocks": [],
+  "retrospective": {
+    "skipped": true,
+    "reason": "clean_run"
+  }
+}

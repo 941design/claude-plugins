@@ -1,0 +1,32 @@
+{
+  "module_name": "specs",
+  "purpose": "Amend specs/epic-base-next/acceptance-criteria.md and specs/epic-base-next/spec.md to reflect the detail/auto mode behavior implemented in S1–S3.",
+  "public_api": [],
+  "private_files": [
+    "specs/epic-base-next/acceptance-criteria.md",
+    "specs/epic-base-next/spec.md"
+  ],
+  "owned_data": [
+    "AC-NEXT-2 body text",
+    "AC-NEXT-9 body text",
+    "AC-NEXT-10 body text (replaced by AC-NEXT-10a and AC-NEXT-10b)",
+    "specs/epic-base-next/spec.md ## Amendments section (append-only)"
+  ],
+  "dependencies_allowed": [
+    "plugins/base/commands/next.md (source-finding citation only, via ImplementedDispatcherBehavior seam)"
+  ],
+  "dependencies_forbidden": [
+    "plugins/base/commands/next.md (no content edits — belongs to S1/S2/S3)",
+    "Any file in specs/epic-next-modes/ (not modified by S4)",
+    "Any other file in specs/epic-base-next/ beyond spec.md and acceptance-criteria.md"
+  ],
+  "external_ports": [],
+  "events_emitted": [],
+  "events_consumed": [
+    "ImplementedDispatcherBehavior seam from S2/S3: auto branch no-prompt, one-line notice format, detail branch top-3 rendering, detail branch AskUserQuestion options, question-halt preserved"
+  ],
+  "test_targets": [
+    "AC-AMEND-1: specs/epic-base-next/acceptance-criteria.md contains AC-NEXT-2 two-mode grammar, AC-NEXT-9 mode-conditional, AC-NEXT-10a and AC-NEXT-10b",
+    "AC-AMEND-2: specs/epic-base-next/spec.md ## Amendments contains entry dated 2026-05-12 citing epic-next-modes and plugins/base/commands/next.md:93-115"
+  ]
+}

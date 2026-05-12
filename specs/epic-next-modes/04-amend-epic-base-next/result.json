@@ -1,0 +1,28 @@
+{
+  "story_id": "04",
+  "status": "done",
+  "final_outcome": "accepted",
+  "completed_at": "2026-05-12T14:15:00Z",
+  "verification_rounds": 1,
+  "files_created": [
+    "specs/epic-next-modes/04-amend-epic-base-next/architecture.json",
+    "specs/epic-next-modes/04-amend-epic-base-next/baseline.json",
+    "specs/epic-next-modes/04-amend-epic-base-next/result.json"
+  ],
+  "files_modified": [
+    "specs/epic-base-next/acceptance-criteria.md",
+    "specs/epic-base-next/spec.md",
+    "specs/epic-next-modes/04-amend-epic-base-next/verification.json"
+  ],
+  "tests_added": {},
+  "test_counts": {
+    "baseline": 0,
+    "final": 0
+  },
+  "mocks": [],
+  "remediation_rounds": 0,
+  "retrospective": {
+    "skipped": true,
+    "reason": "clean_run"
+  }
+}

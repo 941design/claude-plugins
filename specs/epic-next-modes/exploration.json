@@ -1,0 +1,88 @@
+{
+  "epic": "next-modes",
+  "explored_at": "2026-05-12T12:00:00Z",
+  "similar_features": {
+    "argument_parsing_dominant_pattern": "Positional prefix tokens (e.g. `backlog:<marker>`, `specs/epic-`, `@`), plain bare tokens (e.g. `init`, `resolve`, `proposed`), and colon-joined key:value pairs (e.g. `affects:paths`, `supersedes:ADR-NNN`). The only `--` flag in the entire corpus is `--no-adopt` in `plugins/base/commands/rebase-incremental.md:17` — the anomaly.",
+    "mode_dispatch_canonical_example": {
+      "file": "plugins/base/commands/feature.md",
+      "lines": "52-63",
+      "shape": "IF arg starts-with X → mode=A; ELSE IF starts-with Y → mode=B; ELSE IF .md or @ → mode=C; ELSE IF empty → mode=D; ELSE → mode=E."
+    },
+    "askuserquestion_convention": "No JSON schema is described in any command or skill. All usages are prose-only — numbered or lettered option lists. The literal word `multiSelect` appears once across the corpus (`rebase-incremental.md:180`) and is still prose direction. Downstream stories MUST NOT assume a typed schema contract; the lead translates prose intent into the `AskUserQuestion` tool's actual JSON.",
+    "existing_next_md_top3": {
+      "step3_lines": "48-89",
+      "step4_lines": "93-114",
+      "current_shape": "Implicit ordered sequence from a document-order walk. No explicit array. AskUserQuestion has fixed 3 options (dispatch #1, pick different, abort) regardless of how many candidates exist."
+    },
+    "anchor_line_window_read": "Novel — no prior command uses an explicit `offset = max(1, line-10)`, `limit = 21` formula. Prior bounded reads use `awk` / `grep` (`feature.md:179`), prose ('read only the Status line', `orient/SKILL.md:158`), or budget-based bounds ('≤5 tool calls per AC', `feature.md` RECONCILE). The Step 4a window read is the first explicit Read-offset arithmetic in the corpus."
+  },
+  "architecture": {
+    "plugin_base_layout": {
+      "commands/": "User-invocable entry points. .md files with YAML frontmatter; auto-registered (file-presence-based, no manifest enumeration).",
+      "agents/": "Subagent blueprints. Spawned ONLY via `Agent(subagent_type: base:<name>)`. Role-name `SendMessage` to a base:* name silently no-ops (no TeamCreate teammate exists for those names).",
+      "skills/": "Two roles: (a) reference docs read by leads/agents (e.g. `base:spec-template`'s SKILL.md cited by `feature.md:170`); (b) utility workflows invoked via `Skill(\"base:<name>\")`.",
+      "schemas/": "JSON Schema files. `stories.schema.json` enforces `^AC-[A-Z]+-[0-9]+$` for AC IDs; `result.schema.json` carries the per-story result + retrospective shape."
+    },
+    "next_md_dispatch_graph": {
+      "callers": "Direct user invocation only. No command in `plugins/base/` calls `/base:next` programmatically.",
+      "callees": "Skill(\"base:feature\", args: \"backlog:<marker>\") or Skill(\"base:bug\", args: \"backlog:<marker>\") per `next.md:141-143`. No Agent spawns, no TeamCreate, no SendMessage.",
+      "max_depth": 3,
+      "recursion_risk": "None — `next.md:11` declares the dispatcher does one Skill call and exits."
+    },
+    "backlog_triangle_lifecycle": "BACKLOG.md ## Findings is the working set (soft cap ~15); ## Archive is append-only rejection history. Writers: `base:project-curator` (proposes mutations), the lead at `feature.md` Step 3/Step 6.1 (epic bullet + pending finding consumption), `base:backlog` skill (user-invoked add/resolve), `bug.md` Step 4 (deferred bullet removal). Readers: `/base:orient`, `/base:next`, `/base:feature backlog:...`, `/base:bug backlog:...`. Four resolution paths: `done→spec`, `done-mechanical`, `rejected`, `promoted`.",
+    "packaging_and_release": {
+      "manifest": ".claude-plugin/plugin.json — name/version only, no commands list. Commands auto-discovered by file presence.",
+      "ci": "None. No .github/, no .husky/, no precommit hook. Release is `node scripts/release.mjs` — interactive, manual, creates an annotated tag `<plugin>/v<version>` and a commit `Release <plugin> v<version>`.",
+      "trigger_on_md_edit": "None — edits to `plugins/base/commands/*.md` do not trigger any automation."
+    },
+    "spec_format_authority": {
+      "skill": "base:spec-template",
+      "spec_md_conformance": "READY — all required sections present in canonical order; `## Constrained by ADRs` present with `_no ADRs apply_`; `## Amendments` absent (correct — added only on first amendment).",
+      "ac_md_state": "Stub from spec-template — placeholder ACs only. `base:story-planner` Mode 1 will populate this in Step 4 from the spec's `## Stories` previews. Spec's ## Stories references 14 AC IDs (AC-MODE-1..3, AC-STRUCT-1, AC-AUTO-1..3, AC-DETAIL-1..3, AC-PARA-1..3, AC-AMEND-1..2, AC-INV-1) that the planner is expected to materialise."
+    }
+  },
+  "testing_and_conventions": {
+    "test_infrastructure": "None. No tests/ dir, no .github/workflows, no .husky/, no test/lint scripts in package.json, no Makefile test target, no CONTRIBUTING or smoke-test instruction file.",
+    "what_test_means_for_md_changes": "The `base:verification-examiner` performs textual presence/absence assertions via Read on the modified Markdown file. Pattern observed in `specs/epic-pipeline-autonomous-retros/S1-curator-refactor/verification.json`: every VQ resolves to 'Does <file> [contain | not contain] phrase X?' with `check_method: read <file> and verify (a) absence of … (b) presence of …'.",
+    "examiner_protocol_for_md": "The SPEC question template (`verification-examiner.md:30-44`) hard-requires (a) production code at file:line, (b) tests at file:line, (c) confirmation tests are not mock-spy proxies. For Markdown stories, (a) = the prompt file, (b)/(c) = the examiner's own read-based assertion. No formal carve-out in the agent prompt; examiners improvise.",
+    "story_planner_for_md_stories": "Mode 3 templates verification questions in code-centric terms but is observed (in S1 of pipeline-autonomous-retros) to emit SPEC questions with `check_method` set to a direct Read-and-verify instruction for Markdown files. No `skills/languages/markdown.md` exists — language detection on package.json picks JS/TS, whose conventions are irrelevant here.",
+    "command_md_file_structure": {
+      "frontmatter_fields": ["name", "description", "argument-hint", "allowed-tools", "model"],
+      "title_pattern": "# <Title> followed immediately by a role statement sentence",
+      "input_section": "`## Input: $ARGUMENTS` near the top",
+      "step_heading": "`## Step N: <Verb Noun>` at top level; `### Step N.N: ...` for sub-steps when needed",
+      "step_body": "Fenced code blocks for pseudocode and bash; prose for narrative steps",
+      "dividers": "Horizontal rules (`---`) separate top-level steps",
+      "exit_phrasing": "Inline imperative ('exit with:', 'stop and explain'); the terminal step is often labeled `## Step N: Return` and ends with a plain-English summary",
+      "retro_block": "Subagent convention only — never appears in command .md files"
+    }
+  },
+  "implementation_constraints": [
+    "Step 0 argument parsing MUST follow the prefix/bare-token/colon-value precedent (NO `--auto` flag). Match `feature.md:52-63` and `backlog/SKILL.md:37-43` shape.",
+    "Step 4 detail-branch AskUserQuestion options MUST be described in prose with per-candidate options (`Dispatch #1`, `Dispatch #2` (only when #2 exists), `Dispatch #3` (only when #3 exists), `Abort`) — NOT a fixed 3-option shape like today's gate.",
+    "Paragraph synthesis Read window MUST be specified with explicit `offset = max(1, line-10)`, `limit = 21` arithmetic — this is novel; the convention is being introduced by this epic.",
+    "Frontmatter `allowed-tools` MUST gain `Grep` for the optional 'find nearest preceding heading' step in Step 4a.",
+    "Verification for this epic's stories will be Read-based textual assertion against `plugins/base/commands/next.md` and `specs/epic-base-next/{spec.md, acceptance-criteria.md}`. The `base:verification-examiner` improvises (a)/(b)/(c) accordingly; story-planner Mode 3 must phrase pre-impl questions as 'does the file at <path>:<line-range> contain/not-contain <clause>?'.",
+    "Release is out of scope for the epic — version bumps are manual via `scripts/release.mjs` and the user owns that process (per CLAUDE.md: 'NEVER bump versions on your own')."
+  ],
+  "exploration_retros": [
+    {
+      "focus": "similar-features",
+      "skipped": false,
+      "flag": "AskUserQuestion has no JSON schema in any command or skill — all usages are prose-only — so 'quote the exact JSON shape' had no answer; downstream stories must not assume a typed schema contract exists to match.",
+      "scope": "project_specific"
+    },
+    {
+      "focus": "architecture",
+      "skipped": false,
+      "flag": "The epic-next-modes acceptance-criteria.md is the unfilled spec-template scaffold — spec.md references 14 named AC IDs that do not yet exist in the file. This is by design (pre-implementation state, phase: SPEC_VALIDATED), but it is the kind of upstream gap that surfaces during /base:feature Step 2 validation and base:story-planner Mode 2, and the architect needs to know it is intentional rather than a validation failure before proceeding.",
+      "scope": "project_specific"
+    },
+    {
+      "focus": "testing-and-conventions",
+      "skipped": false,
+      "flag": "verification-examiner.md hard-requires '(b) tests at file:line' and '(c) confirmation tests are not pure mock-spy proxies' — language written for executable code. For Markdown-editing stories there is no test runner, no baseline.json run, and no proxy/behavioral distinction. The pipeline applies the protocol anyway (improvised by examiners), but the gap is structural: no skills/languages/markdown.md, story-planner picks JS/TS conventions from package.json. Worth a downstream finding — either ship a markdown.md language skill or add a Markdown-aware carve-out to the AC question template.",
+      "scope": "meta"
+    }
+  ]
+}

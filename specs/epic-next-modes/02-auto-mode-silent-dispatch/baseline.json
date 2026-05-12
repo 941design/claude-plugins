@@ -1,0 +1,21 @@
+{
+  "story_id": "02",
+  "captured_at": "2026-05-12T13:00:00Z",
+  "file": "plugins/base/commands/next.md",
+  "step4_pre_edit": {
+    "heading_line": 121,
+    "heading_text": "## Step 4: Confirmation Gate",
+    "content_lines": "122-144",
+    "branch_structure": "count-based (not mode-based): exactly-1 actionable → silent dispatch; 2-or-more → AskUserQuestion with top-3 list",
+    "question_halt_location": "Step 3 (lines 100-113) — before Step 4",
+    "notable_clauses": [
+      "Exactly 1 actionable finding → state classification in one line and proceed to Step 5. No prompt.",
+      "2 or more actionable findings → show top 3, ask via AskUserQuestion with options: dispatch #1, pick different, abort",
+      "Do NOT dispatch before the user responds."
+    ]
+  },
+  "tests_baseline": {
+    "status": "NO_TESTS",
+    "note": "Verification is Read-based textual assertion. No executable test runner."
+  }
+}

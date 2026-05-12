@@ -1,0 +1,27 @@
+{
+  "test_strategy": "read-based-textual-assertion",
+  "baseline_state": "no executable tests; baseline = current file content of plugins/base/commands/next.md captured before Story 01 edits",
+  "captured_at": "2026-05-12T12:30:00Z",
+  "file": "plugins/base/commands/next.md",
+  "frontmatter_before": {
+    "name": "next",
+    "description": "Pick the next actionable finding from BACKLOG.md and dispatch it to the right workflow (/base:bug or /base:feature).",
+    "argument-hint": "(no arguments)",
+    "allowed-tools": "Read, Edit, Bash, AskUserQuestion, Skill",
+    "model": "sonnet"
+  },
+  "step_headings_before": [
+    { "line": 19, "text": "## Step 1: Read BACKLOG.md" },
+    { "line": 27, "text": "## Step 2: Parse ## Findings" },
+    { "line": 48, "text": "## Step 3: Classify and Pick" },
+    { "line": 93, "text": "## Step 4: Confirmation Gate" },
+    { "line": 118, "text": "## Step 5: Derive Unique Marker" },
+    { "line": 135, "text": "## Step 6: Dispatch via Skill" },
+    { "line": 145, "text": "## Step 7: Return" }
+  ],
+  "input_section_before": {
+    "line_range": "13-16",
+    "text": "## Input: $ARGUMENTS\n\nThis command takes no arguments. Selection is internal."
+  },
+  "notes": "Line numbers are 1-indexed from the file as read before any S1 edit. The baseline records what headings, frontmatter fields, and Input section were present so the examiner can confirm no pre-existing steps were altered."
+}

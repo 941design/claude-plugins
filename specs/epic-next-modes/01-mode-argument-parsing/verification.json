@@ -1,0 +1,85 @@
+{
+  "story_id": "01",
+  "story_name": "mode-argument-parsing",
+  "authored_by": "story-planner",
+  "authored_at": "2026-05-12T12:00:00Z",
+  "questions": [
+    {
+      "id": "VQ-01-001",
+      "type": "SPEC",
+      "ac_id": "AC-MODE-1",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 0 contain a clause that sets mode = detail when $ARGUMENTS is empty or whitespace-only, and does it explicitly state that execution proceeds to Step 1 without exiting?",
+      "check_method": "Read plugins/base/commands/next.md and locate Step 0. Confirm the prose or pseudocode contains (a) a condition for empty or whitespace-only $ARGUMENTS, (b) an assignment or statement that mode equals 'detail', and (c) a statement that Step 1 is reached without exiting. Verdict YES only if all three clauses are present."
+    },
+    {
+      "id": "VQ-01-002",
+      "type": "SPEC",
+      "ac_id": "AC-MODE-2",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 0 contain a clause that sets mode = auto when the single token 'auto' is received (case-sensitive exact match), and does it state that execution proceeds to Step 1 without exiting?",
+      "check_method": "Read plugins/base/commands/next.md and locate Step 0. Confirm the prose or pseudocode contains (a) a condition for the exact token 'auto', (b) an assignment or statement that mode equals 'auto', and (c) a statement that Step 1 is reached without exiting. Confirm the condition does not also accept 'Auto', 'AUTO', or whitespace-padded variants as auto mode. Verdict YES only if all three clauses are present and case-sensitivity is unambiguous."
+    },
+    {
+      "id": "VQ-01-003",
+      "type": "SPEC",
+      "ac_id": "AC-MODE-3",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 0 contain a clause that exits immediately with a usage hint when receiving any token other than 'auto', and does the usage hint name both valid invocation forms (/base:next for detail mode and /base:next auto for auto mode)?",
+      "check_method": "Read plugins/base/commands/next.md and locate Step 0. Confirm the prose or pseudocode contains (a) a catch-all or else branch for tokens that are not 'auto' and not empty, (b) an instruction to exit immediately (not proceed to Step 1), and (c) usage hint text that names '/base:next' and '/base:next auto' (or equivalent). Confirm the clause covers whitespace-padded variants and flags like '--auto'. Verdict YES only if all three conditions are satisfied."
+    },
+    {
+      "id": "VQ-01-004",
+      "type": "SPEC",
+      "ac_id": "AC-STRUCT-1",
+      "phase": "pre-impl",
+      "question": "Does the YAML frontmatter block of plugins/base/commands/next.md contain argument-hint set to '(no args = detail) | auto', a description mentioning both detail and auto modes, and an allowed-tools value that includes Grep?",
+      "check_method": "Read plugins/base/commands/next.md and locate the YAML frontmatter (the block between the opening --- and the first step heading). Confirm three things: (1) argument-hint field value is exactly '(no args = detail) | auto'; (2) description field prose contains both the word 'detail' and the word 'auto' (or an equivalent two-mode phrasing); (3) allowed-tools includes 'Grep' in addition to the pre-existing tools (Read, Edit, Bash, AskUserQuestion, Skill). Verdict YES only if all three are present."
+    },
+    {
+      "id": "VQ-01-005",
+      "type": "QUALITY",
+      "phase": "pre-impl",
+      "question": "Is the Step 0 prose free of contradictions, consistent in heading style with other numbered steps in plugins/base/commands/next.md, and consistent with the heading conventions used in other command files under plugins/base/commands/?",
+      "check_method": "Read plugins/base/commands/next.md in full. Confirm Step 0 uses the same heading level and numbering format (e.g., '## Step 0') as Steps 1–7. Read one or two neighbouring command files (e.g., plugins/base/commands/feature.md or plugins/base/commands/bug.md) and confirm the heading style is consistent across files. Check that Step 0 contains no contradictory clauses (e.g., a branch that both sets mode = detail and exits). Verdict YES only if heading style is consistent and no internal contradictions exist."
+    },
+    {
+      "id": "VQ-01-006",
+      "type": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Are the frontmatter changes and Step 0 insertion atomic in the single edit to plugins/base/commands/next.md, with no leftover prior-version frontmatter fields or duplicate step headings introduced?",
+      "check_method": "Read plugins/base/commands/next.md. Confirm that (a) no duplicate '## Step 0' or old argument-hint values appear in the file, (b) the YAML frontmatter block is well-formed (single opening ---, fields under it, closing ---), and (c) no intermediate state markers or stub text (e.g., 'TODO', 'TBD', 'placeholder') remain in either the frontmatter or Step 0. This checks architecture.md Boundary Rule 5 (frontmatter and step changes are atomic). Verdict YES only if the file is clean and self-consistent."
+    },
+    {
+      "id": "VQ-01-007",
+      "type": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Could the commands module (plugins/base/commands/next.md) be deleted and rewritten without modifying any file outside its dependencies_allowed list? If not, which cross-module dependencies exist and do they flow through declared seam contracts in architecture.md?",
+      "check_method": "Read architecture.md and identify the dependencies_allowed list for the commands module. Read plugins/base/commands/next.md and confirm that Step 0's new content references only tools and modules within that list (Read, Edit, Bash, AskUserQuestion, Skill, Grep). Confirm S1 makes no edits to plugins/base/agents/, plugins/base/skills/, plugins/base/schemas/, or specs/epic-base-next/. If any cross-module reference exists, confirm it flows through a declared seam contract (ModeVariable seam) as specified in architecture.md. Verdict YES only if all references are within scope or through declared seams."
+    }
+  ],
+  "post_impl_questions": [
+    {
+      "id": "VQ-01-PI-001",
+      "type": "SPEC",
+      "ac_id": "AC-MODE-3",
+      "phase": "post-impl",
+      "question": "Does plugins/base/commands/next.md Step 0's ELSE branch explicitly say 'do NOT proceed to Step 1' (or equivalent) in the pseudocode itself — not only in surrounding prose — so a model executing the pseudocode cannot miss the exit instruction?",
+      "check_method": "Read plugins/base/commands/next.md Step 0 pseudocode block. Confirm the ELSE branch contains an inline instruction (e.g. 'do NOT proceed to Step 1') that makes the non-continuation intent unambiguous even when reading the block in isolation. Verdict YES only if the instruction is inside the fenced pseudocode block, not only in surrounding prose."
+    },
+    {
+      "id": "VQ-01-PI-002",
+      "type": "ARCHITECTURE",
+      "phase": "post-impl",
+      "question": "Does the updated plugins/base/commands/next.md ## Input: $ARGUMENTS section accurately describe both valid invocation forms (/base:next and /base:next auto) so that the Input section is consistent with Step 0's parsing logic?",
+      "check_method": "Read plugins/base/commands/next.md ## Input: $ARGUMENTS section. Confirm it lists both '/base:next' (detail mode) and '/base:next auto' (auto mode) and does NOT still say 'This command takes no arguments.' Verdict YES only if both forms are present and the 'no arguments' claim is removed."
+    },
+    {
+      "id": "VQ-01-PI-003",
+      "type": "QUALITY",
+      "phase": "post-impl",
+      "question": "Does the mode variable's consumed-by note in Step 0 name Step 4 as the consumer, preserving the S1→S2/S3 seam contract declared in stories.json?",
+      "check_method": "Read plugins/base/commands/next.md Step 0 (the paragraph following the pseudocode block). Confirm it states that mode is consumed by Step 4. Verdict YES if Step 4 is explicitly named as the consumer; NO if the consuming step is absent or misnamed."
+    }
+  ]
+}

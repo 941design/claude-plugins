@@ -1,0 +1,46 @@
+{
+  "module_name": "commands",
+  "purpose": "Extend plugins/base/commands/next.md Step 4 detail branch and introduce Step 4a (paragraph synthesis). The detail branch collects up to 3 actionable candidates, invokes Step 4a per candidate, renders a structured findings block, and calls AskUserQuestion before delegating to Step 5.",
+  "public_api": [
+    {
+      "name": "Step 4 detail branch",
+      "signature": "mode == 'detail' → render top-3 findings → AskUserQuestion → proceed to Step 5",
+      "description": "Consumes the ModeVariable seam (mode='detail'). Collects first 3 actionable findings in document order, synthesises a paragraph per finding via Step 4a, renders the '## Top 3 actionable findings' block, presents AskUserQuestion with Dispatch #1 (always), Dispatch #2 (only when #2 exists), Dispatch #3 (only when #3 exists), Abort (always). On selection continues to Step 5; on Abort exits."
+    },
+    {
+      "name": "Step 4a: Paragraph Synthesis",
+      "signature": "(bullet: string, classification: 'bug'|'feature-work') → paragraph: string",
+      "description": "Inline lead-agent synthesis routine. Parses anchor from bullet, reads anchor file with bounded window, optionally greps for nearest heading/function, composes a 3-5 sentence what/where/goal paragraph. Falls back to bullet-only composition with '(anchor file missing)' appended on any read failure."
+    }
+  ],
+  "private_files": [
+    "plugins/base/commands/next.md"
+  ],
+  "owned_data": [
+    "mode variable (consumed from Step 0 via ModeVariable seam)",
+    "up to 3 actionable finding candidates (document order from Step 3)"
+  ],
+  "dependencies_allowed": [
+    "Read (anchor file reads, bounded)",
+    "Grep (optional nearest heading/function lookup)",
+    "AskUserQuestion (detail-mode confirmation gate)"
+  ],
+  "dependencies_forbidden": [
+    "Agent (no subagent spawning per architecture.md Boundary Rule 2)",
+    "SendMessage (no inter-agent messaging from dispatcher)",
+    "Skill (not in Step 4a; Step 6 uses Skill for final dispatch only)"
+  ],
+  "external_ports": [
+    "ModeVariable seam: mode string set by Step 0, consumed by Step 4 branch"
+  ],
+  "events_emitted": [],
+  "events_consumed": [],
+  "test_targets": [
+    "AC-DETAIL-1: '## Top 3 actionable findings' block with anchor, classification, paragraph per candidate",
+    "AC-DETAIL-2: AskUserQuestion with Dispatch #1 (always), #2/#3 (conditional), Abort (always), conditional rule documented",
+    "AC-DETAIL-3: no special-case 1-finding skip branch",
+    "AC-PARA-1: offset = max(1, line - 10), limit = 21 verbatim in Step 4a",
+    "AC-PARA-2: '(anchor file missing)' verbatim fallback in Step 4a",
+    "AC-PARA-3: 3-5 sentences, what/where/goal three topics in Step 4a"
+  ]
+}

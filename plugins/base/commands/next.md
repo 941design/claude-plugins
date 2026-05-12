@@ -1,8 +1,8 @@
 ---
 name: next
-description: Pick the next actionable finding from BACKLOG.md and dispatch it to the right workflow (/base:bug or /base:feature).
-argument-hint: (no arguments)
-allowed-tools: Read, Edit, Bash, AskUserQuestion, Skill
+description: Pick the next actionable finding from BACKLOG.md and dispatch it to the right workflow (/base:bug or /base:feature). Runs in detail mode by default (renders top candidates with a prose paragraph and asks for confirmation) or auto mode (/base:next auto — silently dispatches the top actionable finding without prompting).
+argument-hint: "(no args = detail) | auto"
+allowed-tools: Read, Edit, Bash, AskUserQuestion, Skill, Grep
 model: sonnet
 ---
 
@@ -12,7 +12,35 @@ You are a thin dispatcher. Your job is to pick the top actionable finding from `
 
 ## Input: $ARGUMENTS
 
-This command takes no arguments. Selection is internal.
+Accepts an optional single positional token. Valid forms:
+
+- `/base:next` — no argument; runs in **detail** mode (default).
+- `/base:next auto` — single token `auto`; runs in **auto** mode (silent dispatch).
+
+---
+
+## Step 0: Parse Mode Argument
+
+Parse `$ARGUMENTS` into a `mode` variable before any other step executes.
+
+```
+IF $ARGUMENTS is empty or whitespace-only:
+    mode = "detail"
+    proceed to Step 1
+
+ELSE IF $ARGUMENTS is exactly the token "auto" (case-sensitive, exact match — "Auto", "AUTO", " auto", "--auto" do not qualify):
+    mode = "auto"
+    proceed to Step 1
+
+ELSE:
+    exit immediately with usage hint (do NOT proceed to Step 1):
+
+    > Unrecognised argument. Valid forms:
+    >   /base:next        — detail mode (renders top findings with synthesis, then asks)
+    >   /base:next auto   — auto mode (silently dispatches the top actionable finding)
+```
+
+`mode` is exactly one of the two string literals `"detail"` or `"auto"`. It is set here and consumed by Step 4.
 
 ---
 
@@ -90,28 +118,135 @@ in document order is the candidate.
 
 ---
 
-## Step 4: Confirmation Gate
+## Step 4: Mode-Gated Dispatch
 
-Count the total number of actionable findings (classified as `bug` or
-`feature-work`) in `## Findings`.
+**Pre-branch invariant (question-halt):** The question-halt check in Step 3
+already ran before this step. If execution reaches Step 4, no leading `question`
+finding was present — the first actionable candidate is a `bug` or `feature-work`.
+Neither `auto` mode nor `detail` mode bypasses the question-halt; both modes rely
+on Step 3's check firing before this branch. This satisfies AC-INV-1.
 
-**Exactly 1 actionable finding** → state the classification in one line
-("Dispatching as a bug" / "Dispatching as feature-work") and proceed to
-Step 5. No prompt.
+Branch on `mode` (set by Step 0):
 
-**2 or more actionable findings** → show the top 3 actionable findings (in
-document order) with their classifications and ask via `AskUserQuestion`:
+---
 
-> Found N actionable findings. Top candidates:
->
-> 1. `<bullet #1>` → would dispatch as <bug|feature-work>
-> 2. `<bullet #2>` (if it exists) → <classification>
-> 3. `<bullet #3>` (if it exists) → <classification>
->
-> Options: (1) dispatch #1, (2) pick a different one from the list above, (3) abort
+### IF mode == auto
 
-Do NOT dispatch before the user responds. If the user picks a different finding from the
-list, use that finding as the candidate for Steps 5–6.
+Select the candidate using the following rule: **the first actionable finding
+in document order** from `## Findings` — the same position-1 candidate that
+Step 3 identified. No re-scanning is needed; Step 3 already produced this.
+
+Print exactly one notice line before proceeding — no other output, no prompt:
+
+```
+Dispatching as <classification>: <truncated-bullet>
+```
+
+Where:
+- `<classification>` is exactly `bug` or `feature-work` (the label from Step 3).
+- `<truncated-bullet>` is a non-empty excerpt of the selected finding's bullet text
+  (truncate to approximately 60 characters, appending `…` if longer).
+
+Do **not** invoke `AskUserQuestion`. Do not present any confirmation prompt. Fall
+through immediately to Step 5 with the selected candidate.
+
+---
+
+### IF mode == detail
+
+Collect candidates: take the first 3 actionable findings in document order (the same
+ordered list Step 3 produced — position 1, 2, 3). There may be fewer than 3.
+
+For each candidate, invoke Step 4a to synthesise a paragraph. The anchor reads for
+all candidates MAY be performed in parallel — they are independent.
+
+Render the findings to the user:
+
+```
+## Top 3 actionable findings
+
+**1.** <anchor#1> → <classification#1>
+      <paragraph#1>
+
+**2.** <anchor#2> → <classification#2>
+      <paragraph#2>
+
+**3.** <anchor#3> → <classification#3>
+      <paragraph#3>
+```
+
+Omit any numbered entry for which no candidate exists. A single-candidate invocation
+renders only the `**1.**` block — there is no special case that skips synthesis or the
+prompt for the 1-finding scenario; detail mode always renders and always confirms.
+
+Then invoke `AskUserQuestion` with the following options (conditional inclusion rule
+stated explicitly):
+
+- `Dispatch #1` — always present when at least one actionable finding exists.
+- `Dispatch #2` — present **only when a second actionable finding exists** (i.e.
+  the candidate list has ≥ 2 entries). Omit entirely when only 1 candidate exists.
+- `Dispatch #3` — present **only when a third actionable finding exists** (i.e.
+  the candidate list has ≥ 3 entries). Omit entirely when fewer than 3 candidates exist.
+- `Abort` — always present.
+
+On selection of `Dispatch #1`, `Dispatch #2`, or `Dispatch #3`: identify the
+corresponding candidate and continue to Step 5 with that candidate.
+
+On `Abort`: exit without dispatching.
+
+---
+
+## Step 4a: Paragraph Synthesis
+
+Invoked once per candidate by Step 4 in `detail` mode. Executes inline by the lead
+agent — no subagent is spawned (architecture.md Boundary Rule 2, Design Decision 7).
+
+**Inputs.** A finding bullet (anchor + text + date) and the bullet's classification
+(`bug` or `feature-work`).
+
+**1. Parse anchor.** Extract the anchor field (the first token before ` — ` in the
+bullet grammar). Three forms are recognised:
+
+- `path:line` form — anchor contains a colon followed by a line number. Split into
+  `path` and `line` (integer).
+- `path` form (no `:line`) — anchor is a file path with no line number component.
+  `line` is absent.
+- `-` form — anchor is the literal `-`. No file path. Skip steps 2–3 entirely and
+  proceed directly to step 4 (bullet-only composition).
+
+**2. Read the anchor file.** Perform a bounded Read call:
+
+- **With line:** Read the file using `offset = max(1, line - 10)` and `limit = 21`.
+  This produces a centred 21-line window around the anchor line, with the offset
+  clamped to line 1 for near-top anchors.
+- **Without line:** Read the first 30 lines of the file (`offset = 1`, `limit = 30`).
+
+Any read failure — file not found, directory not found, permission denied, anchor path
+containing glob characters (`*`, `?`, `[`), or ambiguous path — is treated identically:
+fall back to bullet-only composition (step 4) and append the literal string
+`(anchor file missing)` to the paragraph. The fallback note text is fixed and does not
+vary by failure mode.
+
+**3. (Optional) Grep for context.** If cheaply available, grep the anchor file for the
+nearest preceding heading (Markdown `#` or `##`) or function declaration (e.g. `def `,
+`function `, `fn `, `func `) relative to the anchor line. Use the result to name the
+surrounding section in the paragraph. Skip this step if the result is not obvious or the
+file type does not lend itself to heading/function extraction — the paragraph is still
+valid from bullet text and the read window alone.
+
+**4. Compose paragraph.** Write 3–5 sentences that cover all three of the following
+topics:
+
+- **(a) What** — what the issue or opportunity is (drawn from the bullet prose,
+  sharpened by the anchor file context).
+- **(b) Where** — where the relevant code lives: named file, section heading, or
+  function name. Use the anchor path and any heading/function found in step 3.
+- **(c) Goal** — what resolving this finding accomplishes for the user or the system.
+
+The paragraph must be self-contained: a reader who has not seen the raw bullet should
+still understand what dispatching this finding would do.
+
+**5. Return.** The paragraph as a single string with no trailing whitespace.
 
 ---
 

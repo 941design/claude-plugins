@@ -1,0 +1,41 @@
+{
+  "module_name": "commands",
+  "purpose": "Rework Step 4 of plugins/base/commands/next.md to branch on the `mode` variable set by Step 0. Implement the auto branch fully (no prompt, one-line notice, first-actionable-in-document-order selection, fall-through to Step 5). Provide a clearly-labeled stub for the detail branch (S3's scope). Re-position the question-halt invariant so it fires before the mode branch.",
+  "public_api": [
+    {
+      "name": "Step 4 — Mode-Gated Dispatch",
+      "signature": "mode: string ('auto' | 'detail'), candidates: ordered list of actionable findings from Step 3 → selected_candidate: finding | halt",
+      "description": "Consumes the `mode` variable from Step 0 and the classified findings from Step 3. In auto mode: prints one notice line, selects the first actionable in document order, falls through to Step 5 with that candidate. In detail mode: stub — implemented by S3. Before branching: checks question-halt invariant."
+    }
+  ],
+  "private_files": [],
+  "owned_data": [
+    "selected_candidate — the single finding passed to Step 5"
+  ],
+  "dependencies_allowed": [
+    "ModeVariable seam (set by Step 0, consumed here)",
+    "Classified findings list (produced by Step 3)"
+  ],
+  "dependencies_forbidden": [
+    "AskUserQuestion inside the auto branch",
+    "Any file write, Edit, or log emission inside auto branch",
+    "Any agent spawn or Skill call inside Step 4 (dispatching is Step 6's job)",
+    "Raw $ARGUMENTS re-parsing (Step 0 is the sole parser)"
+  ],
+  "external_ports": [],
+  "events_emitted": [
+    "One-line UX notice 'Dispatching as <classification>: <truncated-bullet>' (auto branch only, not logged)"
+  ],
+  "events_consumed": [
+    "mode variable from Step 0",
+    "ordered actionable findings list from Step 3"
+  ],
+  "test_targets": [
+    "AC-AUTO-1: no AskUserQuestion in auto branch",
+    "AC-AUTO-2: notice line 'Dispatching as <classification>: <truncated-bullet>' present in auto branch prose",
+    "AC-AUTO-3: selection rule 'first actionable in document order' named explicitly in auto branch",
+    "AC-INV-1: question-halt check precedes the mode branch — left in Step 3 (already before Step 4) with explicit cross-reference at Step 4's preamble",
+    "VQ-02-008: detail branch stub present and contains no S3 implementation"
+  ],
+  "question_halt_positioning_decision": "Leave the question-halt logic in Step 3 where it already sits (textually before Step 4 in the document). Add an explicit cross-reference paragraph at the top of Step 4's prose stating that the question-halt check in Step 3 applies before this branch, satisfying AC-INV-1 without duplicating or moving the logic. This is cleaner than restating the check verbatim inside Step 4."
+}

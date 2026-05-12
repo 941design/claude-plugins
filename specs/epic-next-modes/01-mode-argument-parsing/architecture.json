@@ -1,0 +1,52 @@
+{
+  "module_name": "commands",
+  "purpose": "User-invocable entry point. plugins/base/commands/next.md is a Markdown prompt file that the Claude Code harness reads at runtime. It dispatches the top actionable BACKLOG.md finding to the appropriate sub-workflow. This story adds argument parsing (Step 0) and creates the ModeVariable seam consumed by S2 and S3.",
+  "public_api": [
+    {
+      "name": "argument-hint",
+      "signature": "argument-hint: \"(no args = detail) | auto\"",
+      "description": "YAML frontmatter field declaring the command's argument grammar to callers and the harness."
+    },
+    {
+      "name": "Step 0: Parse Mode Argument",
+      "signature": "IF $ARGUMENTS empty/whitespace → mode = 'detail'; IF $ARGUMENTS == 'auto' (exact) → mode = 'auto'; ELSE → exit with usage hint",
+      "description": "ModeVariable seam: Step 0 sets mode before any other step executes. mode is exactly one of 'detail' or 'auto'. Consumed by Step 4 (S2) and Step 4a (S3)."
+    },
+    {
+      "name": "allowed-tools",
+      "signature": "Read, Edit, Bash, AskUserQuestion, Skill, Grep",
+      "description": "YAML frontmatter field enumerating the tools the command is permitted to use. Grep is added by this story."
+    }
+  ],
+  "private_files": [
+    "plugins/base/commands/next.md"
+  ],
+  "owned_data": [
+    "mode variable (in-session): string literal 'detail' or 'auto', set by Step 0, consumed by Step 4"
+  ],
+  "dependencies_allowed": [
+    "Read",
+    "Edit",
+    "Bash",
+    "AskUserQuestion",
+    "Skill",
+    "Grep"
+  ],
+  "dependencies_forbidden": [
+    "Agent",
+    "TeamCreate",
+    "SendMessage",
+    "plugins/base/agents/",
+    "plugins/base/skills/",
+    "plugins/base/schemas/",
+    "specs/epic-base-next/"
+  ],
+  "external_ports": [],
+  "events_emitted": [
+    "ModeVariable seam: mode ∈ {'detail', 'auto'} set at Step 0 for consumption by S2/S3 Step 4"
+  ],
+  "events_consumed": [],
+  "test_targets": [
+    "plugins/base/commands/next.md — Read-based textual assertion by base:verification-examiner: (1) frontmatter argument-hint verbatim, (2) Grep in allowed-tools, (3) description mentions both modes, (4) Step 0 heading before Step 1, (5) Step 0 empty-branch sets mode=detail, (6) Step 0 auto-branch sets mode=auto (case-sensitive), (7) Step 0 else-branch exits with usage hint naming /base:next and /base:next auto"
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "story_id": "03",
+  "story_name": "detail-mode-paragraph-synthesis",
+  "authored_by": "story-planner",
+  "authored_at": "2026-05-12T12:00:00Z",
+  "questions": [
+    {
+      "id": "VQ-03-001",
+      "type": "SPEC",
+      "ac_id": "AC-DETAIL-1",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 4's detail branch contain a prose or pseudocode rendering template for the '## Top 3 actionable findings' block, with each candidate entry including anchor reference, classification label, and synthesised paragraph?",
+      "check_method": "Read plugins/base/commands/next.md and locate Step 4's detail branch. Confirm the branch contains a rendering template (or equivalent structural description) that shows: (a) a '## Top 3 actionable findings' heading, (b) numbered entries (1, 2, 3) each containing an anchor reference, a classification label (bug or feature-work), and a paragraph placeholder. Confirm the template is inside the detail branch, not the auto branch. Verdict YES only if all three structural elements appear in the detail branch's rendering template."
+    },
+    {
+      "id": "VQ-03-002",
+      "type": "SPEC",
+      "ac_id": "AC-DETAIL-2",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 4's detail branch specify an AskUserQuestion call with Dispatch #1 (always present), Dispatch #2 (present only when a second finding exists), Dispatch #3 (present only when a third finding exists), and Abort (always present), with the conditional-inclusion rule documented for options 2 and 3?",
+      "check_method": "Read plugins/base/commands/next.md Step 4 detail branch. Confirm the branch describes an AskUserQuestion call with four option types. Confirm 'Dispatch #1' and 'Abort' are described as always present. Confirm 'Dispatch #2' is described as present only when a second actionable finding exists, and 'Dispatch #3' as present only when a third exists. The conditional-inclusion rule for options 2 and 3 must be stated explicitly (not implied). Verdict YES only if all four option types and both conditional-inclusion rules are present."
+    },
+    {
+      "id": "VQ-03-003",
+      "type": "SPEC",
+      "ac_id": "AC-DETAIL-3",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 4's detail branch contain no special-case branch that skips paragraph synthesis or the AskUserQuestion prompt when exactly one actionable finding exists?",
+      "check_method": "Read plugins/base/commands/next.md Step 4 detail branch in full. Search for any conditional clause of the form 'if only one finding', 'if count == 1', 'single finding', or equivalent that would bypass Step 4a synthesis or the AskUserQuestion call. Confirm no such clause exists. Confirm the general loop or candidate-handling logic applies identically when the candidate count is 1. Verdict YES only if no single-finding special-case branch is present anywhere in the detail branch."
+    },
+    {
+      "id": "VQ-03-004",
+      "type": "SPEC",
+      "ac_id": "AC-PARA-1",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 4a specify the anchor-file read window using the explicit arithmetic 'offset = max(1, line - 10)' and 'limit = 21', with both expressions appearing verbatim (or as equivalent unambiguous arithmetic) in the Step 4a prose or pseudocode?",
+      "check_method": "Read plugins/base/commands/next.md and locate Step 4a. Search for the expressions 'max(1, line - 10)' (or 'max(1, line-10)') and '21' as the limit value. Confirm both appear in the context of the path:line anchor form's read window specification. Confirm '21' is the limit and is used together with the offset formula. Verdict YES only if both expressions are present verbatim or as equivalent unambiguous arithmetic in Step 4a."
+    },
+    {
+      "id": "VQ-03-005",
+      "type": "SPEC",
+      "ac_id": "AC-PARA-2",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 4a contain a fallback clause for any anchor-file read failure that (a) falls back to bullet-text-only paragraph composition and (b) appends the literal string '(anchor file missing)' verbatim to the resulting paragraph?",
+      "check_method": "Read plugins/base/commands/next.md Step 4a. Confirm the presence of a fallback clause triggered by any read failure (file not found, directory not found, permission denied, glob in path, ambiguous path). Confirm the fallback specifies bullet-text-only composition. Search for the exact string '(anchor file missing)' — it must appear verbatim with parentheses. Confirm there is no variation in the fallback string by failure type. Verdict YES only if the fallback clause, bullet-text-only instruction, and the verbatim '(anchor file missing)' string are all present."
+    },
+    {
+      "id": "VQ-03-006",
+      "type": "SPEC",
+      "ac_id": "AC-PARA-3",
+      "phase": "pre-impl",
+      "question": "Does plugins/base/commands/next.md Step 4a specify that the synthesised paragraph covers three topics — (a) what the issue or opportunity is, (b) where the relevant code lives, and (c) what goal resolving the finding accomplishes — and also specifies that the paragraph is 3–5 sentences in length?",
+      "check_method": "Read plugins/base/commands/next.md Step 4a. Confirm the paragraph-composition specification names all three topics: what (the issue/opportunity), where (the relevant code, file, section, or function), and goal (what resolving the finding accomplishes for the user or system). Confirm Step 4a also specifies the sentence count bound as '3–5 sentences' or equivalent. Both the three-topic requirement and the sentence-count bound must appear in Step 4a prose. Verdict YES only if all three topics and the sentence-count specification are present."
+    },
+    {
+      "id": "VQ-03-007",
+      "type": "QUALITY",
+      "phase": "pre-impl",
+      "question": "Is the Step 4a prose self-consistent, free of dead-end clauses or unreachable branches, and does it cover all three anchor forms (path:line, path-only, '-') without leaving any form undescribed?",
+      "check_method": "Read plugins/base/commands/next.md Step 4a. Confirm three anchor forms are handled: (1) path:line (uses offset/limit arithmetic), (2) path-only without a line number (uses first-30-lines fallback or equivalent), (3) '-' (treated as missing anchor, falls back to bullet-text-only). Confirm there are no clauses that contradict each other (e.g., two different read-window sizes for path:line). Confirm no 'TODO', 'TBD', or stub marker remains in Step 4a. Verdict YES only if all three forms are handled and the prose is internally consistent."
+    },
+    {
+      "id": "VQ-03-008",
+      "type": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Does Step 4a execute paragraph synthesis inline by the lead agent (not by a spawned subagent), consistent with architecture.md Boundary Rule 2 and Design Decision 7?",
+      "check_method": "Read plugins/base/commands/next.md Step 4a. Confirm there is no Agent tool call, SendMessage call, or Skill invocation for paragraph synthesis. The step must describe the lead agent reading the anchor file and composing the paragraph directly using Read and Grep (and prose reasoning), not by delegating to a subagent. Confirm no Agent, SendMessage, or Skill call is described within Step 4a. Verdict YES only if synthesis is described as inline lead-agent work."
+    },
+    {
+      "id": "VQ-03-009",
+      "type": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Could the commands module (plugins/base/commands/next.md) be deleted and rewritten without modifying any file outside its dependencies_allowed list? If not, which cross-module dependencies exist and do they flow through declared seam contracts in architecture.md?",
+      "check_method": "Read architecture.md and identify the dependencies_allowed list for the commands module. Read plugins/base/commands/next.md Step 4 detail branch and Step 4a and confirm no cross-module references are introduced (no new agent invocations, no skill imports, no schema references, no edits to specs/ files). Confirm S3 makes no changes to plugins/base/agents/, plugins/base/skills/, plugins/base/schemas/, or specs/epic-base-next/. If any cross-module reference exists, confirm it flows through the ModeVariable seam declared in architecture.md. Verdict YES only if the module remains self-contained within permitted dependencies."
+    },
+    {
+      "id": "VQ-03-010",
+      "type": "TEST",
+      "phase": "pre-impl",
+      "question": "Are both the path:line read-window arithmetic clause and the '(anchor file missing)' fallback clause independently locatable in plugins/base/commands/next.md Step 4a by a Read-and-search verification, without requiring execution?",
+      "check_method": "Read plugins/base/commands/next.md Step 4a. Confirm that (a) the read-window arithmetic ('max(1, line - 10)', 'limit = 21') is a distinct, self-contained clause that can be found by searching for those literal strings, and (b) '(anchor file missing)' is a distinct, self-contained clause that can be found by searching for that exact string. Confirm neither clause is buried inside an unrelated prose block that would make textual search unreliable. Verdict YES only if both clauses are independently locatable by string search in Step 4a."
+    },
+    {
+      "id": "VQ-03-011",
+      "type": "SECURITY",
+      "phase": "pre-impl",
+      "question": "Does Step 4a's Read call specify a bounded limit (21 lines) and a computed non-negative offset, preventing unbounded file reads that could process arbitrarily large anchor files?",
+      "check_method": "Read plugins/base/commands/next.md Step 4a. Confirm the Read call for the path:line anchor form uses 'limit = 21' (or an equivalent explicit bound) and 'offset = max(1, line - 10)' (or equivalent). Confirm the max(1, ...) guard ensures the offset is never zero or negative. Confirm no path in Step 4a instructs reading an entire file without a line limit (except the path-only fallback, which must be bounded to the first 30 lines or equivalent). Verdict YES only if all Read calls in Step 4a are bounded."
+    },
+    {
+      "id": "VQ-03-012",
+      "type": "SPEC",
+      "phase": "post-impl",
+      "question": "Does the detail branch of Step 4 make it structurally impossible for a caller to mistake which candidate maps to which Dispatch option — specifically, does the prose establish that 'Dispatch #1' corresponds to candidate #1 (the first actionable in document order), 'Dispatch #2' to candidate #2, and 'Dispatch #3' to candidate #3?",
+      "check_method": "Read plugins/base/commands/next.md Step 4 detail branch. Confirm the branch describes the numbered Dispatch options as directly correlated to the numbered candidates in the rendering block. Confirm the 'On selection' clause identifies the chosen candidate by its ordinal position and hands it to Step 5. Verdict YES only if the 1-to-1 ordinal mapping between Dispatch option number and candidate number is unambiguous in the prose."
+    },
+    {
+      "id": "VQ-03-013",
+      "type": "SPEC",
+      "phase": "post-impl",
+      "question": "Does Step 4a's '-' anchor form explicitly skip the file Read and Grep steps (steps 2–3) and proceed directly to bullet-only composition, preventing any attempt to read a file named '-'?",
+      "check_method": "Read plugins/base/commands/next.md Step 4a anchor parsing section. Confirm the '-' form description includes an explicit directive to skip steps 2 and 3 entirely (or equivalent language such as 'skip to step 4' or 'no file read'). Confirm there is no clause that treats '-' as a filename. Verdict YES only if the skip instruction is unambiguous and direct file-read on '-' is structurally prevented."
+    },
+    {
+      "id": "VQ-03-014",
+      "type": "QUALITY",
+      "phase": "post-impl",
+      "question": "Is the detail branch structurally free of duplication with the auto branch — specifically, does the detail branch contain no re-statement of the 'first actionable in document order' selection rule (which already lives in the auto branch and Step 3), avoiding a future drift risk between two copies of the same selection rule?",
+      "check_method": "Read plugins/base/commands/next.md Step 4 in full (both branches). Confirm the detail branch describes collecting 'first 3 actionable findings' or 'the same ordered list Step 3 produced' without re-defining the document-order rule from scratch. Confirm there is no duplicated prose block that would need to be kept in sync with the auto branch selection rule. Verdict YES if the detail branch defers to Step 3's output rather than redeclaring the selection rule independently."
+    }
+  ]
+}

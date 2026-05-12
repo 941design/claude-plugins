@@ -20,9 +20,7 @@ command picks the next actionable finding and dispatches it,
 `model: sonnet`, and `allowed-tools` including at minimum `Read`,
 `Edit`, `Bash`, `AskUserQuestion`, and `Skill`.
 
-**AC-NEXT-2** — The `argument-hint` field MUST indicate no arguments are
-required (e.g. `(no arguments)`). The dispatcher MUST NOT accept a
-finding marker as a CLI argument; selection is internal.
+**AC-NEXT-2** — The dispatcher MUST accept either no argument (interpreted as `detail` mode) or the literal token `auto` (interpreted as `auto` mode). The dispatcher MUST exit with a usage hint on any other argument. The `argument-hint` frontmatter field MUST be updated to reflect this two-mode grammar.
 
 ## Missing or Empty Backlog
 
@@ -64,14 +62,11 @@ matching.
 
 ## Confirmation Gate
 
-**AC-NEXT-9** — If `## Findings` contains exactly one actionable
-finding, the dispatcher MUST proceed to dispatch without prompting.
+**AC-NEXT-9** — The 1-actionable-finding fast-path is mode-conditional. In `auto` mode, the dispatcher MUST proceed to dispatch without prompting regardless of actionable-finding count. In `detail` mode, the dispatcher MUST render the paragraph synthesis output and confirm via `AskUserQuestion` regardless of actionable-finding count (including the 1-finding case).
 
-**AC-NEXT-10** — If `## Findings` contains two or more actionable
-findings, the dispatcher MUST present the top three actionable findings
-(in document order) to the user via `AskUserQuestion` with three
-choices: dispatch the top finding, pick a different one from the list,
-or abort. The dispatcher MUST NOT dispatch before the user responds.
+**AC-NEXT-10a** — In `detail` mode, the dispatcher MUST render the top-3 actionable findings (or fewer, if fewer exist) with classification labels and a synthesised paragraph per candidate, then present `AskUserQuestion` with options `Dispatch #1` (always when ≥1 candidate), `Dispatch #2` (only when #2 exists), `Dispatch #3` (only when #3 exists), and `Abort` (always). The dispatcher MUST NOT dispatch before the user responds.
+
+**AC-NEXT-10b** — In `auto` mode, the dispatcher MUST skip the prompt entirely and dispatch the first actionable finding in document order, printing a one-line notice of the form `Dispatching as <classification>: <truncated-bullet>` before falling through to Step 5. The dispatcher MUST NOT invoke `AskUserQuestion` in `auto` mode.
 
 ## Marker Derivation and Uniqueness
 
