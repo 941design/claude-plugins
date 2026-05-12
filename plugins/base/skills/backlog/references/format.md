@@ -69,15 +69,25 @@ cap **~15 entries** — beyond that, `/base:orient` Rule 5 nags to prune,
 resolve, or promote.
 
 ```
-- [<type>] <anchor> — <text> (YYYY-MM-DD)
+- <anchor> — <text> (YYYY-MM-DD)
 ```
 
-- `<type>` ∈ { `bug` | `chore` | `question` | `observation` }
 - `<anchor>` is `path[:line]` when applicable, or `-` only when no specific
   file location exists. A finding without an anchor and without a defensible
   reason for omitting one is half a thought — resolve it or delete it.
 - `<text>` is one line, present-tense, specific. No trailing period required.
+  The prose must be self-explanatory enough that a reader can tell whether
+  this is a bug, a chore, an observation, or an open question without a tag.
+  `/base:next` reads the prose to route — write it accordingly.
 - `YYYY-MM-DD` is the date the finding was added.
+
+There is no `[type]` prefix. Earlier versions of this format required one
+(`bug | chore | question | observation`); writers and readers MUST treat any
+residual leading `[label]` token on a bullet as part of the prose — ignored
+for routing, not a malformation. The reasoning: forcing a controlled
+vocabulary added friction for hand-edited todos and pushed the burden of
+classification onto the writer rather than letting prose speak. Routing is
+now prose-based; classification falls out of comprehension.
 
 Empty placeholder when no findings exist: `- _no findings yet_`.
 

@@ -26,13 +26,16 @@ Read `BACKLOG.md` at the repo root. If it does not exist, exit with:
 
 ## Step 2: Parse ## Findings
 
-Locate the `## Findings` section. The canonical bullet grammar is:
+Locate the `## Findings` section. The bullet grammar (per
+`plugins/base/skills/backlog/references/format.md`) is:
 
 ```
-- [<type>] <anchor> — <text> (YYYY-MM-DD)
+- <anchor> — <text> (YYYY-MM-DD)
 ```
 
-where `<type>` ∈ { `bug` | `chore` | `question` | `observation` }.
+A residual leading `[label]` token on any bullet (legacy from the
+pre-prose-routing format) is part of the prose; ignore it for routing.
+Do not abort on its presence.
 
 If the section is absent, empty, or contains only the placeholder `- _no findings yet_`, exit with:
 
@@ -40,26 +43,39 @@ If the section is absent, empty, or contains only the placeholder `- _no finding
 
 ---
 
-## Step 3: Filter and Pick
+## Step 3: Classify and Pick
 
-Walk findings in **document order** — do not reorder by type, age, or any other heuristic.
+Walk findings in **document order** — do not reorder by age or any other heuristic.
 
-### Type validation
+### Per-bullet classification
 
-For every finding encountered, validate its `[type]` prefix against the canonical set
-`{ bug | chore | question | observation }` using a case-sensitive exact match. If a
-finding's type is not in this set, abort with the offending bullet and the canonical set:
+For every finding bullet, read its prose (anchor + text) and classify it into
+exactly one of three buckets:
 
-> Finding has unrecognized type `[<offending>]`. Canonical types are: bug, chore, question, observation. Fix the bullet in BACKLOG.md before dispatching.
+- **`bug`** — describes a defect: something is broken, fails, errors, regresses,
+  or behaves incorrectly. Verbs like "fails", "crashes", "returns wrong", "leaks",
+  "silently drops" signal this.
+- **`question`** — describes an undecided behavior, unresolved scope, or pending
+  decision. Verbs and shapes like "should X be A or B?", "is X correct?",
+  "undocumented whether…", "unclear if…", "TBD", "waiting on…", trailing `?`
+  signal this. A bullet is a question when no implementation can proceed
+  without a human decision first.
+- **`feature-work`** — everything else: chores, observations, cleanups,
+  enhancements, refactors, additions. Anything actionable that isn't a bug
+  and isn't blocked on a decision.
 
-Do NOT attempt fuzzy or case-insensitive matching.
+When in doubt between `feature-work` and `bug`, prefer the classification
+that lets the right workflow take over — `/base:bug` is for defects with a
+reproduction; `/base:feature` handles everything else, including chores so
+small they barely warrant a story.
 
 ### Question halt
 
-If any `[question]` finding appears **before** the first actionable finding in document
-order, surface the question verbatim and exit without dispatching:
+If any finding classified as `question` appears **before** the first
+non-question finding in document order, surface the bullet verbatim and exit
+without dispatching:
 
-> **Blocked by question finding:**
+> **Blocked by an open question:**
 > `<full bullet text>`
 >
 > Resolve it before dispatching:
@@ -69,26 +85,28 @@ order, surface the question verbatim and exit without dispatching:
 
 ### Candidate selection
 
-The first actionable finding (type ∈ { `bug`, `chore`, `observation` }) in document order
-is the candidate.
+The first finding classified as `bug` or `feature-work` (i.e. not `question`)
+in document order is the candidate.
 
 ---
 
 ## Step 4: Confirmation Gate
 
-Count the total number of actionable findings (type ∈ { `bug`, `chore`, `observation` })
-in `## Findings`.
+Count the total number of actionable findings (classified as `bug` or
+`feature-work`) in `## Findings`.
 
-**Exactly 1 actionable finding** → proceed to Step 5 immediately. No prompt.
+**Exactly 1 actionable finding** → state the classification in one line
+("Dispatching as a bug" / "Dispatching as feature-work") and proceed to
+Step 5. No prompt.
 
-**2 or more actionable findings** → show the top 3 actionable findings (in document order)
-and ask via `AskUserQuestion`:
+**2 or more actionable findings** → show the top 3 actionable findings (in
+document order) with their classifications and ask via `AskUserQuestion`:
 
 > Found N actionable findings. Top candidates:
 >
-> 1. `<bullet #1>`
-> 2. `<bullet #2>` (if it exists)
-> 3. `<bullet #3>` (if it exists)
+> 1. `<bullet #1>` → would dispatch as <bug|feature-work>
+> 2. `<bullet #2>` (if it exists) → <classification>
+> 3. `<bullet #3>` (if it exists) → <classification>
 >
 > Options: (1) dispatch #1, (2) pick a different one from the list above, (3) abort
 
@@ -116,11 +134,11 @@ until exactly one match.
 
 ## Step 6: Dispatch via Skill
 
-Route by the selected finding's type:
+Route by the selected finding's classification (from Step 3):
 
 ```
-[bug]                     → Skill("base:bug",     args: "backlog:<marker>")
-[chore] | [observation]   → Skill("base:feature", args: "backlog:<marker>")
+bug             → Skill("base:bug",     args: "backlog:<marker>")
+feature-work    → Skill("base:feature", args: "backlog:<marker>")
 ```
 
 ---

@@ -111,12 +111,17 @@ unresolved question that has a concrete file anchor.
 ```json
 {
   "action": "append_finding",
-  "type": "bug | chore | question | observation",
   "anchor": "<path[:line]>  OR  '-' if no specific anchor",
   "text": "<one-sentence finding>",
   "reason": "<why this should be captured: where it surfaced, why it would otherwise be forgotten>"
 }
 ```
+
+The application path writes the bullet as
+`- <anchor> — <text> (YYYY-MM-DD)`. There is no `[type]` prefix —
+`/base:next` classifies by reading the prose, so the `text` must be
+self-explanatory enough that a reader can tell whether it's a bug, a
+chore, an observation, or an open question without a tag.
 
 Eligibility:
 - `anchor` SHOULD be `path:line` whenever the finding refers to a

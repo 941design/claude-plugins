@@ -66,9 +66,16 @@ uniquely identifies one entry in `BACKLOG.md ## Findings`.
 2. Locate the matching finding bullet under ## Findings. If zero or >1 bullets contain
    the marker (case-sensitive substring match), abort with the candidates listed.
 
-3. If the matched finding's type is not [bug], abort with:
+3. Read the matched finding's prose (anchor + text) and decide whether it
+   describes a defect: something that fails, crashes, errors, regresses, or
+   behaves incorrectly. The format no longer carries a type prefix — this
+   classification is by reading, the same call `/base:next` makes when it
+   dispatches. If the finding clearly describes feature work, a chore, or an
+   observation rather than a defect, abort with:
    "marker matched a non-bug finding; use /base:feature backlog:<marker> instead."
-   Do NOT process a non-[bug] finding under the bug workflow.
+   Do NOT process non-defect findings under the bug workflow. When the
+   classification is genuinely ambiguous, proceed — the bug workflow's own
+   reproduction step will surface the mismatch.
 
 4. Derive a kebab-case slug from the finding's text (≤40 chars).
    Confirm via AskUserQuestion if ambiguous.

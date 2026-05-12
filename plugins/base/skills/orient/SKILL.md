@@ -57,13 +57,17 @@ rules emit higher-priority moves.
 If `BACKLOG.md` exists but is malformed (missing one of the three required
 top-level sections `## Epics`, `## Findings`, `## Archive`; or contains
 duplicate section headers; or has a `## Findings` entry without the
-documented `[type] anchor — text (date)` shape; or has a `## Archive`
+documented `<anchor> — <text> (date)` shape; or has a `## Archive`
 entry not in `YYYY-MM-DD — text — reason` shape) → emit a single
 high-priority surfacing in "Worth your attention" with the specific
 malformations and a one-line fix suggestion. **Do not stop**; downstream
 rules continue with best-effort parsing. The format is documented in
 `plugins/base/skills/backlog/references/format.md`; cite it in the
 surfacing.
+
+A leading `[label]` token on a `## Findings` entry is legacy and explicitly
+NOT a malformation — earlier format versions required `[bug | chore |
+question | observation]`; ignore residuals as prose.
 
 ### Rule 1 — Bootstrap
 
@@ -142,13 +146,12 @@ proposal so the user can verify the pattern.
 
 ### Rule 8 — Findings ready to promote
 
-A finding flagged `[bug]` or `[chore]` that has been on the list ≥ 30 days
-without resolution is a candidate for promotion to an epic
-(`/base:feature backlog:<slug>`) or for a `/base:bug` run. Findings that
-have been resolved in the user's head but never closed in BACKLOG should
-get `/base:backlog resolve <marker>` as the suggested next move.
-Run `/base:next` to automatically pick the top actionable finding and
-dispatch it to the right workflow without manually selecting the command.
+A finding that has been on the list ≥ 30 days without resolution is a
+candidate for promotion to an epic (`/base:feature backlog:<slug>`) or for a
+`/base:bug` run — read its prose to decide which workflow applies, or just
+let `/base:next` classify and dispatch. Findings that have been resolved in
+the user's head but never closed in BACKLOG should get
+`/base:backlog resolve <marker>` as the suggested next move.
 
 ### Rule 9 — ADRs awaiting acceptance
 

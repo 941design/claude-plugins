@@ -121,11 +121,13 @@ tonality consistent with curator-proposed findings.
    `/base:backlog init`.
 
 2. Ask the user via AskUserQuestion for:
-     - type:    bug | chore | question | observation
      - anchor:  `path[:line]` or `-`
      - text:    one line, present tense, specific (the tonality rules in
                 references/format.md apply — reject filler, first-person,
-                multi-sentence prose, and ask the user to retry)
+                multi-sentence prose, and ask the user to retry). The prose
+                must be self-explanatory enough that `/base:next` can route
+                it without a type tag — if the user's draft reads
+                ambiguously, ask them to rephrase before writing.
 
 3. If anchor is `-`, ask one follow-up: "no file applies because…?". If the
    user cannot articulate why no path applies, refuse — the format requires
@@ -133,8 +135,9 @@ tonality consistent with curator-proposed findings.
    observations; "I haven't looked yet" is not a valid reason.)
 
 4. Compose the bullet per `references/format.md`:
-     `- [<type>] <anchor> — <text> (YYYY-MM-DD)`
-   where YYYY-MM-DD is today.
+     `- <anchor> — <text> (YYYY-MM-DD)`
+   where YYYY-MM-DD is today. Do not add a `[type]` prefix — the format no
+   longer uses one.
 
 5. Edit BACKLOG.md:
      - If `## Findings` still contains the placeholder `- _no findings yet_`,
@@ -142,7 +145,7 @@ tonality consistent with curator-proposed findings.
      - Otherwise append the new bullet at the end of the `## Findings`
        section (before the trailing `---` divider).
 
-6. Report in 1 line: "Added [<type>] <anchor>: <text-truncated>."
+6. Report in 1 line: "Added <anchor>: <text-truncated>."
 
 7. If the post-write count of findings now exceeds 15, surface a one-line
    nudge: "Findings now at N; consider `/base:orient` to triage."
