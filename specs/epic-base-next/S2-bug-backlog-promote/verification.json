@@ -1,0 +1,107 @@
+{
+  "story_id": "S2",
+  "authored_by": "story-planner",
+  "authored_at": "2026-05-12T00:00:00Z",
+  "questions": [
+    {
+      "question_id": "VQ-S2-001",
+      "phase": "pre-impl",
+      "category": "QUALITY",
+      "question": "Does the modified bug.md contain no stub markers, leftover TODO comments, or duplicate conditional branches from the insertion? Run: grep -n 'TODO\\|FIXME\\|stub\\|placeholder' plugins/base/commands/bug.md must return empty. Also verify the BACKLOG_PROMOTE ELSE IF branch appears exactly once in the Step 1 input-detection section."
+    },
+    {
+      "question_id": "VQ-S2-002",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Are the two insertion points in bug.md the only changes — (1) a new ELSE IF branch in Step 1's input-mode detection block and (2) a deferred bullet-removal block after the result.json write in the closing step — with all other sections of bug.md unchanged? Run: git diff plugins/base/commands/bug.md and confirm the diff contains exactly two hunks, one near line 45 and one near line 265."
+    },
+    {
+      "question_id": "VQ-S2-003",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Could bug.md be deleted and rewritten without modifying any file outside plugins/base/commands/bug.md? Confirm: git diff --name-only shows only bug.md was modified by S2. No other file (next.md, orient SKILL.md, feature.md, plugin.json) appears in the diff."
+    },
+    {
+      "question_id": "VQ-S2-004",
+      "phase": "pre-impl",
+      "category": "TEST",
+      "question": "Does the BACKLOG_PROMOTE mode prose in bug.md cover all three abort conditions — (a) zero bullets match the marker, (b) more than one bullet matches, (c) matched type is not [bug] — each as a distinct, named exit path with its own printed message? Grep for 'zero', 'more than one' (or 'multiple'), and 'not [bug]' (or 'non-bug') in the BACKLOG_PROMOTE section."
+    },
+    {
+      "question_id": "VQ-S2-005",
+      "phase": "pre-impl",
+      "category": "SECURITY",
+      "question": "Does the deferred bullet-removal step in bug.md perform a single read-modify-write on BACKLOG.md only after result.json has been successfully written, and does it silently skip removal if BACKLOG.md does not exist (rather than erroring)? Grep for 'result.json' appearing before 'pending_finding_removal' in the closing-step prose, and grep for 'does not exist' or 'silently' in the removal guard."
+    },
+    {
+      "question_id": "VQ-S2-006",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-BUG-1",
+      "question": "Does bug.md Step 1 contain a new ELSE IF branch that detects when the argument begins with 'backlog:' and sets the input mode to BACKLOG_PROMOTE? Check: grep -n 'backlog:' plugins/base/commands/bug.md returns a match inside the Step 1 input-detection section; grep -n 'BACKLOG_PROMOTE' confirms the mode name is set there. Confirm the branch is additive (existing branches above and below are unchanged)."
+    },
+    {
+      "question_id": "VQ-S2-007",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-BUG-2",
+      "question": "Does bug.md's BACKLOG_PROMOTE mode specify reading BACKLOG.md, performing a substring match of the marker against ## Findings bullets, and aborting with the candidate set listed when zero or more than one bullet matches? Grep for 'zero' and 'more than one' (or 'multiple') in the BACKLOG_PROMOTE section; confirm 'candidate set' or equivalent is mentioned in the abort message guidance."
+    },
+    {
+      "question_id": "VQ-S2-008",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-BUG-3",
+      "question": "Does bug.md's BACKLOG_PROMOTE mode abort and recommend '/base:feature backlog:<marker>' when the matched finding's type is not [bug]? Grep for 'base:feature' and 'backlog:<marker>' in the type-mismatch abort prose within the BACKLOG_PROMOTE section; confirm no processing of the finding continues in that branch."
+    },
+    {
+      "question_id": "VQ-S2-009",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-BUG-4",
+      "question": "Does bug.md's BACKLOG_PROMOTE mode scaffold bug-reports/{slug}-report.md with (a) the finding's text in the description section, (b) the finding's anchor in the reproduction-steps section when anchor is non-'-' (omitted when '-'), and (c) a 'Source: BACKLOG.md finding promoted YYYY-MM-DD' line? Grep for 'description section', 'reproduction', 'anchor', and 'Source: BACKLOG.md' in the scaffolding prose."
+    },
+    {
+      "question_id": "VQ-S2-010",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-BUG-5",
+      "question": "Does bug.md's BACKLOG_PROMOTE mode derive the slug as kebab-case from the finding's text, cap it at 40 characters, and call AskUserQuestion when the derivation is ambiguous? Grep for 'kebab', '40', and 'AskUserQuestion' (or 'ambiguous') in the slug-derivation prose."
+    },
+    {
+      "question_id": "VQ-S2-011",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-BUG-5b",
+      "question": "Does bug.md's BACKLOG_PROMOTE mode check for an existing bug-reports/{slug}-report.md collision before writing, and does it ask the user via AskUserQuestion suggesting a numbered suffix (e.g. {slug}-2-report.md) rather than silently overwriting? Grep for 'collision' or 'already contains' or 'already exists', and grep for 'AskUserQuestion' and 'numbered suffix' (or '-2-') in the slug-collision prose."
+    },
+    {
+      "question_id": "VQ-S2-012",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-BUG-6",
+      "question": "Does bug.md's BACKLOG_PROMOTE mode capture 'pending_finding_removal = <marker>' as in-session state immediately after scaffolding and explicitly state that the source bullet is NOT removed from BACKLOG.md ## Findings at this point? Grep for 'pending_finding_removal' in the BACKLOG_PROMOTE section; confirm 'MUST NOT remove' or 'not removed' or equivalent appears alongside it."
+    },
+    {
+      "question_id": "VQ-S2-013",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-BUG-7",
+      "question": "Does bug.md's closing step, after writing bug-reports/{slug}-result.json, include a conditional block that performs a single read-modify-write on BACKLOG.md to remove the source bullet only when pending_finding_removal is set, and silently skips if BACKLOG.md does not exist? Grep for 'pending_finding_removal' in the closing step (near line 265 area); confirm the guard 'does not exist' or 'silently skip' appears in that block."
+    },
+    {
+      "question_id": "VQ-S2-014",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-BUG-8",
+      "question": "Does bug.md's prose confirm that if the run aborts before bug-reports/{slug}-result.json is written, the source bullet in BACKLOG.md ## Findings remains intact (pending_finding_removal is never acted on)? Confirm this is implied by the conditional structure: removal only executes after a successful result.json write, so a pre-write abort leaves BACKLOG.md untouched. Grep for the result.json write step appearing before any removal block."
+    },
+    {
+      "question_id": "VQ-S2-015",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NONREG-2",
+      "question": "Do the existing '/base:bug <description>' and '/base:bug @bug-report.md' input branches in bug.md remain byte-for-byte unchanged after S2? Run: git diff plugins/base/commands/bug.md and confirm the two hunks do not overlap with the existing free-text or @-file detection logic. Grep for 'free-text' or 'description mode' and '@' mode branches to confirm their detection conditions are unaltered."
+    }
+  ]
+}

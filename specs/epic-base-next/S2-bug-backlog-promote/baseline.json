@@ -1,0 +1,7 @@
+{
+  "story_id": "S2",
+  "test_framework": "none",
+  "file_modified_before": true,
+  "pre_existing_modifications": "bug.md had uncommitted changes (M status) before S2 started — retro section, verification questions, state schema, Step 2-3 restructure",
+  "note": "S2 insertions are 3 specific hunks; pre-existing changes are not S2 scope"
+}

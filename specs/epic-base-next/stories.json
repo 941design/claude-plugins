@@ -1,0 +1,73 @@
+{
+  "epic_name": "base-next",
+  "stories": [
+    {
+      "id": "S1",
+      "name": "next-dispatcher",
+      "title": "Create /base:next dispatcher command",
+      "description": "Create plugins/base/commands/next.md from scratch. The file must contain valid YAML frontmatter and the full 7-step dispatcher logic: read BACKLOG.md, parse ## Findings, filter by type (halting on leading [question] and aborting on non-canonical types), apply the confirmation gate (AskUserQuestion when >=2 actionable findings), derive a unique marker, and dispatch via Skill to /base:bug or /base:feature. The file's presence satisfies auto-registration (AC-MANIFEST-1). No other file is modified by this story.",
+      "scope": "Create plugins/base/commands/next.md. No other file is touched.",
+      "owning_module": "next.md",
+      "acceptance_criteria": [
+        "AC-NEXT-1",
+        "AC-NEXT-2",
+        "AC-NEXT-3",
+        "AC-NEXT-4",
+        "AC-NEXT-5",
+        "AC-NEXT-6",
+        "AC-NEXT-7",
+        "AC-NEXT-8",
+        "AC-NEXT-9",
+        "AC-NEXT-10",
+        "AC-NEXT-11",
+        "AC-NEXT-12",
+        "AC-NEXT-13",
+        "AC-NEXT-14",
+        "AC-NEXT-15",
+        "AC-NEXT-16",
+        "AC-MANIFEST-1",
+        "AC-NONREG-1"
+      ],
+      "story_order": 1,
+      "status": "pending"
+    },
+    {
+      "id": "S2",
+      "name": "bug-backlog-promote",
+      "title": "Add backlog:<marker> mode to /base:bug",
+      "description": "Modify plugins/base/commands/bug.md at exactly two insertion points. Insertion 1 (Step 1 input detection): add an ELSE IF branch after the existing marker-detection block that sets mode to BACKLOG_PROMOTE when the argument begins with 'backlog:'. Insertion 2 (Step 4 wrap-up): after the result.json write succeeds, if pending_finding_removal is set, perform a single read-modify-write on BACKLOG.md to remove the source bullet. All other sections of bug.md are unchanged. The BACKLOG_PROMOTE flow must: locate the unique matching [bug] finding, abort on zero/multiple/non-bug matches, scaffold bug-reports/{slug}-report.md, handle slug collisions, capture pending_finding_removal, and fall through to the normal flow.",
+      "scope": "Modify plugins/base/commands/bug.md at two insertion points only. No other file is touched.",
+      "owning_module": "bug.md",
+      "acceptance_criteria": [
+        "AC-BUG-1",
+        "AC-BUG-2",
+        "AC-BUG-3",
+        "AC-BUG-4",
+        "AC-BUG-5",
+        "AC-BUG-5b",
+        "AC-BUG-6",
+        "AC-BUG-7",
+        "AC-BUG-8",
+        "AC-NONREG-2"
+      ],
+      "story_order": 2,
+      "status": "pending"
+    },
+    {
+      "id": "S3",
+      "name": "orient-crossref",
+      "title": "Add /base:next cross-reference to /base:orient Rule 8",
+      "description": "Modify plugins/base/skills/orient/SKILL.md at one insertion point: append a suggestion line to the Rule 8 findings-ready-to-promote block (currently at SKILL.md:143-149 per exploration.json). The appended line must recommend /base:next as a one-shot dispatch follow-up when at least one actionable finding exists. All existing Rule 8 prose, trigger conditions, and detection rules are untouched. The orient skill must remain strictly read-only after this change.",
+      "scope": "Modify plugins/base/skills/orient/SKILL.md at one insertion point in the Rule 8 block. No other file is touched.",
+      "owning_module": "orient SKILL.md",
+      "acceptance_criteria": [
+        "AC-ORIENT-1",
+        "AC-NONREG-3"
+      ],
+      "story_order": 3,
+      "status": "pending"
+    }
+  ],
+  "story_order": ["S1", "S2", "S3"],
+  "seams": []
+}

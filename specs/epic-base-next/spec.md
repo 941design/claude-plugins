@@ -1,0 +1,292 @@
+# /base:next — Backlog Auto-Dispatch
+
+## Problem
+
+The `base` plugin gives the user three primitives for working from
+`BACKLOG.md`:
+
+- `/base:orient` — read-only triage. Reads `## Findings`, ranks moves,
+  prints a menu. Never acts.
+- `/base:feature backlog:<marker>` — promotes a finding to an epic and
+  runs the feature flow.
+- `/base:bug <description>` — fixes a bug from free-text input. **Does
+  not read `BACKLOG.md`.**
+
+The gap is the connective tissue between "I see what's next" and "do it":
+the user must read the orient output, copy the finding marker, decide
+which command to invoke based on the finding's `[type]` prefix, and run
+it manually. The decision is mechanical — `[bug]` belongs in `/base:bug`,
+`[chore]` and `[observation]` belong in `/base:feature` — but the user
+performs it every time.
+
+A secondary asymmetry: `/base:feature` has a `backlog:<marker>` mode that
+promotes a finding atomically (scaffold spec, capture pending removal,
+remove the source bullet only after `epic-state.json` succeeds; see
+`plugins/base/commands/feature.md:54-76, 248-260`). `/base:bug` has no
+counterpart, so a `[bug]` finding cannot be handed off without lossy
+manual re-description.
+
+`/base:implement-full` does not close the gap — it loops over spec files
+and in-progress epics, not over `## Findings` entries.
+
+## Solution
+
+Two changes, shipped together:
+
+1. **New command `/base:next`** — a thin dispatcher that picks the top
+   actionable `## Findings` entry and routes it to the right workflow
+   based on its `[type]`. One item per invocation. No looping (the user
+   re-invokes, or uses `/base:implement-full` for spec-driven bulk work).
+
+2. **New mode `/base:bug backlog:<marker>`** — symmetric with
+   `/base:feature backlog:<marker>`. Reads `BACKLOG.md`, locates the
+   named `[bug]` finding, scaffolds a `bug-reports/{slug}-report.md` from
+   the finding's text and anchor, captures a `pending_finding_removal`
+   marker, and falls through to the normal bug flow. The source bullet
+   is removed only after `bug-reports/{slug}-result.json` has been
+   successfully written, mirroring `/base:feature`'s atomicity rule.
+
+`/base:orient` is unchanged. It remains the read-only entry point.
+
+## Scope
+
+### In Scope
+
+- New file `plugins/base/commands/next.md` implementing the dispatcher
+  (frontmatter, input handling, selection logic, dispatch table).
+- Modifications to `plugins/base/commands/bug.md` to add a
+  `backlog:<marker>` argument mode that mirrors the existing
+  `BACKLOG_PROMOTE` mode in `feature.md`, including the deferred-removal
+  atomicity rule.
+- New marketplace entry for `/base:next` in the plugin's manifest /
+  marketplace file (whichever this plugin uses to advertise commands; the
+  implementer reads the plugin's existing `plugin.json` or marketplace
+  file and follows the same pattern used for `/base:feature` and
+  `/base:bug`).
+- Cross-references from `/base:orient`'s next-move suggestions so that a
+  user reading orient output sees `/base:next` as the natural follow-up
+  ("ranked moves above; run `/base:next` to take the top one").
+
+### Out of Scope
+
+- **Looping.** `/base:next` handles exactly one finding per invocation.
+  Bulk execution remains the job of `/base:implement-full` (specs/epics)
+  or repeated `/base:next` calls (findings).
+- **Reordering or filtering `## Findings`.** Selection rules are
+  deterministic (see Design Decisions); the user reorders by editing
+  `BACKLOG.md` directly or by resolving items via `/base:backlog
+  resolve`.
+- **Auto-resolving `[question]` findings.** Questions require human
+  input; `/base:next` surfaces them and halts.
+- **Editing finding text or anchor.** The dispatcher passes the marker
+  through; spec/report pre-fill happens inside the target command, which
+  already has that logic.
+- **Changes to `/base:orient`'s detection rules.** Only the recommendation
+  text is touched.
+
+## Design Decisions
+
+1. **Separate command, not a flag on `/base:orient`.** Adding execution
+   to a read-only entry point is the textbook way to lose the
+   predictability that makes `/base:orient` safe to invoke on session
+   start, idle resume, or any "where am I?" moment. The three-layer
+   model — `orient` (survey), `next` (pick-and-execute one), `implement-
+   full` (bulk-finish specs) — keeps each command's contract singular.
+
+2. **Dispatcher, not implementer.** `/base:next` does not duplicate the
+   spec-scaffold or bug-report-scaffold logic. It identifies the target
+   finding, validates the marker is unique, and invokes the appropriate
+   command via the Skill tool with `backlog:<marker>` as the argument.
+   The target command owns scaffolding, pre-fill, and atomic removal.
+
+3. **`/base:bug` gains `backlog:<marker>` so dispatch isn't lossy.** A
+   `[bug]` finding has structured text, an anchor (path[:line]), and a
+   date. Reconstructing a free-text bug description from that loses the
+   anchor's precision and the audit trail. Symmetric mode parity also
+   means a user can invoke `/base:bug backlog:<marker>` directly without
+   going through the dispatcher — the marker is the universal handle.
+
+4. **Selection rule: highest-priority actionable finding wins.**
+   "Actionable" means `[type] ∈ {bug, chore, observation}`. Within the
+   actionable set, the rule is **first matching bullet in document
+   order**. `BACKLOG.md` is hand-curated and ordered intentionally
+   (`plugins/base/skills/backlog/references/format.md`); honoring that
+   order matches user intent. No type-based priority weighting — that
+   would override the user's curation.
+
+5. **`[question]` findings halt the dispatcher.** If every actionable
+   finding is exhausted or the document-order-top entry is a question,
+   `/base:next` prints the question verbatim, suggests resolution paths
+   (discuss now, or `/base:backlog resolve <marker> done-mechanical` /
+   `rejected` / `done→spec:<path>`), and exits. It does not auto-skip
+   questions to find the next non-question, because a question
+   appearing first in document order is itself a signal that the user
+   wanted to address it before downstream work.
+
+6. **Multi-actionable confirmation gate.** If `## Findings` has more
+   than one actionable entry, `/base:next` shows the top three and asks
+   the user via `AskUserQuestion` whether to proceed with #1, pick a
+   different one, or abort. Single-finding invocations skip the prompt
+   and dispatch directly. Rationale: the dispatcher is opinionated about
+   ordering, and a confirmation step is cheap insurance against
+   dispatching the wrong item when the user's mental model of "next"
+   diverges from document order.
+
+7. **Atomicity inherited from target commands.** `/base:next` does not
+   itself mutate `BACKLOG.md`. Removal of the source bullet happens
+   inside `/base:feature` (existing) or `/base:bug` (new) only after the
+   epic-state or bug-report-result file is written. If the target
+   command aborts mid-flow, the finding remains in `## Findings` and a
+   half-scaffolded artifact is left for `/base:orient` Rule 2 (drift
+   detection) to surface on the next session.
+
+8. **No new bug-report directory layout.** `/base:bug
+   backlog:<marker>` writes `bug-reports/{slug}-report.md` exactly where
+   the existing free-text path writes it. Slug derivation matches
+   `/base:feature`'s rule: kebab-case from the finding's text, ≤40
+   chars, confirmed via `AskUserQuestion` if ambiguous.
+
+## Technical Approach
+
+### `plugins/base/commands/next.md`
+
+Frontmatter:
+
+```yaml
+---
+name: next
+description: Pick the next actionable finding from BACKLOG.md and dispatch it to the right workflow (/base:bug or /base:feature).
+argument-hint: (no arguments)
+allowed-tools: Read, Edit, Bash, AskUserQuestion, Skill
+model: sonnet
+---
+```
+
+Step outline:
+
+1. **Read `BACKLOG.md`.** If missing, exit with the same hint
+   `/base:orient` Rule 1 emits: "no `BACKLOG.md` — run `/base:backlog
+   init` first."
+
+2. **Parse `## Findings`.** Use the canonical bullet grammar from
+   `plugins/base/skills/backlog/references/format.md`:
+   `- [<type>] <anchor> — <text> (YYYY-MM-DD)`. If the section is empty
+   (`- _no findings yet_`) or absent, exit with: "no findings to
+   dispatch. Run `/base:orient` for a project-wide view, or
+   `/base:backlog add-finding` to log one."
+
+3. **Filter and pick.** Walk findings in document order. If the first
+   actionable entry (`bug | chore | observation`) is preceded by any
+   `[question]`, surface the question and halt (see Design Decision 5).
+   Otherwise, the first actionable entry is the candidate.
+
+4. **Confirmation gate.** If ≥2 actionable findings exist, show the
+   top three via `AskUserQuestion` ("dispatch #1, pick another, or
+   abort?"). Single-candidate: skip the prompt.
+
+5. **Derive marker.** The marker passed to the target command must
+   uniquely identify the finding inside `## Findings`. Use the anchor
+   path component when present; otherwise the first 4–6 words of the
+   text. The dispatcher itself does the uniqueness check (greps
+   `## Findings` for the chosen substring; if >1 match, lengthen).
+
+6. **Dispatch via Skill.**
+   - `[bug]` → `Skill("base:bug", args: "backlog:<marker>")`
+   - `[chore] | [observation]` →
+     `Skill("base:feature", args: "backlog:<marker>")`
+
+7. **Return.** The dispatcher exits as soon as the target Skill call
+   returns. Its job is one dispatch, not workflow oversight.
+
+### `plugins/base/commands/bug.md` modifications
+
+Add a `BACKLOG_PROMOTE` branch in Step 1's input-mode detection,
+modeled on `feature.md:54-76`:
+
+```
+IF argument starts with "backlog:":
+    mode = BACKLOG_PROMOTE
+```
+
+`BACKLOG_PROMOTE` for `/base:bug`:
+
+1. Read `BACKLOG.md`. Abort if missing (same message as feature.md).
+2. Locate the matching `[bug]` finding under `## Findings`. If zero or
+   >1 matches, abort with the candidates listed. **If the matched
+   finding's type is not `[bug]`, abort with: "marker matched a non-bug
+   finding; use `/base:feature backlog:<marker>` instead."** The
+   dispatcher already routes correctly, but a direct user invocation
+   could mis-type — fail loudly.
+3. Derive a kebab-case slug from the finding's text (≤40 chars),
+   confirm via `AskUserQuestion` if ambiguous.
+4. Write `bug-reports/{slug}-report.md` with the finding's text in the
+   description section and the anchor in the reproduction-steps section
+   as a starting reference. Append a `Source: BACKLOG.md finding
+   promoted YYYY-MM-DD` line.
+5. Capture in-session `pending_finding_removal = <marker>`. **Do not
+   remove the bullet yet.**
+6. Fall through to the normal Step 1 flow (the bug report path is now
+   set; Step 1's `IF argument is a .md file path` branch handles the
+   rest naturally).
+
+Bug.md's Step 4 (the closing step that writes
+`bug-reports/{slug}-result.json`) gains a single addition: if
+`pending_finding_removal` is set, perform a single read-modify-write on
+`BACKLOG.md` to remove the source bullet from `## Findings`, mirroring
+`feature.md:248-260`.
+
+### `/base:orient` cross-reference
+
+In the "Next moves" rendering, when at least one actionable finding
+exists, append a suggestion line: `→ run \`/base:next\` to dispatch the
+top finding automatically.` No detection-rule changes.
+
+### Marketplace / plugin manifest
+
+Add `/base:next` to whichever file advertises the plugin's commands.
+The implementer reads the existing manifest, identifies the pattern
+used for `/base:feature` and `/base:bug`, and replicates it.
+
+## Risks
+
+1. **Recursive Skill invocation depth.** `/base:next` calls
+   `/base:feature` or `/base:bug` via the Skill tool. Both targets are
+   substantial workflows. Confirm in implementation that nested Skill
+   invocation does not hit any built-in depth cap and that the
+   dispatcher's frontmatter (`allowed-tools: Skill`) is sufficient.
+
+2. **`BACKLOG.md` parse drift.** If a user edits `BACKLOG.md` between
+   `/base:orient`'s render and `/base:next`'s dispatch, the candidate
+   ordering may shift. Mitigation: the confirmation gate (Design
+   Decision 6) shows the user the current top three before dispatch.
+
+3. **Slug collisions with existing bug reports.** If `bug-reports/`
+   already contains a report with the derived slug, the BACKLOG_PROMOTE
+   branch must not silently overwrite. Reuse `feature.md`'s pattern:
+   confirm via `AskUserQuestion` with a numbered suffix suggestion.
+
+4. **Type-prefix typos in `BACKLOG.md`.** A hand-edited finding with
+   `[chor]` or `[Bug]` will fail the dispatch table. The dispatcher
+   should validate `[<type>]` against the canonical set and surface a
+   typo hint rather than silently routing.
+
+## Amendments
+
+**2026-05-12 — AC-ORIENT-1 conditionality tightened.** The original AC
+said the `/base:next` suggestion line MUST appear when Rule 8 fires.
+The as-built `orient/SKILL.md` placed the suggestion as unconditional
+prose at the end of Rule 8's description block, leaving room for a
+returning implementer to emit the suggestion on every orient run. The
+AC now also says the suggestion MUST NOT appear when no qualifying
+stale finding exists. Surfaced by `base:project-curator`; acknowledged
+by user 2026-05-12.
+
+**2026-05-12 — Added AC-BUG-9 (state.json marker persistence).**
+`pending_finding_removal` was specified as in-session volatile state
+only. The state.json schema in `bug.md` had no field for the marker,
+so a crash between Step 1 (scaffold) and Step 4 (result.json write)
+would silently orphan the `BACKLOG.md` source bullet on resume. New AC
+requires persisting `backlog_marker` to `bug-reports/{slug}-state.json`
+and a Crash Recovery instruction to restore `pending_finding_removal`
+from it. Surfaced by `base:project-curator`; acknowledged by user
+2026-05-12.

@@ -1,0 +1,7 @@
+{
+  "story_id": "S3",
+  "module": "plugins/base/skills/orient/SKILL.md",
+  "type": "modification",
+  "insertion_point": "Rule 8 block (lines 143-149): two lines appended after 'suggested next move.' sentence",
+  "seams": []
+}

@@ -1,0 +1,14 @@
+{
+  "epic_name": "base-next",
+  "status": "done",
+  "phase": "COMPLETE",
+  "created_at": "2026-05-12T07:35:55Z",
+  "updated_at": "2026-05-12T08:15:00Z",
+  "completed_stories": ["S1", "S2", "S3"],
+  "escalated_stories": [],
+  "phase_history": [
+    {"phase": "SPEC_VALIDATED", "timestamp": "2026-05-12T07:35:55Z", "trigger": "validation_passed"},
+    {"phase": "IMPLEMENTING", "timestamp": "2026-05-12T07:50:00Z", "trigger": "planning_complete"},
+    {"phase": "COMPLETE", "timestamp": "2026-05-12T08:15:00Z", "trigger": "all_stories_done"}
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "story_id": "S3",
+  "authored_by": "story-planner",
+  "authored_at": "2026-05-12T00:00:00Z",
+  "questions": [
+    {
+      "question_id": "VQ-S3-001",
+      "phase": "pre-impl",
+      "category": "QUALITY",
+      "question": "Does the modified SKILL.md contain no stub markers, TODO comments, or formatting regressions (e.g. broken list indentation, stray blank lines) introduced by the insertion? Run: grep -n 'TODO\\|FIXME\\|stub\\|placeholder' plugins/base/skills/orient/SKILL.md must return empty. Check that the Rule 8 block retains its original list structure with the new line appended cleanly."
+    },
+    {
+      "question_id": "VQ-S3-002",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Is the change to orient SKILL.md limited to a single insertion within the Rule 8 findings-ready-to-promote block, with all other prose, rules, trigger conditions, and detection logic untouched? Run: git diff plugins/base/skills/orient/SKILL.md and confirm the diff contains exactly one hunk, located within the Rule 8 block (originally lines 143-149 per exploration.json)."
+    },
+    {
+      "question_id": "VQ-S3-003",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Could orient SKILL.md be deleted and rewritten without modifying any file outside plugins/base/skills/orient/SKILL.md? Confirm: git diff --name-only shows only plugins/base/skills/orient/SKILL.md was modified by S3. No other file (next.md, bug.md, feature.md, plugin.json, marketplace.json) appears in the diff."
+    },
+    {
+      "question_id": "VQ-S3-004",
+      "phase": "pre-impl",
+      "category": "TEST",
+      "question": "Can the insertion be verified structurally by grepping for '/base:next' within the Rule 8 block in SKILL.md? Confirm: grep -n 'base:next' plugins/base/skills/orient/SKILL.md returns exactly one match, and that match falls between the Rule 8 header and the next Rule header in the file."
+    },
+    {
+      "question_id": "VQ-S3-005",
+      "phase": "pre-impl",
+      "category": "BEST_PRACTICES",
+      "question": "Does the new suggestion line in Rule 8 integrate naturally with the surrounding prose — matching the list style, punctuation, and referencing '/base:next' in the same format that other skill references use in SKILL.md? Read the surrounding Rule 8 block and confirm the appended line follows the same grammatical and formatting pattern as adjacent recommendation lines."
+    },
+    {
+      "question_id": "VQ-S3-006",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-ORIENT-1",
+      "question": "When Rule 8 fires (at least one [bug] or [chore] finding aged >= 30 days), does the Rule 8 output block in SKILL.md now include a suggestion line recommending '/base:next' as a one-shot dispatch follow-up? Check: (a) grep -n 'base:next' plugins/base/skills/orient/SKILL.md returns at least one match; (b) that match falls within the Rule 8 block; (c) the surrounding Rule 8 trigger condition prose (30-day threshold) is unchanged — git diff confirms no deletions in Rule 8 prose, only an addition."
+    },
+    {
+      "question_id": "VQ-S3-007",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NONREG-3",
+      "question": "Does orient SKILL.md remain strictly read-only after S3 — no write operation, no mutation instruction, and no Skill invocation added to any section? Run: grep -n 'Write\\|Edit\\|Skill\\|write\\|mutate\\|create' plugins/base/skills/orient/SKILL.md and confirm any matches that appear were already present before S3 (visible in git diff as context lines, not additions). The diff must show zero added lines containing write or Skill calls."
+    }
+  ]
+}

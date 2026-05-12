@@ -1,0 +1,14 @@
+{
+  "story_id": "S2",
+  "status": "done",
+  "final_outcome": "accepted",
+  "files_created": [],
+  "files_modified": ["plugins/base/commands/bug.md"],
+  "remediation_rounds": 0,
+  "examiner_notes": "VQ-S2-002 (severity 7, scope violation) was a false positive: verifier counted 4 pre-existing hunks as S2 changes. Pre-existing diff predates this session (M status in initial git status). All AC-BUG-* checks passed cleanly.",
+  "retrospective": {
+    "skipped": false,
+    "friction": "Verifier had no visibility into the pre-existing bug.md modifications — it attributed all 6 diff hunks to S2. Lead resolved by inspecting git diff directly and confirming only 3 hunks were S2-introduced.",
+    "suggestions": "When a file has pre-existing uncommitted changes, the verification prompt should explicitly note this and instruct the verifier to evaluate only the story's insertion points, not the total diff."
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "story_id": "S1",
+  "test_framework": "none",
+  "file_exists_before": false,
+  "note": "Markdown-only repo — baseline is confirmed absence of plugins/base/commands/next.md before implementation"
+}

@@ -1,0 +1,12 @@
+{
+  "story_id": "S2",
+  "module": "plugins/base/commands/bug.md",
+  "type": "modification",
+  "insertion_points": [
+    "Step 1 Gather Details code block: ELSE IF backlog: branch added between original IF and original ELSE",
+    "BACKLOG_PROMOTE mode prose section added after code block, before Explore the Codebase",
+    "Step 4 Wrap Up: deferred bullet removal block added after state file update, before retro/curator parallel spawn"
+  ],
+  "pre_existing_diff": "bug.md had 4 additional pre-existing hunks (retrospective collection section, verification questions expansion, state schema, Step 2-3 restructure) from before this session. These are not S2 changes.",
+  "seams": []
+}

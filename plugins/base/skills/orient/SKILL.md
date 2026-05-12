@@ -147,6 +147,8 @@ without resolution is a candidate for promotion to an epic
 (`/base:feature backlog:<slug>`) or for a `/base:bug` run. Findings that
 have been resolved in the user's head but never closed in BACKLOG should
 get `/base:backlog resolve <marker>` as the suggested next move.
+Run `/base:next` to automatically pick the top actionable finding and
+dispatch it to the right workflow without manually selecting the command.
 
 ### Rule 9 — ADRs awaiting acceptance
 

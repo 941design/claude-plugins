@@ -1,0 +1,169 @@
+{
+  "story_id": "S1",
+  "authored_by": "story-planner",
+  "authored_at": "2026-05-12T00:00:00Z",
+  "questions": [
+    {
+      "question_id": "VQ-S1-001",
+      "phase": "pre-impl",
+      "category": "QUALITY",
+      "question": "Does plugins/base/commands/next.md contain no stub markers, TODO comments, placeholder steps, or dead prose that is never referenced by the step outline? Run: grep -n 'TODO\\|FIXME\\|stub\\|placeholder' plugins/base/commands/next.md — the result must be empty."
+    },
+    {
+      "question_id": "VQ-S1-002",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Does next.md's step outline match the seven-step reference in architecture.md exactly — (1) read BACKLOG.md, (2) parse ## Findings, (3) filter/pick with halt-on-question and abort-on-non-canonical, (4) confirmation gate, (5) derive unique marker, (6) dispatch via Skill, (7) return — with no additional steps or omissions?"
+    },
+    {
+      "question_id": "VQ-S1-003",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Could next.md be deleted and rewritten without modifying any file outside its own path (plugins/base/commands/next.md)? According to architecture.md, next.md has no cross-file dependencies at write time and no other file imports it. Confirm: git diff --name-only shows only plugins/base/commands/next.md was created by S1 — no other file was touched."
+    },
+    {
+      "question_id": "VQ-S1-004",
+      "phase": "pre-impl",
+      "category": "TEST",
+      "question": "For each branch in the step-3 filter walk (leading [question] halts, non-canonical type aborts, first actionable selected), does the prose in next.md specify the exact exit behavior (what is printed, what is not invoked) clearly enough that a structural grep can confirm coverage? Verify that the [question]-halt branch, the non-canonical-abort branch, and the actionable-select path are each described in distinct prose sections."
+    },
+    {
+      "question_id": "VQ-S1-005",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "question": "Does the confirmation-gate section of next.md specify both the exactly-one-finding case (no prompt, proceed) and the two-or-more case (AskUserQuestion with top-3 in document order, three choices: dispatch top / pick different / abort) as distinct conditional paths, with no conflation between them?"
+    },
+    {
+      "question_id": "VQ-S1-006",
+      "phase": "pre-impl",
+      "category": "SECURITY",
+      "question": "Does next.md's non-canonical-type abort branch perform a case-sensitive exact match against the canonical set {bug, chore, question, observation} without any fuzzy or case-insensitive fallback? Grep for prose confirming 'case-sensitive' or equivalent language, and confirm the absence of any tolower/normalize/fuzzy language."
+    },
+    {
+      "question_id": "VQ-S1-007",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-1",
+      "question": "Does plugins/base/commands/next.md exist, and does its YAML frontmatter declare all five required fields — name: next, a description mentioning picking the next actionable finding and dispatching it, model: sonnet, argument-hint, and allowed-tools including at minimum Read, Edit, Bash, AskUserQuestion, and Skill? Check: (a) ls plugins/base/commands/next.md succeeds; (b) grep '^name: next' confirms the name field; (c) grep '^model: sonnet' confirms model; (d) grep 'Read' and grep 'AskUserQuestion' and grep 'Skill' each match within the frontmatter block; (e) the description prose references both 'next actionable finding' and 'dispatch' (or equivalent)."
+    },
+    {
+      "question_id": "VQ-S1-008",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-2",
+      "question": "Does the frontmatter of next.md declare argument-hint indicating no arguments are required, and does the step prose confirm selection is internal (no marker accepted from CLI)? Check: grep '^argument-hint:' returns a value containing '(no arguments)' or equivalent; and grep for any phrase like 'the argument' or 'provided marker' is absent from the step logic."
+    },
+    {
+      "question_id": "VQ-S1-009",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-3",
+      "question": "Does Step 1 of next.md instruct the agent to exit without invoking any target command when BACKLOG.md does not exist, and does the exit message name 'BACKLOG.md' and recommend '/base:backlog init'? Grep for 'BACKLOG.md' and 'backlog init' (or '/base:backlog init') in the Step 1 exit-path prose."
+    },
+    {
+      "question_id": "VQ-S1-010",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-4",
+      "question": "Does Step 2 of next.md exit without invoking any target command when ## Findings is absent, empty, or contains only the placeholder '- _no findings yet_', and does the exit message recommend both '/base:orient' and '/base:backlog add-finding'? Grep for '_no findings yet_', 'orient', and 'add-finding' in the Step 2 exit-path prose."
+    },
+    {
+      "question_id": "VQ-S1-011",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-5",
+      "question": "Does the Step 3 filter-and-pick prose of next.md explicitly state that findings are walked in document order and that no reordering by type, age, or any other heuristic is applied? Grep for 'document order' and confirm the absence of words like 'sort', 'reorder', or 'priority'."
+    },
+    {
+      "question_id": "VQ-S1-012",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-6",
+      "question": "Does next.md's [question]-halt branch surface the leading question verbatim, list the three resolution paths available via '/base:backlog resolve' (done→spec, done-mechanical, rejected), and exit without invoking any target command? Grep for 'done→spec' (or 'done.spec'), 'done-mechanical', and 'rejected' in the halt-branch prose; confirm no Skill invocation follows in that branch."
+    },
+    {
+      "question_id": "VQ-S1-013",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-7",
+      "question": "Does next.md's Step 3 select-path prose identify the first actionable finding (type bug, chore, or observation) in document order as the candidate, and only after confirming no leading [question] blocked the walk? Grep for 'first actionable' or equivalent phrasing; confirm the three allowed types {bug, chore, observation} are enumerated."
+    },
+    {
+      "question_id": "VQ-S1-014",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-8",
+      "question": "Does next.md's non-canonical-type abort branch name the canonical set (bug, chore, question, observation) and specify case-sensitive exact matching, and does it abort by naming the offending bullet? Grep for 'canonical' and for each of the four type names in the abort-path prose; confirm the word 'offending' or equivalent is present."
+    },
+    {
+      "question_id": "VQ-S1-015",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-9",
+      "question": "Does the confirmation-gate section of next.md specify that exactly one actionable finding causes the dispatcher to proceed to dispatch without prompting (no AskUserQuestion)? Grep for 'exactly one' (or 'only one') combined with 'without prompting' or 'no confirmation' in the gate prose."
+    },
+    {
+      "question_id": "VQ-S1-016",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-10",
+      "question": "Does the confirmation-gate section of next.md specify that two or more actionable findings trigger AskUserQuestion presenting the top three in document order with exactly three choices (dispatch top / pick different / abort), and that dispatch does not occur before the user responds? Grep for 'AskUserQuestion', 'top three', and for each of the three choice options in the gate prose."
+    },
+    {
+      "question_id": "VQ-S1-017",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-11",
+      "question": "Does Step 5 of next.md specify that the marker passed as 'backlog:<marker>' must be a substring of the selected finding's bullet that uniquely matches exactly one bullet when grepped case-sensitively against ## Findings? Grep for 'unique' and 'case-sensitive' (or 'case-sensitively') in the marker-derivation prose."
+    },
+    {
+      "question_id": "VQ-S1-018",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-12",
+      "question": "Does Step 5 of next.md specify that for a finding with a non-'-' anchor, the anchor's path component is preferred as the marker, and that if this substring is not unique the dispatcher extends it until unique? Grep for 'anchor' and 'path component' and 'extend' in the marker-derivation prose."
+    },
+    {
+      "question_id": "VQ-S1-019",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-13",
+      "question": "Does Step 5 of next.md specify that for a finding with anchor '-', the dispatcher uses the first 4-6 words of the finding's text as the marker and extends until unique? Grep for '4' and '6' (or '4-6') and 'words' in the anchor-dash fallback prose."
+    },
+    {
+      "question_id": "VQ-S1-020",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-14",
+      "question": "Does Step 6 of next.md specify that a [bug] finding invokes Skill(\"base:bug\", args: \"backlog:<marker>\") and exits upon return, and that /base:feature is never invoked for a [bug] finding? Grep for 'base:bug' and 'backlog:' in the dispatch-routing prose; confirm 'base:feature' does not appear in the [bug] branch."
+    },
+    {
+      "question_id": "VQ-S1-021",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-15",
+      "question": "Does Step 6 of next.md specify that [chore] and [observation] findings invoke Skill(\"base:feature\", args: \"backlog:<marker>\") and that /base:bug is never invoked for these types? Grep for 'base:feature' in the [chore]/[observation] branch; confirm 'base:bug' does not appear in that branch."
+    },
+    {
+      "question_id": "VQ-S1-022",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NEXT-16",
+      "question": "Does next.md explicitly state that the dispatcher must not mutate BACKLOG.md itself, and that bullet removal is delegated to the target command after that command writes its primary artifact? Grep for 'MUST NOT mutate' (or equivalent) and for 'target command' performing the removal in next.md."
+    },
+    {
+      "question_id": "VQ-S1-023",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-MANIFEST-1",
+      "question": "Does plugins/base/commands/next.md exist with valid YAML frontmatter such that file-presence-based auto-registration applies, and is there no entry added to plugin.json or marketplace.json? Check: ls plugins/base/commands/next.md succeeds; git diff --name-only HEAD shows plugin.json and marketplace.json were NOT modified."
+    },
+    {
+      "question_id": "VQ-S1-024",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-NONREG-1",
+      "question": "Was plugins/base/commands/feature.md not modified by S1? Run: git diff --name-only HEAD | grep 'feature.md' must return empty. Confirm feature.md's backlog:<marker> mode prose at lines 54-76 and 248-260 is byte-for-byte unchanged."
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "explored_at": "2026-05-12T07:35:55Z",
+  "focuses": [
+    {
+      "focus": "similar-features",
+      "key_files": [
+        "plugins/base/commands/feature.md:54-55 — BACKLOG_PROMOTE input detection branch",
+        "plugins/base/commands/feature.md:66-77 — BACKLOG_PROMOTE prose spec (scaffold, slug, pending_finding_removal, fall-through)",
+        "plugins/base/commands/feature.md:209-218 — promoted_slug preservation in Step 3 bash block",
+        "plugins/base/commands/feature.md:248-262 — atomic BACKLOG.md mutation (append-epic + consume-pending-finding)",
+        "plugins/base/commands/bug.md:41-53 — Step 1 IF/ELSE block; new backlog: branch inserts after line 45",
+        "plugins/base/commands/bug.md:265-299 — Step 4 wrap-up; deferred bullet removal inserts after line 265",
+        "plugins/base/skills/orient/SKILL.md:143-149 — Rule 8 findings-ready-to-promote block; /base:next cross-ref appends here",
+        "plugins/base/skills/backlog/references/format.md:65-80 — canonical finding bullet grammar"
+      ],
+      "patterns": [
+        "Deferred-then-atomic bullet removal: finding stays in Findings until durable replacement record (epic-state.json / result.json+ACCEPTED) is written; then removed in a single read-modify-write",
+        "pending_finding_removal captured as in-session variable at argument-parse time, consumed at durable-record-write site, never persisted to disk",
+        "Slug preserved via promoted_slug in-session variable to prevent re-derivation from user-edited title",
+        "BACKLOG_PROMOTE is a fall-through mode: scaffolds then delegates to normal execution path",
+        "Orphan detectability: abandoned scaffold intentionally left for /base:orient Rule 2 drift detection"
+      ],
+      "canonical_finding_bullet": "- [<type>] <anchor> — <text> (YYYY-MM-DD)\nwhere type ∈ { bug | chore | question | observation }, anchor is path[:line] or -, text is one-line present-tense",
+      "bug_md_insertion_points": {
+        "backlog_promote_branch": "after line 45 (before existing ELSE at line 46) in Step 1 IF/ELSE",
+        "deferred_removal": "after line 265 (state file update in Step 4), before parallel synthesizer/curator spawn at line 267"
+      },
+      "orient_insertion_point": "append to end of Rule 8 block at orient/SKILL.md:143-149"
+    },
+    {
+      "focus": "architecture",
+      "key_files": [
+        "plugins/base/.claude-plugin/plugin.json — plugin identity; no per-command listing",
+        ".claude-plugin/marketplace.json — plugin-level advertising only; no commands array",
+        "plugins/base/commands/feature.md:1-7 — canonical command frontmatter shape",
+        "plugins/base/commands/bug.md:1-7 — second frontmatter reference",
+        "plugins/base/commands/implement-full.md:1-7 — confirms all four mandatory fields",
+        "plugins/base/commands/rebase-incremental.md:1-7 — confirms opus/sonnet split convention"
+      ],
+      "discovery_mechanism": "File presence in plugins/base/commands/ — no explicit registration in plugin.json or marketplace.json",
+      "mandatory_frontmatter_fields": ["name", "description", "argument-hint", "allowed-tools", "model"],
+      "model_convention": "opus for precision/diagnosis workflows (bug, rebase); sonnet for orchestration/dispatch workflows (feature, implement-full)",
+      "manifest_registration": "none required — AC-MANIFEST-1 is satisfied by file presence alone",
+      "marketplace_update": "optional editorial only — no structural requirement",
+      "naming_convention": "kebab-case slug matching filename: next.md → name: next"
+    },
+    {
+      "focus": "testing-and-conventions",
+      "key_files": [
+        "package.json — only script is release; no test/lint/validate targets",
+        "CLAUDE.md — sole rule: NEVER bump versions manually",
+        "plugins/base/schemas/result.schema.json — JSON schema for runtime artifacts only, not .md frontmatter",
+        "scripts/release.mjs — version bump script; reads plugin.json; does not validate .md content"
+      ],
+      "automated_validation": "none — no CI, no markdownlint, no yamllint, no .github/ directory",
+      "version_bump_process": "NEVER manually — scripts/release.mjs via npm run release is the only sanctioned path",
+      "typical_commit_shape": "feat(base): <description> — command .md + any supporting agent .md files together; version bump is a separate Release commit via release script",
+      "file_placement": "commands → plugins/base/commands/<slug>.md (flat); skills → plugins/base/skills/<slug>/SKILL.md (directory); agents → plugins/base/agents/<slug>.md (flat)",
+      "gotchas": [
+        "Skills are directories (not flat files); commands and agents are flat .md files",
+        "allowed-tools is required in command frontmatter; standard set includes Task, Read, Write, Edit, Bash, AskUserQuestion, Skill",
+        "Version bumps always go in a separate release commit — never co-committed with feature changes"
+      ]
+    }
+  ]
+}

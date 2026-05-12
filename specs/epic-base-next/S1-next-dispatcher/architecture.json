@@ -1,0 +1,8 @@
+{
+  "story_id": "S1",
+  "module": "plugins/base/commands/next.md",
+  "type": "new_file",
+  "dependencies_read": ["BACKLOG.md (runtime input — not modified by this command)"],
+  "must_not_write": ["BACKLOG.md", "plugins/base/commands/bug.md", "plugins/base/commands/feature.md"],
+  "seams": []
+}
