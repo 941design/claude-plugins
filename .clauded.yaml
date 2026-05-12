@@ -1,0 +1,35 @@
+version: '1'
+harness: claude-code
+vm:
+  name: clauded-claude-plugins
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+  previous_name: clauded-claude-plugins
+mount:
+  host: /Users/mrother/Projects/941design/claude-plugins
+  guest: /Users/mrother/Projects/941design/claude-plugins
+environment:
+  python: '3.12'
+  node: '22'
+  java: null
+  kotlin: null
+  rust: null
+  go: null
+  dart: null
+  c: null
+  tools: []
+  databases:
+  - sqlite
+  frameworks:
+  - claude-code
+  - codex
+  - playwright
+  playwright_browsers:
+  - chromium
+  - firefox
+  - webkit
+claude:
+  dangerously_skip_permissions: true
+ssh:
+  host_key_checking: true

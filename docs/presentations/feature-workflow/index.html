@@ -1,0 +1,1308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>/feature workflow — a beginner's tour</title>
+<style>
+  :root {
+    --fs-title: 38px;
+    --fs-heading: 24px;
+    --fs-body: 20px;
+    --fs-ui: 14px;
+    --fs-label: 12px;
+    --fs-caption: 11px;
+    --fw-semi: 600;
+    --fw-bold: 700;
+    --bg-1: #0a1020;
+    --bg-2: #0f172a;
+    --surface: #131c30;
+    --surface-2: #1c2740;
+    --line: rgba(241,245,249,0.16);
+    --line-strong: rgba(241,245,249,0.42);
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --lead: #f59e0b;
+    --lead-soft: rgba(245,158,11,0.14);
+    --teammate: #22d3ee;
+    --teammate-soft: rgba(34,211,238,0.12);
+    --subagent: #818cf8;
+    --subagent-soft: rgba(129,140,248,0.13);
+    --gate: #f472b6;
+    --gate-soft: rgba(244,114,182,0.10);
+    --success: #34d399;
+    --success-soft: rgba(52,211,153,0.13);
+    --failure: #fb7185;
+    --failure-soft: rgba(251,113,133,0.12);
+    --shadow: 0 18px 45px rgba(0,0,0,0.45);
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    height: 100%;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    overflow: hidden;
+    background:
+      radial-gradient(1100px 700px at 78% -10%, rgba(245,158,11,0.10), transparent 60%),
+      radial-gradient(900px 700px at -5% 105%, rgba(34,211,238,0.08), transparent 60%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  }
+
+  code, kbd, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  /* Deck shell */
+  .deck {
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+  }
+
+  .progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    width: 0%;
+    background: linear-gradient(90deg, var(--lead), var(--teammate));
+    transition: width 0.35s cubic-bezier(.2,.8,.2,1);
+    z-index: 50;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    align-items: start;
+    justify-items: center;
+    padding: 52px 32px 44px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    pointer-events: none;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .slide-inner {
+    width: 100%;
+    max-width: 1600px;
+    display: grid;
+    gap: 18px;
+  }
+  .slide-header {
+    min-height: 68px;
+    display: flex;
+    align-items: flex-start;
+  }
+
+  /* Headings */
+  h1.title {
+    margin: 0;
+    font-size: var(--fs-title);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    font-weight: var(--fw-bold);
+  }
+  h1.title .accent { color: var(--lead); }
+  h1.title .accent-c { color: var(--teammate); }
+  .subtitle {
+    color: var(--muted);
+    margin: 0;
+    max-width: 80ch;
+    font-size: var(--fs-ui);
+  }
+  .caption {
+    color: var(--muted);
+    font-size: var(--fs-ui);
+    max-width: 90ch;
+    margin: 0;
+  }
+
+  /* Footer chrome */
+  .chrome {
+    position: fixed;
+    bottom: 10px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 18px;
+    color: var(--muted);
+    font-size: var(--fs-caption);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    pointer-events: none;
+    z-index: 20;
+  }
+  .chrome .name code {
+    font-size: var(--fs-label);
+    color: var(--text);
+    background: var(--surface);
+    padding: 3px 9px;
+    border-radius: 6px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .chrome .help-hint {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: var(--fs-label);
+    opacity: 0.75;
+  }
+  .chrome .counter {
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    font-weight: var(--fw-semi);
+  }
+
+  /* Help overlay */
+  .help-overlay {
+    position: fixed; inset: 0;
+    background: rgba(8,12,22,0.85);
+    backdrop-filter: blur(8px);
+    display: grid;
+    place-items: center;
+    z-index: 100;
+  }
+  .help-overlay[hidden] { display: none; }
+  .help-panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 28px 36px;
+    max-width: 460px;
+    box-shadow: var(--shadow);
+  }
+  .help-panel h2 {
+    margin: 0 0 18px 0;
+    font-size: var(--fs-body);
+    color: var(--lead);
+  }
+  .help-panel ul {
+    list-style: none;
+    padding: 0; margin: 0;
+    display: flex; flex-direction: column; gap: 10px;
+    font-size: var(--fs-ui);
+  }
+  kbd {
+    display: inline-block;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 1px 7px;
+    font-size: var(--fs-label);
+    line-height: 1.2;
+    color: var(--text);
+  }
+
+  /* Legend / chips */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    font-size: var(--fs-label);
+    color: var(--muted);
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    background: var(--c, var(--surface));
+    border: 1.5px solid var(--c, var(--line));
+  }
+  .swatch.dashed {
+    background: transparent;
+    border-style: dashed;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    box-shadow: var(--shadow);
+  }
+  .card h3 {
+    margin: 0 0 8px 0;
+    font-size: var(--fs-ui);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .card ul {
+    margin: 0; padding-left: 18px;
+    color: var(--text);
+    font-size: var(--fs-ui);
+    line-height: 1.55;
+  }
+  .card ul li + li { margin-top: 4px; }
+  .card .muted { color: var(--muted); font-size: var(--fs-label); }
+
+  /* === Slide-specific layouts === */
+
+  /* Slide 1 */
+  .org-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 28px;
+    align-items: start;
+  }
+  .org-grid > svg { width: 100%; height: auto; max-height: 60vh; }
+
+  /* Slide 2 */
+  .concept-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 36px;
+    align-items: center;
+  }
+  .definition {
+    font-size: var(--fs-body);
+    line-height: 1.55;
+    color: var(--text);
+  }
+  .definition strong.lead-c { color: var(--lead); }
+  .definition strong.team-c { color: var(--teammate); }
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    text-align: center;
+  }
+  .compare-card.team {
+    border-color: rgba(34,211,238,0.45);
+    background: linear-gradient(180deg, var(--teammate-soft), var(--surface));
+  }
+  .compare-card h3 {
+    margin: 0 0 10px 0;
+    font-size: var(--fs-label);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .compare-card.team h3 { color: var(--teammate); }
+  .compare-card svg { width: 100%; height: auto; max-height: 180px; }
+
+  .callouts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--teammate);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: var(--fs-ui);
+    color: var(--text);
+  }
+  .callout strong { color: var(--lead); display: block; margin-bottom: 4px; font-size: var(--fs-label); letter-spacing: 0.1em; text-transform: uppercase; }
+  .callout code { font-size: var(--fs-label); background: var(--bg-1); padding: 1px 6px; border-radius: 4px; color: var(--text); }
+
+  /* Slide 3 sequence */
+  .sequence-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 230px;
+    gap: 24px;
+    align-items: start;
+  }
+  .sequence-stage > svg { width: 100%; height: auto; max-height: 64vh; }
+  .annotations {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .annotation {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: var(--fs-label);
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .annotation strong {
+    display: block;
+    color: var(--text);
+    font-size: var(--fs-label);
+    margin-bottom: 4px;
+  }
+  .annotation.gate { border-left: 3px solid var(--gate); }
+  .annotation.fail { border-left: 3px solid var(--failure); }
+  .annotation.info { border-left: 3px solid var(--teammate); }
+
+  /* Slide 4 state */
+  .state-stage > svg { width: 100%; max-width: 960px; height: auto; max-height: 60vh; margin: 0 auto; display: block; }
+  .graph-group { display: none; }
+  .graph-group.active { display: block; }
+  body.no-js .graph-group { display: block; }
+  .artifact-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: stretch;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  .artifact-bar-label {
+    font-size: var(--fs-caption);
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    align-self: center;
+    flex: 0 0 auto;
+    padding-right: 4px;
+  }
+  .artifact-chip {
+    background: var(--gate-soft);
+    border: 1px solid rgba(244,114,182,0.35);
+    border-radius: 8px;
+    padding: 8px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .artifact-chip code {
+    font-size: var(--fs-label);
+    color: var(--gate);
+  }
+  .artifact-chip span {
+    font-size: var(--fs-caption);
+    color: var(--muted);
+    line-height: 1.3;
+  }
+
+
+  /* Slide 1 phase ribbon */
+  .phase-layout {
+    display: flex;
+    gap: 48px;
+    align-items: flex-start;
+    margin-top: 4px;
+  }
+  .phase-list {
+    flex: 0 0 460px;
+  }
+  .phase-ribbon {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .phase-row {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    align-items: center;
+    gap: 22px;
+    padding: 8px 0;
+    position: relative;
+  }
+  .phase-row:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 46px;
+    top: 50%;
+    bottom: -8px;
+    width: 2px;
+    background: linear-gradient(180deg, var(--lead), var(--teammate));
+    opacity: 0.6;
+  }
+  .phase-num {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    background: var(--surface);
+    display: grid; place-items: center;
+    font-weight: 800;
+    font-size: 30px;
+    color: var(--lead);
+    border: 2px solid var(--lead);
+    box-shadow: var(--shadow);
+    z-index: 2;
+    position: relative;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .phase-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 24px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .phase-card h3 {
+    margin: 0;
+    font-size: var(--fs-heading);
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .phase-row.expanded .phase-card {
+    border-color: var(--lead);
+    background: linear-gradient(180deg, var(--lead-soft), var(--surface));
+  }
+  .phase-row.expanded .phase-num {
+    background: var(--lead);
+    color: #0a1020;
+    box-shadow: 0 0 0 5px rgba(245,158,11,0.22), var(--shadow);
+  }
+  .phase-panel {
+    flex: 1;
+    max-width: 520px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 24px 28px;
+    min-height: 180px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+  }
+  .phase-panel-content {
+    display: none;
+    font-size: var(--fs-body);
+    color: var(--text);
+    line-height: 1.55;
+  }
+  .phase-panel-content ul {
+    margin: 0;
+    padding-left: 1.2em;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    list-style: disc;
+  }
+  .phase-panel-content li { line-height: 1.4; }
+  .phase-panel-content .phase-sub {
+    display: block;
+    font-size: var(--fs-label);
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 10px 0 4px;
+  }
+  .phase-panel-content .phase-sub:first-child { margin-top: 0; }
+  .phase-panel-content.active {
+    display: block;
+  }
+  .phase-panel-placeholder {
+    font-size: var(--fs-ui);
+    color: var(--muted);
+    font-style: italic;
+  }
+  /* no-js: show all panel descriptions stacked with labelled headings */
+  body.no-js .phase-panel {
+    max-height: 460px;
+    overflow-y: auto;
+  }
+  body.no-js .phase-panel-content {
+    display: block;
+    margin-bottom: 18px;
+  }
+  body.no-js .phase-panel-content::before {
+    display: block;
+    font-size: var(--fs-label);
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    content: attr(data-label);
+  }
+  body.no-js .phase-panel-placeholder {
+    display: none;
+  }
+
+  /* SVG common classes */
+  svg .box { rx: 12; }
+  svg .box.lead { fill: var(--lead-soft); stroke: var(--lead); stroke-width: 2; }
+  svg .box.teammate { fill: var(--teammate-soft); stroke: var(--teammate); stroke-width: 2; }
+  svg .box.subagent { fill: var(--subagent-soft); stroke: var(--subagent); stroke-width: 1.5; }
+  svg .box.gate { fill: var(--gate-soft); stroke: var(--gate); stroke-width: 1.5; stroke-dasharray: 6 4; }
+  svg .box.success { fill: var(--success-soft); stroke: var(--success); stroke-width: 2; }
+  svg .box.failure { fill: var(--failure-soft); stroke: var(--failure); stroke-width: 2; }
+  svg .box.neutral { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; }
+
+  svg text { fill: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif; }
+  svg text.label { font-size: var(--fs-ui); font-weight: var(--fw-semi); }
+  svg text.sub { font-size: var(--fs-label); fill: var(--muted); }
+  svg text.tiny { font-size: var(--fs-caption); fill: var(--muted); }
+  svg text.tiny.bold { font-weight: var(--fw-bold); letter-spacing: 0.18em; }
+  #seq-svg text.tiny { font-size: var(--fs-label); }
+  svg text.lead-c { fill: var(--lead); }
+  svg text.team-c { fill: var(--teammate); }
+  .team-c { color: var(--teammate); }
+  svg text.sub-c { fill: var(--subagent); }
+  svg text.gate-c { fill: var(--gate); }
+  svg text.success-c { fill: var(--success); }
+  svg text.failure-c { fill: var(--failure); }
+  svg text.center { text-anchor: middle; }
+
+  svg .conn { stroke: var(--line-strong); stroke-width: 1.5; fill: none; }
+  svg .conn.dashed { stroke-dasharray: 6 5; }
+  svg .conn.gate-line { stroke: var(--gate); stroke-dasharray: 6 5; }
+  svg .conn.fail-line { stroke: var(--failure); stroke-dasharray: 6 5; }
+  svg .conn.success-line { stroke: var(--success); stroke-width: 2; }
+  svg .lifeline { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+  svg .activity {
+    fill: var(--teammate-soft);
+    stroke: var(--teammate);
+    stroke-width: 1;
+  }
+  svg .frame {
+    fill: var(--gate-soft);
+    stroke: var(--gate);
+    stroke-width: 1;
+    stroke-dasharray: 5 5;
+    rx: 10;
+  }
+  svg .frame-label {
+    fill: var(--gate);
+    font-size: var(--fs-label);
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .slide { transition: none; transform: none; }
+    .progress { transition: none; }
+  }
+
+  /* Responsive: shrink padding on smaller screens */
+  @media (max-width: 1100px) {
+    .slide { padding: 36px 18px 36px; }
+    h1.title { font-size: 30px; }  /* intentional breakpoint override */
+    .org-grid { grid-template-columns: 1fr; }
+    .sequence-stage { grid-template-columns: 1fr; }
+    .concept-grid { grid-template-columns: 1fr; }
+  }
+
+  /* No-JS fallback: stack all slides */
+  body.no-js .deck { height: auto; overflow: auto; }
+  body.no-js .slide {
+    position: relative;
+    inset: auto;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    padding: 60px 32px;
+    border-bottom: 1px solid var(--line);
+  }
+  body.no-js .progress, body.no-js .chrome { display: none; }
+</style>
+</head>
+<body class="no-js">
+
+<div class="progress" id="progress"></div>
+
+<main class="deck" id="deck" role="main">
+
+  <!-- ===========================
+       SLIDE 1 — Team org chart
+       =========================== -->
+  <section class="slide" data-slide="4" aria-label="The team that ships your feature">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <h1 class="title">The team that ships your <span class="accent">feature</span></h1>
+      </div>
+
+      <div class="org-grid">
+        <svg viewBox="0 0 1100 540" role="img" aria-label="Organizational chart of the /feature agent team">
+          <!-- Connectors LEAD -> teammates -->
+          <path class="conn" d="M 550,98 C 550,140 160,140 160,170" />
+          <path class="conn" d="M 550,98 L 550,170" />
+          <path class="conn" d="M 550,98 C 550,140 940,140 940,170" />
+
+          <!-- Connectors teammate -> subagent -->
+          <path class="conn" d="M 160,254 L 160,310" />
+          <path class="conn" d="M 550,254 L 550,310" />
+          <path class="conn" d="M 940,254 L 940,310" />
+
+          <!-- Connector ia -> pbt-dev -->
+          <path class="conn" d="M 550,394 L 550,440" />
+
+          <!-- LEAD card -->
+          <rect class="box lead" x="440" y="30" width="220" height="68" />
+          <text class="label center lead-c" x="550" y="64">LEAD</text>
+          <text class="sub center" x="550" y="84">/feature command</text>
+
+          <!-- Teammates -->
+          <rect class="box teammate" x="60" y="170" width="200" height="84" />
+          <text class="label center team-c" x="160" y="204">Planner</text>
+          <text class="sub center" x="160" y="226">writes ACs</text>
+          <text class="sub center" x="160" y="242">writes stories.json</text>
+
+          <rect class="box teammate" x="450" y="170" width="200" height="84" />
+          <text class="label center team-c" x="550" y="204">Architect</text>
+          <text class="sub center" x="550" y="226">implements stories</text>
+          <text class="sub center" x="550" y="242">runs Codex review</text>
+
+          <rect class="box teammate" x="840" y="170" width="200" height="84" />
+          <text class="label center team-c" x="940" y="204">Verifier</text>
+          <text class="sub center" x="940" y="226">independent review</text>
+          <text class="sub center" x="940" y="242">re-runs every test</text>
+
+          <!-- Subagents row -->
+          <rect class="box subagent" x="70" y="310" width="180" height="84" />
+          <text class="label center sub-c" x="160" y="345">story-planner</text>
+          <text class="sub center" x="160" y="365">subagent</text>
+          <text class="tiny center" x="160" y="382">decomposes the spec</text>
+
+          <rect class="box subagent" x="460" y="310" width="180" height="84" />
+          <text class="label center sub-c" x="550" y="345">integration-architect</text>
+          <text class="sub center" x="550" y="365">subagent</text>
+          <text class="tiny center" x="550" y="382">designs &amp; drives TDD</text>
+
+          <rect class="box subagent" x="850" y="310" width="180" height="84" />
+          <text class="label center sub-c" x="940" y="345">verification-examiner</text>
+          <text class="sub center" x="940" y="365">subagent · runs in parallel</text>
+          <text class="tiny center" x="940" y="382">one per question</text>
+
+          <!-- pbt-dev nested -->
+          <rect class="box subagent" x="475" y="440" width="150" height="64" />
+          <text class="label center sub-c" x="550" y="468">pbt-dev</text>
+          <text class="sub center" x="550" y="488">writes &amp; tests units</text>
+        </svg>
+
+        <aside class="sidebar" aria-label="Org chart legend and notes">
+          <div class="card" style="margin-bottom:14px;">
+            <h3>Legend</h3>
+            <div class="legend" style="flex-direction:column; align-items:flex-start; gap:8px;">
+              <span class="legend-item"><span class="swatch" style="--c: var(--lead);"></span>Lead</span>
+              <span class="legend-item"><span class="swatch" style="--c: var(--teammate);"></span>Teammate</span>
+              <span class="legend-item"><span class="swatch" style="--c: var(--subagent);"></span>Subagent</span>
+              <span class="legend-item"><span class="swatch dashed" style="--c: var(--gate);"></span>External gate</span>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:14px;">
+            <h3>Lead also spawns</h3>
+            <ul>
+              <li><span class="mono">spec-validator</span> — for complex specs</li>
+              <li><span class="mono">code-explorer × 2–3</span> — parallel exploration</li>
+            </ul>
+          </div>
+
+          <div class="card" style="border-left: 3px solid var(--gate);">
+            <h3>External quality gates</h3>
+            <ul>
+              <li><span class="mono">codex:review</span> — Architect's gate</li>
+              <li><span class="mono">codex:adversarial-review</span> — Verifier's gate</li>
+            </ul>
+            <p class="muted" style="margin-top:8px;">Read-only second opinions, not part of the team.</p>
+          </div>
+        </aside>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ===========================
+       What's an agent team?
+       =========================== -->
+  <section class="slide" data-slide="3" aria-label="What is an agent team">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <h1 class="title">What's an <span class="accent-c">agent team</span>?</h1>
+      </div>
+
+      <div class="concept-grid">
+        <div>
+          <p class="definition">
+            A team is a group of independent Claude Code sessions working together. One is the
+            <strong class="lead-c">lead</strong> that coordinates; the others are
+            <strong class="team-c">teammates</strong> with specialized roles.
+            Each runs in its own context and can message the others directly.
+          </p>
+          <p class="definition" style="margin-top:14px;">
+            A subagent is a one-shot worker that returns to its parent.
+            A teammate is a long-running peer that negotiates with the others until the work is done.
+          </p>
+        </div>
+
+        <div class="compare-grid">
+          <div class="compare-card">
+            <h3>Subagent</h3>
+            <svg viewBox="0 0 220 200" role="img" aria-label="A subagent: spawn and return">
+              <defs>
+                <marker id="arrow-down" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(241,245,249,0.6)" />
+                </marker>
+              </defs>
+
+              <rect class="box neutral" x="50" y="40" width="100" height="40" />
+              <text class="label center" x="100" y="66">you</text>
+
+              <path class="conn" d="M 90,80 L 90,120" marker-end="url(#arrow-down)" />
+              <text class="tiny" x="84" y="103" text-anchor="end">spawn</text>
+
+              <rect class="box subagent" x="50" y="120" width="100" height="40" />
+              <text class="label center sub-c" x="100" y="146">subagent</text>
+
+              <path class="conn" d="M 150,140 C 195,140 195,60 150,60" marker-end="url(#arrow-down)" />
+              <text class="tiny" x="200" y="103" text-anchor="start">result</text>
+            </svg>
+          </div>
+
+          <div class="compare-card team">
+            <h3>Team</h3>
+            <svg viewBox="0 0 220 200" role="img" aria-label="A team: lead and teammates with peer messaging">
+              <!-- bidirectional arrows lead <-> each teammate -->
+              <path class="conn" d="M 110,98 L 50,40" />
+              <path class="conn" d="M 110,98 L 170,40" />
+              <path class="conn" d="M 110,98 L 50,160" />
+              <path class="conn" d="M 110,98 L 170,160" />
+              <!-- teammate-to-teammate arrows -->
+              <path class="conn dashed" d="M 50,40 Q 110,5 170,40" />
+              <path class="conn dashed" d="M 50,160 Q 110,195 170,160" />
+
+              <!-- lead -->
+              <circle cx="110" cy="100" r="22" fill="var(--lead-soft)" stroke="var(--lead)" stroke-width="2" />
+              <text class="sub center lead-c" x="110" y="106">LEAD</text>
+
+              <!-- teammates -->
+              <circle cx="50" cy="40" r="18" fill="var(--teammate-soft)" stroke="var(--teammate)" stroke-width="2" />
+              <text class="tiny center team-c" x="50" y="44">A</text>
+              <circle cx="170" cy="40" r="18" fill="var(--teammate-soft)" stroke="var(--teammate)" stroke-width="2" />
+              <text class="tiny center team-c" x="170" y="44">B</text>
+              <circle cx="50" cy="160" r="18" fill="var(--teammate-soft)" stroke="var(--teammate)" stroke-width="2" />
+              <text class="tiny center team-c" x="50" y="164">C</text>
+              <circle cx="170" cy="160" r="18" fill="var(--teammate-soft)" stroke="var(--teammate)" stroke-width="2" />
+              <text class="tiny center team-c" x="170" y="164">D</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="callouts">
+        <div class="callout">
+          <strong>Independent contexts</strong>
+          Each teammate keeps its own conversation. Specialized focus stays uncontaminated by other roles.
+        </div>
+        <div class="callout">
+          <strong>Peer messaging</strong>
+          Teammates address each other by name. Subagents can only report back up to their parent.
+        </div>
+        <div class="callout" style="border-left-color: var(--lead);">
+          <strong>Adversarial separation</strong>
+          One teammate ships, another independently challenges. Bias is built out of the workflow.
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ===========================
+       SLIDE 3 — Per-story sequence
+       =========================== -->
+  <section class="slide" data-slide="5" aria-label="How one story flows through the team">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <h1 class="title">How one story flows through <span class="accent-c">the team</span></h1>
+      </div>
+
+      <div class="sequence-stage" style="display:block;">
+        <svg id="seq-svg" viewBox="0 0 1080 600" role="img" aria-label="Sequence diagram of one story's lifecycle across Lead, Planner, Architect, Verifier, and Codex" style="max-height:68vh;">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(241,245,249,0.7)" />
+            </marker>
+            <marker id="arrow-gate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--gate)" />
+            </marker>
+            <marker id="arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--failure)" />
+            </marker>
+            <marker id="arrow-success" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--success)" />
+            </marker>
+          </defs>
+
+          <!-- Lifeline columns (5): Lead 110, Planner 290, Architect 510, Verifier 750, Codex 970 -->
+          <line class="lifeline" x1="110" y1="64" x2="110" y2="580" />
+          <line class="lifeline" x1="290" y1="64" x2="290" y2="580" />
+          <line class="lifeline" x1="510" y1="64" x2="510" y2="580" />
+          <line class="lifeline" x1="750" y1="64" x2="750" y2="580" />
+          <line class="lifeline" x1="970" y1="64" x2="970" y2="580" />
+
+          <!-- Lifeline headers -->
+          <rect class="box lead" x="50" y="20" width="120" height="44" />
+          <text class="label center lead-c" x="110" y="48">Lead</text>
+
+          <rect class="box teammate" x="230" y="20" width="120" height="44" />
+          <text class="label center team-c" x="290" y="48">Planner</text>
+
+          <rect class="box teammate" x="450" y="20" width="120" height="44" />
+          <text class="label center team-c" x="510" y="48">Architect</text>
+
+          <rect class="box teammate" x="690" y="20" width="120" height="44" />
+          <text class="label center team-c" x="750" y="48">Verifier</text>
+
+          <rect class="box gate" x="910" y="20" width="120" height="44" />
+          <text class="label center gate-c" x="970" y="48">Codex</text>
+
+          <!-- Step 1: Lead -> Planner "plan" -->
+          <line class="conn" x1="110" y1="100" x2="290" y2="100" marker-end="url(#arrow)" />
+          <text class="tiny" x="200" y="94" text-anchor="middle">plan stories</text>
+
+          <!-- Step 2: Planner -> Lead "stories.json" -->
+          <line class="conn" x1="290" y1="138" x2="110" y2="138" marker-end="url(#arrow)" />
+          <text class="tiny" x="200" y="132" text-anchor="middle">stories.json done</text>
+
+          <!-- Step 3: Lead -> Architect "assign" -->
+          <line class="conn" x1="110" y1="176" x2="510" y2="176" marker-end="url(#arrow)" />
+          <text class="tiny" x="310" y="170" text-anchor="middle">assign story</text>
+
+          <!-- Step 4: Architect activity bar -->
+          <rect class="activity" x="500" y="200" width="20" height="48" rx="3" />
+          <text class="tiny" x="535" y="228" text-anchor="start">implementation</text>
+
+          <!-- Step 5: Architect -> Codex "review" -->
+          <line class="conn gate-line" x1="510" y1="276" x2="970" y2="276" marker-end="url(#arrow-gate)" />
+          <text class="tiny gate-c" x="740" y="270" text-anchor="middle">codex:review (working tree)</text>
+
+          <!-- Step 6: Codex -> Architect "findings" -->
+          <line class="conn gate-line" x1="970" y1="304" x2="510" y2="304" marker-end="url(#arrow-gate)" />
+          <text class="tiny gate-c" x="740" y="298" text-anchor="middle">findings → fix critical/high</text>
+
+          <!-- Remediation frame -->
+          <rect class="frame" x="80" y="332" width="900" height="200" />
+          <text class="frame-label" x="960" y="349" text-anchor="end">remediation loop · ≤ 5 rounds</text>
+
+          <!-- Step 7: Architect -> Verifier "ready" -->
+          <line class="conn" x1="510" y1="376" x2="750" y2="376" marker-end="url(#arrow)" />
+          <text class="tiny" x="630" y="370" text-anchor="middle">ready for verification</text>
+
+          <!-- Step 8: Verifier activity (examiners + rerun) -->
+          <rect class="activity" x="740" y="396" width="20" height="50" rx="3" />
+          <text class="tiny" x="770" y="416" text-anchor="start">examiners ║ + rerun all tests</text>
+
+          <!-- Step 9: Verifier -> Codex "adversarial" -->
+          <line class="conn gate-line" x1="750" y1="466" x2="970" y2="466" marker-end="url(#arrow-gate)" />
+          <text class="tiny gate-c" x="860" y="460" text-anchor="middle">codex:adversarial-review</text>
+
+          <!-- Step 10: Codex -> Verifier verdict -->
+          <line class="conn gate-line" x1="970" y1="492" x2="750" y2="492" marker-end="url(#arrow-gate)" />
+          <text class="tiny gate-c" x="860" y="486" text-anchor="middle">verdict</text>
+
+          <!-- Step 11: FAIL — Verifier -> Architect issues -->
+          <line class="conn fail-line" x1="750" y1="520" x2="510" y2="520" marker-end="url(#arrow-fail)" />
+          <text class="tiny failure-c" x="630" y="514" text-anchor="middle">issues → architect fixes</text>
+
+          <!-- Step 12: Verified -->
+          <line class="conn success-line" x1="750" y1="562" x2="110" y2="562" marker-end="url(#arrow-success)" />
+          <text class="tiny success-c" x="430" y="556" text-anchor="middle">PASS · story verified</text>
+        </svg>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ===========================
+       SLIDE 4 — Story state machine
+       =========================== -->
+  <section class="slide" data-slide="2" aria-label="A story's life as a state machine">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <h1 class="title">Every story walks <span class="accent-c">the same path</span></h1>
+      </div>
+
+      <div class="state-stage">
+        <svg id="state-svg" viewBox="0 0 1100 260" role="img" aria-label="Traditional development cycle — press ↑/↓ to switch graphs">
+          <defs>
+            <marker id="s-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(241,245,249,0.7)" />
+            </marker>
+            <marker id="s-arrow-loop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)" />
+            </marker>
+            <marker id="s-arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--failure)" />
+            </marker>
+            <marker id="s-arrow-success" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--success)" />
+            </marker>
+          </defs>
+
+          <g id="trad-group" class="graph-group">
+          <!-- Row label: traditional -->
+          <text class="tiny bold" x="20" y="14">TRADITIONAL CYCLE</text>
+
+          <!-- Implement↔Test loop (above row) -->
+          <path class="conn dashed" stroke="var(--muted)" d="M 460,80 C 460,30 290,30 290,80" marker-end="url(#s-arrow-loop)" />
+
+          <!-- Traditional cycle row, y=80-140 -->
+          <rect class="box neutral" x="30" y="80" width="150" height="60" />
+          <text class="label center" x="105" y="116">Design</text>
+
+          <rect class="box neutral" x="220" y="80" width="140" height="60" />
+          <text class="label center" x="290" y="116">Implement</text>
+
+          <rect class="box neutral" x="400" y="80" width="120" height="60" />
+          <text class="label center" x="460" y="116">Test</text>
+
+          <rect class="box neutral" x="560" y="80" width="140" height="60" />
+          <text class="label center" x="630" y="116">Review</text>
+
+          <rect class="box neutral" x="740" y="80" width="140" height="60" />
+          <text class="label center" x="810" y="116">Push</text>
+
+          <line class="conn" x1="180" y1="110" x2="220" y2="110" marker-end="url(#s-arrow)" />
+          <line class="conn" x1="360" y1="110" x2="400" y2="110" marker-end="url(#s-arrow)" />
+          <line class="conn" x1="520" y1="110" x2="560" y2="110" marker-end="url(#s-arrow)" />
+          <line class="conn" x1="700" y1="110" x2="740" y2="110" marker-end="url(#s-arrow)" />
+
+          <!-- Fix node (below Review) -->
+          <rect class="box neutral" x="570" y="180" width="120" height="60" />
+          <text class="label center" x="630" y="216">Fix</text>
+
+          <!-- Review→Fix and Fix→Test (review-test-fix loop) -->
+          <line class="conn dashed" stroke="var(--muted)" x1="630" y1="140" x2="630" y2="180" marker-end="url(#s-arrow-loop)" />
+          <path class="conn dashed" stroke="var(--muted)" d="M 570,210 Q 460,210 460,140" marker-end="url(#s-arrow-loop)" />
+          </g>
+
+          <g id="feat-group" class="graph-group">
+          <!-- Row label: /feature -->
+          <text class="tiny bold" x="20" y="276">/FEATURE WORKFLOW</text>
+
+          <!-- Failure arc (drawn first so boxes overlay) -->
+          <path class="conn fail-line" d="M 850,320 C 850,220 300,220 300,320" marker-end="url(#s-arrow-fail)" />
+          <text class="tiny failure-c" x="400" y="225" text-anchor="middle">FAIL · remediation (≤ 5 rounds)</text>
+
+          <!-- /feature happy-path row, y=320-390 -->
+          <rect class="box neutral" x="15" y="320" width="185" height="70" />
+          <text class="label center" x="107" y="348">establish</text>
+          <text class="label center" x="107" y="366">baseline</text>
+          <text class="tiny center" x="107" y="382">baseline.json</text>
+
+          <rect class="box neutral" x="220" y="320" width="160" height="70" />
+          <text class="label center" x="300" y="352">design + TDD</text>
+          <text class="tiny center" x="300" y="372">code + tests</text>
+
+          <rect class="box gate" x="400" y="320" width="180" height="70" />
+          <text class="label center gate-c" x="490" y="352">codex:review</text>
+          <text class="tiny center" x="490" y="372">fixes applied</text>
+
+          <rect class="box neutral" x="600" y="320" width="140" height="70" />
+          <text class="label center" x="670" y="352">ready</text>
+          <text class="tiny center" x="670" y="372">verification.json</text>
+
+          <rect class="box neutral" x="760" y="320" width="180" height="70" />
+          <text class="label center" x="850" y="352">verification</text>
+          <text class="tiny center" x="850" y="372">+ answers</text>
+
+          <rect class="box success" x="960" y="320" width="130" height="70" />
+          <text class="label center success-c" x="1025" y="352">done</text>
+          <text class="tiny center" x="1025" y="372">result.json</text>
+
+          <!-- Right-arrow connectors at y=355 -->
+          <line class="conn" x1="200" y1="355" x2="220" y2="355" marker-end="url(#s-arrow)" />
+          <line class="conn" x1="380" y1="355" x2="400" y2="355" marker-end="url(#s-arrow)" />
+          <line class="conn" x1="580" y1="355" x2="600" y2="355" marker-end="url(#s-arrow)" />
+          <line class="conn" x1="740" y1="355" x2="760" y2="355" marker-end="url(#s-arrow)" />
+          <line class="conn success-line" x1="940" y1="355" x2="960" y2="355" marker-end="url(#s-arrow-success)" />
+          <text class="tiny success-c" x="950" y="312" text-anchor="middle">PASS</text>
+
+          <!-- Escalated branch -->
+          <rect class="box failure" x="760" y="440" width="180" height="60" />
+          <text class="label center failure-c" x="850" y="476">escalated</text>
+
+          <line class="conn fail-line" x1="850" y1="390" x2="850" y2="440" marker-end="url(#s-arrow-fail)" />
+          <text class="tiny failure-c" x="950" y="415" text-anchor="start">rounds exhausted</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="artifact-bar">
+        <span class="artifact-bar-label">Artifacts</span>
+        <div class="artifact-chip">
+          <code>baseline.json</code>
+          <span>test snapshot before changes</span>
+        </div>
+        <div class="artifact-chip">
+          <code>epic-state.json</code>
+          <span>epic progress; enables RESUME</span>
+        </div>
+        <div class="artifact-chip">
+          <code>verification.json</code>
+          <span>story ready for Verifier</span>
+        </div>
+        <div class="artifact-chip">
+          <code>result.json</code>
+          <span>verified story output</span>
+        </div>
+        <div class="artifact-chip">
+          <code>mocks-registry.json</code>
+          <span>tracks temporary mocks</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ===========================
+       SLIDE 5 — Phase map
+       =========================== -->
+  <section class="slide active" data-slide="1" aria-label="End-to-end phases of /feature">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <h1 class="title">What <code style="font-size:0.95em;">/feature</code> does, <span class="accent">start to finish</span></h1>
+      </div>
+
+      <div class="phase-layout">
+        <div class="phase-list">
+          <div class="phase-ribbon">
+            <div class="phase-row">
+              <div class="phase-num">1</div>
+              <div class="phase-card"><h3>Detect mode</h3></div>
+            </div>
+            <div class="phase-row">
+              <div class="phase-num">2</div>
+              <div class="phase-card"><h3>Validate spec</h3></div>
+            </div>
+            <div class="phase-row">
+              <div class="phase-num">3</div>
+              <div class="phase-card"><h3>Create epic</h3></div>
+            </div>
+            <div class="phase-row">
+              <div class="phase-num">4</div>
+              <div class="phase-card"><h3>Implementation loop</h3></div>
+            </div>
+          </div>
+        </div>
+        <div class="phase-panel" id="phase-panel">
+          <div class="phase-panel-placeholder" id="phase-placeholder">Press ↓ to explore each phase.</div>
+          <div class="phase-panel-content" data-step="1" data-label="Phase 1 — Detect mode">
+            <ul>
+              <li><code>RESUME</code> — picks up an in-progress epic from <code>epic-state.json</code></li>
+              <li><code>NEW</code> — validates a fresh spec file and starts planning</li>
+              <li><code>SCAN</code> — checks <code>specs/epic-*</code> for unfinished epics</li>
+              <li><code>NATURAL_LANGUAGE</code> — converts prose into a spec, then continues</li>
+            </ul>
+          </div>
+          <div class="phase-panel-content" data-step="2" data-label="Phase 2 — Validate spec">
+            <ul>
+              <li>Checks for: problem statement, testable ACs, scope boundaries, error handling</li>
+              <li>Asks up to 3 rounds of clarification questions if gaps remain</li>
+              <li>Delegates complex specs to the <code>spec-validator</code> subagent</li>
+            </ul>
+          </div>
+          <div class="phase-panel-content" data-step="3" data-label="Phase 3 — Create epic">
+            <ul>
+              <li>Detects project language from config files</li>
+              <li>Creates <code>specs/epic-{name}/</code> with <code>epic-state.json</code></li>
+              <li>Spawns 2–3 <code>code-explorer</code> subagents in parallel (features, architecture, testing)</li>
+              <li>Initialises <code>mocks-registry.json</code></li>
+            </ul>
+          </div>
+          <div class="phase-panel-content" data-step="4" data-label="Phase 4 — Implementation loop">
+            <ul>
+              <li><span class="team-c">Planner</span> — derives ACs, splits work into stories; second <span class="team-c">Architect</span> added for 4+ stories</li>
+            </ul>
+            <span class="phase-sub">Architect</span>
+            <ul>
+              <li>Baseline snapshot → design → TDD via <code>integration-architect</code> + <code>pbt-dev</code></li>
+              <li>Runs <code>codex:review</code>, fixes critical/high findings</li>
+            </ul>
+            <span class="phase-sub">Verifier</span>
+            <ul>
+              <li>Parallel examiners + full test suite rerun</li>
+              <li>Runs <code>codex:adversarial-review</code>; Architect ↔ Verifier negotiate (escalates after 5 rounds)</li>
+              <li>Re-confirms every AC is covered; resolves unresolved mocks; marks epic done</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<div class="chrome">
+  <span class="name"><code>/feature</code> workflow</span>
+  <span class="counter"><span id="cur">1</span> / <span id="total">5</span></span>
+</div>
+
+<div class="help-overlay" id="help" hidden>
+  <div class="help-panel">
+    <h2>Keyboard shortcuts</h2>
+    <ul>
+      <li><kbd>→</kbd> · <kbd>Space</kbd> next slide &nbsp;·&nbsp; <kbd>←</kbd> previous</li>
+      <li><kbd>↓</kbd> · <kbd>↑</kbd> step within the slide (when supported)</li>
+      <li><kbd>Home</kbd> first &nbsp;·&nbsp; <kbd>End</kbd> last</li>
+      <li><kbd>?</kbd> toggle this help &nbsp;·&nbsp; <kbd>Esc</kbd> close</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  (function () {
+    document.body.classList.remove('no-js');
+
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const total = slides.length;
+    document.getElementById('total').textContent = total;
+    const counter = document.getElementById('cur');
+    const progress = document.getElementById('progress');
+    const help = document.getElementById('help');
+
+    // Slide 1: expandable phase steps controlled by ArrowUp/ArrowDown
+    let expandedStep = 0; // 0 = none; 1..6 = expanded step
+    const phaseRows = () => Array.from(document.querySelectorAll('section[data-slide="1"] .phase-row'));
+    const panelContents = () => Array.from(document.querySelectorAll('#phase-panel .phase-panel-content'));
+    const placeholder = () => document.getElementById('phase-placeholder');
+    function applyExpansion() {
+      phaseRows().forEach((row, i) => {
+        row.classList.toggle('expanded', i + 1 === expandedStep);
+      });
+      panelContents().forEach((div) => {
+        div.classList.toggle('active', parseInt(div.dataset.step, 10) === expandedStep);
+      });
+      const ph = placeholder();
+      if (ph) ph.style.display = expandedStep === 0 ? 'block' : 'none';
+    }
+    function setExpandedStep(n) {
+      const max = phaseRows().length;
+      expandedStep = Math.max(0, Math.min(max, n));
+      applyExpansion();
+    }
+    applyExpansion();
+
+    // Slide 2: toggle between traditional and /feature graphs
+    let s2Graph = 0; // 0 = traditional, 1 = feature
+    const graphs = ['trad-group', 'feat-group'];
+    const s2svg = document.getElementById('state-svg');
+    const s2viewBoxes = ['0 0 1100 260', '0 270 1100 240'];
+    function applyS2Graph() {
+      graphs.forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('active', i === s2Graph);
+      });
+      if (s2svg) s2svg.setAttribute('viewBox', s2viewBoxes[s2Graph]);
+    }
+    applyS2Graph();
+
+    const slideActions = {
+      1: {
+        down: () => setExpandedStep(expandedStep + 1),
+        up: () => setExpandedStep(expandedStep - 1),
+      },
+      2: {
+        down: () => { s2Graph = Math.min(1, s2Graph + 1); applyS2Graph(); },
+        up: () => { s2Graph = Math.max(0, s2Graph - 1); applyS2Graph(); },
+      },
+    };
+
+    function clamp(n) { return Math.max(1, Math.min(total, n)); }
+
+    function show(n) {
+      n = clamp(n);
+      slides.forEach((s) => {
+        const i = parseInt(s.dataset.slide, 10);
+        s.classList.toggle('active', i === n);
+      });
+      counter.textContent = n;
+      progress.style.width = ((n - 1) / (total - 1) * 100) + '%';
+      if (location.hash !== '#' + n) {
+        history.replaceState(null, '', '#' + n);
+      }
+    }
+
+    function next() { show(currentIndex() + 1); }
+    function prev() { show(currentIndex() - 1); }
+    function currentIndex() {
+      const el = document.querySelector('.slide.active');
+      return el ? parseInt(el.dataset.slide, 10) : 1;
+    }
+
+    function toggleHelp(force) {
+      const willShow = force === undefined ? help.hasAttribute('hidden') : force;
+      if (willShow) help.removeAttribute('hidden');
+      else help.setAttribute('hidden', '');
+    }
+
+    // Initial slide from hash
+    const initial = parseInt((location.hash || '#1').slice(1), 10);
+    show(Number.isFinite(initial) ? initial : 1);
+
+    // Keyboard
+    document.addEventListener('keydown', (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!help.hasAttribute('hidden') && e.key === 'Escape') {
+        toggleHelp(false);
+        e.preventDefault();
+        return;
+      }
+      switch (e.key) {
+        case 'ArrowRight':
+        case 'PageDown':
+        case ' ':
+          next(); e.preventDefault(); break;
+        case 'ArrowLeft':
+        case 'PageUp':
+          prev(); e.preventDefault(); break;
+        case 'ArrowDown': {
+          const action = slideActions[currentIndex()]?.down;
+          if (action) { action(); e.preventDefault(); }
+          break;
+        }
+        case 'ArrowUp': {
+          const action = slideActions[currentIndex()]?.up;
+          if (action) { action(); e.preventDefault(); }
+          break;
+        }
+        case 'Home':
+          show(1); e.preventDefault(); break;
+        case 'End':
+          show(total); e.preventDefault(); break;
+        case '?':
+        case '/':
+          toggleHelp(); e.preventDefault(); break;
+        case 'Escape':
+          toggleHelp(false); e.preventDefault(); break;
+      }
+    });
+
+    // Click on overlay backdrop closes help
+    help.addEventListener('click', (e) => {
+      if (e.target === help) toggleHelp(false);
+    });
+
+    // Hash navigation
+    window.addEventListener('hashchange', () => {
+      const n = parseInt((location.hash || '#1').slice(1), 10);
+      if (Number.isFinite(n)) show(n);
+    });
+  })();
+</script>
+
+</body>
+</html>

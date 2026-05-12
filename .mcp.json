@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "memorymark": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:21517/mcp"
+      ]
+    }
+  }
+}
+
+    

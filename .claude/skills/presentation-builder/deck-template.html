@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>{{DECK TITLE}}</title>
+<style>
+  /* ===== Palette + base ===== */
+  :root {
+    --bg-1: #0a1020;
+    --bg-2: #0f172a;
+    --surface: #131c30;
+    --surface-2: #1c2740;
+    --line: rgba(241,245,249,0.16);
+    --line-strong: rgba(241,245,249,0.42);
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --lead: #f59e0b;
+    --lead-soft: rgba(245,158,11,0.14);
+    --teammate: #22d3ee;
+    --teammate-soft: rgba(34,211,238,0.12);
+    --subagent: #818cf8;
+    --subagent-soft: rgba(129,140,248,0.13);
+    --gate: #f472b6;
+    --gate-soft: rgba(244,114,182,0.10);
+    --success: #34d399;
+    --success-soft: rgba(52,211,153,0.13);
+    --failure: #fb7185;
+    --failure-soft: rgba(251,113,133,0.12);
+    --shadow: 0 18px 45px rgba(0,0,0,0.45);
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    height: 100%;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    overflow: hidden;
+    background:
+      radial-gradient(1100px 700px at 78% -10%, rgba(245,158,11,0.10), transparent 60%),
+      radial-gradient(900px 700px at -5% 105%, rgba(34,211,238,0.08), transparent 60%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  }
+  code, kbd, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  /* ===== Deck shell + transitions ===== */
+  .deck { position: relative; height: 100vh; width: 100vw; overflow: hidden; }
+
+  .progress {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, var(--lead), var(--teammate));
+    transition: width 0.35s cubic-bezier(.2,.8,.2,1);
+    z-index: 50;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: grid; place-items: center;
+    padding: 24px 32px 44px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    pointer-events: none;
+  }
+  .slide.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+  .slide-inner { width: 100%; max-width: 1600px; display: grid; gap: 18px; }
+
+  /* ===== Headings ===== */
+  h1.title {
+    margin: 0;
+    font-size: 38px; line-height: 1.1; letter-spacing: -0.01em; font-weight: 700;
+  }
+  h1.title .accent { color: var(--lead); }
+  h1.title .accent-c { color: var(--teammate); }
+
+  /* ===== Footer chrome ===== */
+  .chrome {
+    position: fixed; bottom: 10px; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 18px;
+    color: var(--muted); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    pointer-events: none; z-index: 20;
+  }
+  .chrome .name code {
+    font-size: 12px; color: var(--text);
+    background: var(--surface);
+    padding: 3px 9px; border-radius: 6px;
+    text-transform: none; letter-spacing: 0;
+  }
+  .chrome .counter { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+
+  /* ===== Help overlay ===== */
+  .help-overlay {
+    position: fixed; inset: 0;
+    background: rgba(8,12,22,0.85); backdrop-filter: blur(8px);
+    display: grid; place-items: center; z-index: 100;
+  }
+  .help-overlay[hidden] { display: none; }
+  .help-panel {
+    background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 28px 36px; max-width: 460px; box-shadow: var(--shadow);
+  }
+  .help-panel h2 { margin: 0 0 18px 0; font-size: 18px; color: var(--lead); }
+  .help-panel ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+  kbd {
+    display: inline-block;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 1px 7px; font-size: 12px; line-height: 1.2; color: var(--text);
+  }
+
+  /* ===== Reusable bits the architect can use in slide content ===== */
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 22px; box-shadow: var(--shadow);
+  }
+  .card h3 {
+    margin: 0 0 8px 0; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+  }
+  .card ul { margin: 0; padding-left: 18px; color: var(--text); font-size: 14px; line-height: 1.55; }
+  .card ul li + li { margin-top: 4px; }
+
+  /* ===== SVG primitives ===== */
+  svg .box { rx: 12; }
+  svg .box.lead { fill: var(--lead-soft); stroke: var(--lead); stroke-width: 2; }
+  svg .box.teammate { fill: var(--teammate-soft); stroke: var(--teammate); stroke-width: 2; }
+  svg .box.subagent { fill: var(--subagent-soft); stroke: var(--subagent); stroke-width: 1.5; }
+  svg .box.gate { fill: var(--gate-soft); stroke: var(--gate); stroke-width: 1.5; stroke-dasharray: 6 4; }
+  svg .box.success { fill: var(--success-soft); stroke: var(--success); stroke-width: 2; }
+  svg .box.failure { fill: var(--failure-soft); stroke: var(--failure); stroke-width: 2; }
+  svg .box.neutral { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; }
+
+  svg text { fill: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif; }
+  svg text.label { font-size: 16px; font-weight: 600; }
+  svg text.sub { font-size: 12px; fill: var(--muted); }
+  svg text.tiny { font-size: 11px; fill: var(--muted); }
+  svg text.center { text-anchor: middle; }
+  svg text.lead-c { fill: var(--lead); }
+  svg text.team-c { fill: var(--teammate); }
+  svg text.sub-c { fill: var(--subagent); }
+  svg text.gate-c { fill: var(--gate); }
+  svg text.success-c { fill: var(--success); }
+  svg text.failure-c { fill: var(--failure); }
+
+  svg .conn { stroke: var(--line-strong); stroke-width: 1.5; fill: none; }
+  svg .conn.dashed { stroke-dasharray: 6 5; }
+  svg .conn.gate-line { stroke: var(--gate); stroke-dasharray: 6 5; }
+  svg .conn.fail-line { stroke: var(--failure); stroke-dasharray: 6 5; }
+  svg .conn.success-line { stroke: var(--success); stroke-width: 2; }
+
+  /* ===== Reduced motion ===== */
+  @media (prefers-reduced-motion: reduce) {
+    .slide { transition: none; transform: none; }
+    .progress { transition: none; }
+  }
+
+  /* ===== No-JS fallback: stack all slides ===== */
+  body.no-js .deck { height: auto; overflow: auto; }
+  body.no-js .slide {
+    position: relative; inset: auto; opacity: 1; transform: none; pointer-events: auto;
+    padding: 60px 32px; border-bottom: 1px solid var(--line);
+  }
+  body.no-js .progress, body.no-js .chrome { display: none; }
+</style>
+</head>
+<body class="no-js">
+
+<div class="progress" id="progress"></div>
+
+<main class="deck" id="deck" role="main">
+
+  <!-- Architect: insert one <section class="slide" data-slide="N" aria-label="..."> per slide.
+       Mark the FIRST slide with class="slide active" so it shows in the no-JS fallback.
+       Each slide-inner uses width:100% max-width:1600px and a grid layout.
+
+       Example skeleton:
+
+       <section class="slide active" data-slide="1" aria-label="Title slide">
+         <div class="slide-inner">
+           <div>
+             <h1 class="title">Headline <span class="accent">accent</span></h1>
+           </div>
+           <div class="card">…content…</div>
+         </div>
+       </section>
+  -->
+
+</main>
+
+<div class="chrome">
+  <span class="name"><code>{{DECK SLUG}}</code></span>
+  <span class="counter"><span id="cur">1</span> / <span id="total">1</span></span>
+</div>
+
+<div class="help-overlay" id="help" hidden>
+  <div class="help-panel">
+    <h2>Keyboard shortcuts</h2>
+    <ul>
+      <li><kbd>→</kbd> · <kbd>Space</kbd> next slide &nbsp;·&nbsp; <kbd>←</kbd> previous</li>
+      <li><kbd>↓</kbd> · <kbd>↑</kbd> step within the slide (when supported)</li>
+      <li><kbd>Home</kbd> first &nbsp;·&nbsp; <kbd>End</kbd> last</li>
+      <li><kbd>?</kbd> toggle this help &nbsp;·&nbsp; <kbd>Esc</kbd> close</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  (function () {
+    document.body.classList.remove('no-js');
+
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const total = slides.length;
+    document.getElementById('total').textContent = total;
+    const counter = document.getElementById('cur');
+    const progress = document.getElementById('progress');
+    const help = document.getElementById('help');
+
+    // Per-slide actions for ↑/↓. Architect: register handlers keyed by data-slide.
+    // Example:
+    //   slideActions[1] = { down: () => /* expand next step */, up: () => /* collapse */ };
+    const slideActions = {};
+
+    function clamp(n) { return Math.max(1, Math.min(total, n)); }
+
+    function show(n) {
+      n = clamp(n);
+      slides.forEach((s) => {
+        const i = parseInt(s.dataset.slide, 10);
+        s.classList.toggle('active', i === n);
+      });
+      counter.textContent = n;
+      progress.style.width = total > 1 ? ((n - 1) / (total - 1) * 100) + '%' : '100%';
+      if (location.hash !== '#' + n) history.replaceState(null, '', '#' + n);
+    }
+    function next() { show(currentIndex() + 1); }
+    function prev() { show(currentIndex() - 1); }
+    function currentIndex() {
+      const el = document.querySelector('.slide.active');
+      return el ? parseInt(el.dataset.slide, 10) : 1;
+    }
+    function toggleHelp(force) {
+      const willShow = force === undefined ? help.hasAttribute('hidden') : force;
+      if (willShow) help.removeAttribute('hidden'); else help.setAttribute('hidden', '');
+    }
+
+    const initial = parseInt((location.hash || '#1').slice(1), 10);
+    show(Number.isFinite(initial) ? initial : 1);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!help.hasAttribute('hidden') && e.key === 'Escape') { toggleHelp(false); e.preventDefault(); return; }
+      switch (e.key) {
+        case 'ArrowRight':
+        case 'PageDown':
+        case ' ':
+          next(); e.preventDefault(); break;
+        case 'ArrowLeft':
+        case 'PageUp':
+          prev(); e.preventDefault(); break;
+        case 'ArrowDown': {
+          const action = slideActions[currentIndex()]?.down;
+          if (action) { action(); e.preventDefault(); }
+          break;
+        }
+        case 'ArrowUp': {
+          const action = slideActions[currentIndex()]?.up;
+          if (action) { action(); e.preventDefault(); }
+          break;
+        }
+        case 'Home': show(1); e.preventDefault(); break;
+        case 'End': show(total); e.preventDefault(); break;
+        case '?':
+        case '/':
+          toggleHelp(); e.preventDefault(); break;
+        case 'Escape': toggleHelp(false); e.preventDefault(); break;
+      }
+    });
+
+    help.addEventListener('click', (e) => { if (e.target === help) toggleHelp(false); });
+    window.addEventListener('hashchange', () => {
+      const n = parseInt((location.hash || '#1').slice(1), 10);
+      if (Number.isFinite(n)) show(n);
+    });
+  })();
+</script>
+
+</body>
+</html>
