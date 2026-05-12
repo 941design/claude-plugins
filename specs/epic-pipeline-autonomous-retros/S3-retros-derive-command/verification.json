@@ -1,0 +1,145 @@
+{
+  "story_id": "S3",
+  "authored_by": "story-planner",
+  "authored_at": "2026-05-12T00:00:00Z",
+  "questions": [
+    {
+      "id": "VQ-S3-001",
+      "type": "SPEC",
+      "question": "Does the file plugins/base/commands/retros-derive.md exist, and does its frontmatter or opening section identify it as a command the lead executes directly without spawning a subagent for the outer loop?",
+      "ac_ref": "AC-DERIVE-1",
+      "check_method": "verify the file exists at plugins/base/commands/retros-derive.md; read its frontmatter and opening section; confirm language explicitly states the lead executes this command directly (e.g., no 'spawn agent', 'delegate to subagent', or equivalent outer-loop delegation instruction)",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-002",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/retros-derive.md state a glob pattern of '${CLAUDE_PLUGIN_DATA}/retros/<plugin-slug>/*.md' (with the CLAUDE_PLUGIN_DATA env var and plugin-slug derivation described), using the same mechanism as base:feature Step 6 for writing retro files?",
+      "ac_ref": "AC-DERIVE-2",
+      "check_method": "read plugins/base/commands/retros-derive.md; locate the glob pattern instruction; confirm it uses the '${CLAUDE_PLUGIN_DATA}/retros/<plugin-slug>/*.md' form and references how plugin-slug is derived (consistent with base:feature Step 6 retro-writing logic)",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-003",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/retros-derive.md state that retro files are processed oldest-first using the 'completed:' YAML frontmatter field as the sort key, and that files without a 'completed:' field are processed last?",
+      "ac_ref": "AC-DERIVE-3",
+      "check_method": "read plugins/base/commands/retros-derive.md; find the sort-order instruction; confirm (a) oldest-first direction, (b) 'completed:' YAML field named as sort key, and (c) explicit handling for files missing the 'completed:' field (processed last, not skipped or errored)",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-004",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/retros-derive.md state the six-level section-matching priority for extracting meta findings in this exact order: (1) '## Meta-level findings (raise to user)', (2) '## Lead's epic-meta findings', (3) '## Workflow-level findings', (4) '### Meta-level (raise to user)', (5) '## Frictions worth recording', (6) fallback: any paragraph containing '**Suggested change**:' not nested under '## Project-specific', '## Routine', or '## Discrepancies' headers?",
+      "ac_ref": "AC-DERIVE-4",
+      "check_method": "read plugins/base/commands/retros-derive.md section-matching rule; verify all six priority levels are present in the specified order; confirm level 6 names all three excluded headers (## Project-specific, ## Routine, ## Discrepancies) and uses the '**Suggested change**:' paragraph as the fallback trigger",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-005",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/retros-derive.md state that findings already carrying a '_Curator: .*_' line are skipped before being passed to the curator (consistent with the dedup guard defined in AC-CURATOR-5)?",
+      "ac_ref": "AC-DERIVE-5",
+      "check_method": "read plugins/base/commands/retros-derive.md; find the skip/dedup rule; confirm (a) the pattern '_Curator: .*_' (or equivalent) is named, (b) the action is 'skip' (not pass through), and (c) skipping happens before curator invocation (not after)",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-006",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/retros-derive.md explicitly invoke base:project-curator with this repository (claude-plugins) as the project context and BACKLOG.md as the target backlog, and does it state that the curator operates in the same autonomous mode established by the curator's own Hard Rules (AC-CURATOR-1 through AC-CURATOR-9)?",
+      "ac_ref": "AC-DERIVE-6",
+      "check_method": "read plugins/base/commands/retros-derive.md curator invocation instruction; confirm (a) 'base:project-curator' is named, (b) 'claude-plugins' or 'this repository' is named as the project context, (c) 'BACKLOG.md' is named as the target backlog, and (d) 'autonomous mode' or equivalent phrasing links to the curator's own operating rules",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-007",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/retros-derive.md contain zero occurrences of 'AskUserQuestion' anywhere in its instruction text?",
+      "ac_ref": "AC-DERIVE-7",
+      "check_method": "search plugins/base/commands/retros-derive.md for 'AskUserQuestion' (case-sensitive); the count must be zero; any match is a violation of AC-DERIVE-7",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-008",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/retros-derive.md state that write failures (I/O errors, missing BACKLOG.md, unreadable retro file) are surfaced in the final report, and that the command continues processing remaining retros after a per-file failure rather than halting?",
+      "ac_ref": "AC-DERIVE-8",
+      "check_method": "read plugins/base/commands/retros-derive.md error-handling instruction; verify (a) the three named failure types (I/O error, missing BACKLOG.md, unreadable retro file) or equivalent categories are covered, (b) the continuation-after-failure rule is explicit ('continue', 'do not halt', or equivalent), and (c) the failures are surfaced in the final report",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-009",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/retros-derive.md final report instruction specify all five elements: N retros scanned, M findings processed, K findings skipped (already annotated), decisions applied count, and the path list of retro files that were annotated?",
+      "ac_ref": "AC-DERIVE-9",
+      "check_method": "read plugins/base/commands/retros-derive.md final report section; verify all five elements are named: (1) count of retros scanned, (2) count of findings processed, (3) count of findings skipped with '(already annotated)' or equivalent parenthetical, (4) decisions applied count, (5) path list of annotated retro files",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-010",
+      "type": "BEHAVIORAL",
+      "question": "Does plugins/base/commands/retros-derive.md state the oldest-first sort before the dedup guard check — i.e., is the processing order (sort → iterate → dedup-check → extract findings → invoke curator) consistent throughout the file, with no step that would bypass the sort?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/retros-derive.md in full and map out the processing steps in order; confirm oldest-first sort is the first step before any per-file processing begins, and the dedup guard applies within the per-file loop, not before sorting",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-011",
+      "type": "BEHAVIORAL",
+      "question": "Does plugins/base/commands/retros-derive.md define 'processed last' for files without a 'completed:' field in a way that is deterministic (e.g., alphabetical among the no-date group) rather than leaving the sub-ordering within that group undefined?",
+      "ac_ref": null,
+      "check_method": "read the sort-order section of plugins/base/commands/retros-derive.md; if files without 'completed:' are described as 'processed last', check whether the file specifies a secondary sort key or ordering for that group; if unspecified, flag as an ambiguity",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-012",
+      "type": "CONTRACT",
+      "question": "Does plugins/base/commands/retros-derive.md invoke base:project-curator using language consistent with the CuratorAutonomousContract seam — specifically: does it not describe interactive adjudication, does it reference the decisions output field (not proposals), and does it rely on the curator's own autonomous-mode rules (not add its own override rules)?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/retros-derive.md curator invocation section; confirm (a) no AskUserQuestion or adjudication language, (b) 'decisions' used as output field name (not 'proposals'), and (c) no inline rules that duplicate or contradict the curator's Hard Rules — the command delegates fully to the curator's autonomous contract",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-013",
+      "type": "EDGE_CASE",
+      "question": "Does plugins/base/commands/retros-derive.md explicitly state that the fallback level (level 6) excludes findings nested under '## Discrepancies' headers — a header not mentioned in the spec's main text but added via AC-DERIVE-4 — and not just the two headers mentioned in the spec narrative ('## Project-specific' and '## Routine')?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/retros-derive.md section-matching priority level 6 definition; confirm '## Discrepancies' appears alongside '## Project-specific' and '## Routine' in the exclusion list; its absence would silently include findings that should be excluded",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-014",
+      "type": "EDGE_CASE",
+      "question": "Does plugins/base/commands/retros-derive.md state what happens when a retro file contains no sections matching any of the six priority levels — does it skip the file, report it as having zero findings processed, or take some other defined action?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/retros-derive.md; find any rule covering retro files with no matching sections; if absent, flag as an unhandled edge case that would leave the command's behavior undefined for empty or non-standard retro formats",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-015",
+      "type": "QUALITY",
+      "question": "Is plugins/base/commands/retros-derive.md approximately the specified length (~60 lines) and self-contained — does it avoid duplicating curator rules inline (which would create a maintenance divergence risk) and instead delegate to the curator's own instructions?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/retros-derive.md; estimate line count; confirm the file does not reproduce the curator's Hard Rules, dedup guard pattern, or action schema inline — it should reference or invoke the curator, not re-state its internal rules",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S3-016",
+      "phase": "post-impl",
+      "type": "EDGE_CASE",
+      "question": "Does Step 4b's section-matching priority correctly handle retro files that match multiple priority levels (e.g., a file that has both '## Meta-level findings (raise to user)' AND '## Frictions worth recording')? The instruction says 'Use the first level that yields at least one section' — does this mean only the highest-priority matching section is used, not all of them?",
+      "ac_ref": "AC-DERIVE-4",
+      "check_method": "read Step 4b in plugins/base/commands/retros-derive.md; confirm the 'Use the first level that yields at least one section' rule means exactly one section type is chosen per file, and lower-priority sections in the same file are ignored; this could cause findings to be missed in multi-section retro files",
+      "status": "post_impl"
+    },
+    {
+      "id": "VQ-S3-017",
+      "phase": "post-impl",
+      "type": "EDGE_CASE",
+      "question": "The file is 143 lines — more than twice the ~60 line spec estimate. Does this affect readability or lead to out-of-date maintenance issues, given that the spec's intent was a tightly-scoped command?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/retros-derive.md in full; judge whether the extra length introduces any redundancy or curator-rule duplication that the spec warned against; the core constraint (no inline curator rules) was preserved, so the question is whether the prose elaboration was necessary or over-specified",
+      "status": "post_impl"
+    }
+  ]
+}

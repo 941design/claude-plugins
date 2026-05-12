@@ -1,0 +1,127 @@
+{
+  "story_id": "S2",
+  "authored_by": "story-planner",
+  "authored_at": "2026-05-12T00:00:00Z",
+  "questions": [
+    {
+      "id": "VQ-S2-001",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/feature.md Step 6.3 contain no occurrence of 'AskUserQuestion', and does it instead instruct the lead to read the curator's 'decisions' list and apply each action directly?",
+      "ac_ref": "AC-FEATURE-1",
+      "check_method": "read plugins/base/commands/feature.md and locate Step 6.3; search for 'AskUserQuestion' within that step; also verify the step uses 'decisions' (not 'proposals') and describes direct application (not user-adjudicated acceptance)",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-002",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/feature.md Step 6.3 retain application rules for all nine named action types — append_finding, append_rejection, amend_spec, resolve_finding_via_spec, resolve_finding_mechanical, move_finding_to_archive, promote_to_adr, promote_rejections_to_adr, update_epics_section — and do those rules describe what the curator applies directly (not what the lead does after user approval)?",
+      "ac_ref": "AC-FEATURE-2",
+      "check_method": "read plugins/base/commands/feature.md Step 6.3; verify all nine action type names appear with their mechanics; check that the framing describes curator-applied actions, not lead-mediated actions; no action type from the original per-action list should be missing",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-003",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/feature.md Step 6.3 promote_to_adr application rule include 'proposed' in the Skill invocation — specifically in a form equivalent to Skill(\"base:adr\", args: \"<title> affects:... proposed\") — so that curator-promoted ADRs are scaffolded as Status: Proposed?",
+      "ac_ref": "AC-FEATURE-3",
+      "check_method": "read plugins/base/commands/feature.md Step 6.3 promote_to_adr rule; confirm the word 'proposed' appears as an argument to the base:adr Skill call within that rule",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-004",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/feature.md Step 6.5 report include: stories completed vs escalated, test count, path to retro file (or friction-free note), and curator summary phrased as '<N> decisions applied' — and does the report omit inline finding text?",
+      "ac_ref": "AC-FEATURE-4",
+      "check_method": "read plugins/base/commands/feature.md Step 6.5; verify the four report elements are present; search for 'proposals accepted' or 'proposals declined' — these phrases must be absent; confirm the report does not reproduce finding text inline",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-005",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/feature.md contain no reference to the cap-5 rule — specifically, are phrases such as 'cap-5', 'the curator already deferred lower-signal items', or any quantitative per-run cap absent from both Step 6.3 and Step 6.5?",
+      "ac_ref": "AC-FEATURE-5",
+      "check_method": "search the full text of plugins/base/commands/feature.md for 'cap', 'cap-5', 'deferred lower-signal', 'five proposals', '5 proposals'; confirm zero occurrences in any step",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-006",
+      "type": "SPEC",
+      "question": "Are all planning-phase AskUserQuestion calls in plugins/base/commands/feature.md — specifically: spec validation clarifications (Step 2), RECONCILE adjudication (Step 1.5), Mode 3 story-planner questions, and Step 5 escalation prompts — present and textually unchanged compared to the pre-S2 state?",
+      "ac_ref": "AC-FEATURE-6",
+      "check_method": "read plugins/base/commands/feature.md Steps 1.5, 2, Mode 3, and Step 5; confirm AskUserQuestion appears in each of these planning-phase locations; confirm none of these calls were removed, reworded to remove AskUserQuestion, or moved elsewhere",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-007",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/bug.md Step 4.2b contain no AskUserQuestion call for curator proposal adjudication, and does it cross-reference 'base:feature Step 6.3' (or equivalent) for the per-action application rules?",
+      "ac_ref": "AC-BUG-1",
+      "check_method": "read plugins/base/commands/bug.md Step 4.2b; confirm (a) AskUserQuestion is absent from that step, (b) a cross-reference to feature.md Step 6.3 (or 'base:feature') is present, and (c) the step does not duplicate the per-action rules inline (they should live in feature.md only)",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-008",
+      "type": "SPEC",
+      "question": "Does plugins/base/commands/bug.md Step 4.3 report include: root cause explanation, what was changed, tests added, baseline-to-final test counts, path to retro file (or friction-free note), and curator summary phrased as '<N> decisions applied' — and does the report omit inline finding text?",
+      "ac_ref": "AC-BUG-2",
+      "check_method": "read plugins/base/commands/bug.md Step 4.3; verify all six report elements are present; search for 'proposals accepted' or 'proposals declined' — must be absent; confirm finding text is not reproduced inline",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-009",
+      "type": "BEHAVIORAL",
+      "question": "Are there any AskUserQuestion calls in plugins/base/commands/bug.md that were present before S2 for non-curator-adjudication purposes (e.g., planning-phase clarifications, escalation prompts), and are all such calls preserved unchanged after S2 edits?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/bug.md in full; identify every AskUserQuestion call; confirm that only the curator-adjudication call(s) in Step 4.2b were removed and all others remain; bug.md's planning-phase AskUserQuestion calls must not have been collateral casualties of the S2 edit",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-010",
+      "type": "BEHAVIORAL",
+      "question": "Does plugins/base/commands/feature.md contain the word 'proposals' anywhere in Step 6.3 or Step 6.5 in a context that would instruct the lead to treat curator output as proposals awaiting user approval (i.e., is any 'proposals' zombie text from the pre-S2 wording still present in the wrap-up steps)?",
+      "ac_ref": null,
+      "check_method": "search plugins/base/commands/feature.md Step 6.3 and Step 6.5 for the word 'proposals' (case-insensitive); any match in these steps must be examined to confirm it is not instructing user-adjudicated approval of curator output",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-011",
+      "type": "CONTRACT",
+      "question": "Does plugins/base/commands/bug.md Step 4.2b cross-reference feature.md Step 6.3 specifically (not a generic 'see feature.md' pointer), so that when a reader follows the cross-reference they land on the authoritative apply-decisions rules?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/bug.md Step 4.2b; confirm the cross-reference names 'Step 6.3' (or an equivalent specific anchor) of feature.md / base:feature, not a vague file-level reference; a vague reference would break the architectural Critical Dependency guarantee",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-012",
+      "type": "CONTRACT",
+      "question": "Does plugins/base/commands/feature.md Step 6.3 use the output field name 'decisions' (matching the CuratorDecisionOutput seam contract from S1) rather than 'proposals', ensuring consistent naming across the curator→feature.md seam?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/feature.md Step 6.3; search for 'decisions' and 'proposals' as field names; 'decisions' must be used when referring to the curator output list; 'proposals' must not appear as a field name in this step",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-013",
+      "type": "QUALITY",
+      "question": "After S2 edits, does the overall structure of plugins/base/commands/feature.md Step 6 remain coherent — do Step 6.3 and Step 6.5 refer to each other consistently, and are there no orphaned sub-steps or numbered items that reference the removed AskUserQuestion adjudication flow?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/feature.md Step 6 in full; check for dangling numbered sub-steps, orphaned conditionals (e.g., 'if the user accepts' / 'if declined'), or forward-references to steps that no longer exist; the apply-decisions flow must read cleanly end-to-end",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S2-014",
+      "type": "QUALITY",
+      "phase": "post-impl",
+      "question": "Does the 'no AskUserQuestion' phrase in Step 6.3 line 489 read as a descriptive negation (confirming absence of user interaction) rather than as an erroneous instruction to invoke AskUserQuestion? Is it clear in context that the lead never calls AskUserQuestion in this step?",
+      "ac_ref": "AC-FEATURE-1",
+      "check_method": "read plugins/base/commands/feature.md Step 6.3 opening sentence; confirm the phrase 'no AskUserQuestion, no user confirmation' reads unambiguously as a description of the autonomous-apply contract, not as a tool invocation"
+    },
+    {
+      "id": "VQ-S2-015",
+      "type": "CONTRACT",
+      "phase": "post-impl",
+      "question": "The feature.md Step 6.2b still uses the word 'proposals' in its last sentence (describing curator output field when empty). Does this residual 'proposals' create confusion given the S2 change to 'decisions', or is it clearly scoped to the empty-check condition that now correctly uses 'decisions'?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/feature.md line 487 (the 'If decisions is empty' line); confirm it uses 'decisions' not 'proposals'; verify no 'proposals' zombie text survives in the Step 6.2b → Step 6.3 hand-off prose"
+    }
+  ]
+}

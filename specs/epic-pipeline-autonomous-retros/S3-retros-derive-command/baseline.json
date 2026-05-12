@@ -1,0 +1,13 @@
+{
+  "captured_at": "2026-05-12T00:00:00Z",
+  "git_sha": "b11601f",
+  "test_suite": {
+    "status": "NO_TESTS",
+    "note": "Markdown-only project. Verification is observational: read edited prompts and confirm specified behaviors are expressed correctly."
+  },
+  "files_of_interest": [
+    "plugins/base/commands/feature.md",
+    "plugins/base/commands/bug.md",
+    "plugins/base/agents/project-curator.md"
+  ]
+}

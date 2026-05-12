@@ -1,0 +1,44 @@
+{
+  "story_id": "S4",
+  "status": "complete",
+  "remediation_rounds": 0,
+  "files_created": [
+    "specs/epic-pipeline-autonomous-retros/S4-adr-proposed-status/baseline.json",
+    "specs/epic-pipeline-autonomous-retros/S4-adr-proposed-status/architecture.json",
+    "specs/epic-pipeline-autonomous-retros/S4-adr-proposed-status/result.json"
+  ],
+  "files_modified": [
+    "plugins/base/skills/adr/SKILL.md",
+    "plugins/base/skills/adr/ADR-template.md",
+    "plugins/base/agents/project-curator.md",
+    "specs/epic-pipeline-autonomous-retros/S4-adr-proposed-status/verification.json"
+  ],
+  "implementation_summary": "Added 'proposed' flag support to base:adr skill: updated argument-hint, added proposed argument to Step 3 parse block, added Status conditional to Step 4 substitution list, updated 'No automatic acceptance' note. Updated ADR-template.md Status line with inline comment documenting Proposed as a valid alternative. Completed the promote_to_adr application rule in project-curator.md, replacing the S4 placeholder with the full rule requiring the 'proposed' flag in autonomous invocations. All S1 changes verified intact.",
+  "test_counts": {
+    "baseline": 0,
+    "final": 0,
+    "note": "Markdown-only changes; no executable test suite applicable"
+  },
+  "mocks_introduced": [],
+  "ac_verification": {
+    "AC-ADR-1": "PASS — argument-hint line now includes [proposed]",
+    "AC-ADR-2": "PASS — Step 3 describes proposed => Status: Proposed; manual-note updated to reflect flag handles this case",
+    "AC-ADR-3": "PASS — ADR-template.md Status line carries inline comment listing Proposed as valid alternative",
+    "AC-ADR-4": "PASS — curator promote_to_adr rule states proposed must be passed in autonomous mode; S4 placeholder removed (grep confirms zero matches)"
+  },
+  "s1_integrity_check": {
+    "hard_rule_1_autonomous_writes": "PRESENT",
+    "hard_rule_2_sole_decision_authority": "PRESENT",
+    "no_cap_5_rule": "CONFIRMED ABSENT",
+    "annotate_retro_action": "PRESENT",
+    "dedup_guard": "PRESENT",
+    "plugin_scope_exclusion": "PRESENT",
+    "recurrence_rule": "PRESENT",
+    "frontmatter_tools_write_edit": "PRESENT",
+    "decisions_field_not_proposals": "CONFIRMED"
+  },
+  "retrospective": {
+    "skipped": true,
+    "reason": "clean_run"
+  }
+}

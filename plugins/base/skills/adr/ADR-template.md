@@ -1,6 +1,6 @@
 # ADR-NNN: <Title>
 
-**Status**: Accepted
+**Status**: Accepted  <!-- or: Proposed (when scaffolded via the `proposed` flag or set manually) -->
 **Date**: YYYY-MM-DD
 **Type**: Lightweight
 **Affects**: <comma-separated paths or `project-wide`>

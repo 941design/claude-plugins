@@ -1,0 +1,300 @@
+{
+  "epic_name": "pipeline-autonomous-retros",
+  "created_at": "2026-05-12T00:00:00Z",
+  "total_stories": 4,
+  "story_order": [
+    "S1",
+    "S2",
+    "S3",
+    "S4"
+  ],
+  "dependency_notes": "S1 (Curator refactor) is the foundation: the autonomous curator contract must exist before any other story references it. S2 (Command wrap-up edits) depends on S1 because feature.md Step 6.3 and bug.md Step 4 both call the curator and describe applying its 'decisions' output \u2014 the curator must expose that field and autonomous contract first. S3 (retros-derive command) depends on both S1 (invokes autonomous curator) and S2 (references the same curator contract and per-action rules established there). S4 (ADR proposed-status) depends on S1 because the curator's promote_to_adr operating rule \u2014 which S4 also amends \u2014 must first be written in autonomous form before the 'proposed' flag annotation is added.",
+  "mock_resolution_plan": "No temporary mocks are required. This is a prompt-editing epic; all stories can be verified independently by reading the edited markdown files. S2, S3, and S4 reference the curator contract by prose description rather than by executable import, so no mock of the curator is needed during their implementation.",
+  "seams": [
+    {
+      "data": "Curator decision output (decisions list + annotate_retro action)",
+      "source": {
+        "story": "S1",
+        "artifact": "plugins/base/agents/project-curator.md \u2014 output schema 'decisions' field and 'annotate_retro' action schema"
+      },
+      "intermediaries": [],
+      "destination": {
+        "story": "S2",
+        "artifact": "plugins/base/commands/feature.md Step 6.3 \u2014 applies curator decisions directly"
+      },
+      "contract": {
+        "type_name": "CuratorDecisionOutput",
+        "fields": [
+          {
+            "name": "decisions",
+            "type": "array of action objects"
+          },
+          {
+            "name": "summary",
+            "type": "string \u2014 count of decisions applied"
+          },
+          {
+            "name": "deferred_count",
+            "type": "integer \u2014 always 0 (cap removed)"
+          }
+        ],
+        "invariants": [
+          "decisions field is present (renamed from 'proposals'); 'proposals' field is absent",
+          "deferred_count is always 0; no actions are held back by a per-run cap",
+          "Each decision object includes an action type and sufficient fields for the lead to apply it without further user input",
+          "annotate_retro action is present in the action schema with fields: retro_path, finding_anchor, disposition"
+        ]
+      }
+    },
+    {
+      "data": "Curator autonomous contract consumed by retros-derive",
+      "source": {
+        "story": "S1",
+        "artifact": "plugins/base/agents/project-curator.md \u2014 autonomous mode rules (Hard Rules 1-2 rewritten, dedup guard, plugin-scope exclusion, recurrence)"
+      },
+      "intermediaries": [],
+      "destination": {
+        "story": "S3",
+        "artifact": "plugins/base/commands/retros-derive.md \u2014 invokes base:project-curator autonomously against claude-plugins BACKLOG.md"
+      },
+      "contract": {
+        "type_name": "CuratorAutonomousContract",
+        "fields": [
+          {
+            "name": "autonomous_mode",
+            "type": "boolean \u2014 curator writes files without AskUserQuestion"
+          },
+          {
+            "name": "dedup_guard",
+            "type": "string pattern \u2014 '_Curator: .*_' skips already-annotated findings"
+          },
+          {
+            "name": "plugin_scope_exclusion",
+            "type": "token list \u2014 triggers DEFERRED disposition"
+          },
+          {
+            "name": "recurrence_rule",
+            "type": "prose \u2014 append recurrence line instead of new bullet"
+          }
+        ],
+        "invariants": [
+          "Curator never emits AskUserQuestion when applying decisions",
+          "Any finding already containing '_Curator: .*_' is skipped without modification",
+          "Finding with scope:meta and plugin-scope token is annotated DEFERRED and not appended to consumer BACKLOG.md",
+          "Duplicate finding increments recurrence counter on existing bullet rather than creating a new bullet"
+        ]
+      }
+    },
+    {
+      "data": "ADR proposed flag \u2014 curator promote_to_adr to ADR skill",
+      "source": {
+        "story": "S4",
+        "artifact": "plugins/base/skills/adr/SKILL.md \u2014 proposed flag"
+      },
+      "intermediaries": [],
+      "destination": {
+        "story": "S1",
+        "artifact": "plugins/base/agents/project-curator.md \u2014 promote_to_adr operating rule passes 'proposed'"
+      },
+      "contract": {
+        "type_name": "AdrProposedFlag",
+        "fields": [
+          {
+            "name": "flag_token",
+            "type": "string literal 'proposed'"
+          },
+          {
+            "name": "resulting_status",
+            "type": "string literal 'Status: Proposed'"
+          }
+        ],
+        "invariants": [
+          "When 'proposed' is passed to base:adr, the scaffolded ADR has Status: Proposed not Status: Accepted",
+          "Omitting 'proposed' yields Status: Accepted (existing default unchanged)"
+        ]
+      }
+    }
+  ],
+  "stories": [
+    {
+      "id": "S1",
+      "name": "curator-refactor",
+      "title": "Curator autonomous mode refactor",
+      "description": "Rewrite plugins/base/agents/project-curator.md to operate autonomously: replace Hard Rules 1-2 to permit direct file writes and remove AskUserQuestion from the decision path; remove the cap-5 Hard Rule 3; add the annotate_retro action schema; add the dedup guard (_Curator: .*_ skips findings); add the plugin-scope exclusion heuristic (DEFERRED disposition); add the recurrence rule (increment existing bullet rather than appending new); rename the output schema field from 'proposals' to 'decisions'; set deferred_count to always-0; add Write and Edit to the frontmatter tools list. This is the foundational change on which all other stories depend.",
+      "owning_module": "Curator agent",
+      "acceptance_criteria": [
+        "AC-CURATOR-1",
+        "AC-CURATOR-2",
+        "AC-CURATOR-3",
+        "AC-CURATOR-4",
+        "AC-CURATOR-5",
+        "AC-CURATOR-6",
+        "AC-CURATOR-7",
+        "AC-CURATOR-8",
+        "AC-CURATOR-9"
+      ],
+      "scope": {
+        "includes": [
+          "Hard Rule 1 \u2014 rewrite to permit autonomous file writes",
+          "Hard Rule 2 \u2014 rewrite to establish curator as sole decision authority, remove AskUserQuestion",
+          "Hard Rule 3 \u2014 remove cap-5 limit entirely",
+          "Action schema \u2014 add annotate_retro with retro_path, finding_anchor, disposition fields",
+          "Dedup guard rule \u2014 skip findings already containing '_Curator: .*_' line",
+          "Plugin-scope exclusion rule \u2014 DEFERRED disposition for meta findings with base-plugin tokens",
+          "Recurrence rule \u2014 append recurrence line to existing bullet, annotate as DUPLICATE",
+          "Output schema \u2014 rename 'proposals' to 'decisions'; deferred_count always 0",
+          "Frontmatter tools \u2014 add Write and Edit"
+        ],
+        "excludes": [
+          "promote_to_adr 'proposed' flag annotation (S4 responsibility)",
+          "feature.md and bug.md changes (S2 responsibility)",
+          "retros-derive.md creation (S3 responsibility)"
+        ]
+      },
+      "complexity": "high",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "done",
+      "story_order": 1,
+      "dependencies": [],
+      "creates_seam": true,
+      "consumes_seams": [],
+      "notes": "This story creates two seams: CuratorDecisionOutput (consumed by S2) and CuratorAutonomousContract (consumed by S3). It also consumes the AdrProposedFlag seam from S4 for the promote_to_adr operating rule \u2014 implement that rule's 'proposed' annotation after S4 is implemented, or document it as a placeholder referencing AC-ADR-4 and AC-FEATURE-3."
+    },
+    {
+      "id": "S2",
+      "name": "command-wrapup-edits",
+      "title": "Command wrap-up edits (feature.md + bug.md)",
+      "description": "Edit plugins/base/commands/feature.md Step 6.3 and Step 6.5, and plugins/base/commands/bug.md Step 4, to replace interactive curator-proposal adjudication with direct decision application. feature.md Step 6.3 becomes the authoritative 'apply decisions' section (per-action rules verbatim, no AskUserQuestion, promote_to_adr passes 'proposed'). Step 6.5 report shrinks to file-path + counts. bug.md Step 4.2b cross-references feature.md Step 6.3 for the apply-decisions rules and removes AskUserQuestion; Step 4.3 report uses 'N decisions applied'. All planning-phase AskUserQuestion calls in both files are preserved unchanged.",
+      "owning_module": "Feature command",
+      "acceptance_criteria": [
+        "AC-FEATURE-1",
+        "AC-FEATURE-2",
+        "AC-FEATURE-3",
+        "AC-FEATURE-4",
+        "AC-FEATURE-5",
+        "AC-FEATURE-6",
+        "AC-BUG-1",
+        "AC-BUG-2"
+      ],
+      "scope": {
+        "includes": [
+          "feature.md Step 6.3 \u2014 rewrite from AskUserQuestion adjudication to apply-decisions",
+          "feature.md Step 6.3 \u2014 per-action rules preserved verbatim (append_finding, append_rejection, amend_spec, resolve_finding_via_spec, resolve_finding_mechanical, move_finding_to_archive, promote_to_adr, promote_rejections_to_adr, update_epics_section)",
+          "feature.md Step 6.3 \u2014 promote_to_adr rule adds 'proposed' to Skill invocation",
+          "feature.md Step 6.5 \u2014 report shrinks to file-path + counts + curator summary as '<N> decisions applied'",
+          "feature.md Step 6.3 and Step 6.5 \u2014 remove all cap-5 references",
+          "feature.md \u2014 all planning-phase AskUserQuestion calls (Step 1.5, Step 2, Mode 3, Step 5 escalation) preserved",
+          "bug.md Step 4.2b \u2014 remove AskUserQuestion, cross-reference feature.md Step 6.3 for apply-decisions rules",
+          "bug.md Step 4.3 \u2014 report uses '<N> decisions applied', no inline finding text"
+        ],
+        "excludes": [
+          "project-curator.md changes (S1 responsibility)",
+          "retros-derive.md creation (S3 responsibility)",
+          "adr/SKILL.md and ADR-template.md changes (S4 responsibility)"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "done",
+      "story_order": 2,
+      "dependencies": [
+        "S1"
+      ],
+      "creates_seam": false,
+      "consumes_seams": [
+        "CuratorDecisionOutput"
+      ],
+      "notes": "bug.md Step 4 cross-references feature.md Step 6.3 per the architecture's Critical Dependency note. Both files must be updated atomically: bug.md's cross-reference points to the new apply-decisions text. Implementer must read both files fully before editing to preserve planning-phase AskUserQuestion calls exactly. The Bug command module owns bug.md; this story spans two modules (Feature command + Bug command) because the cross-reference constraint means they must change together. Architecture explicitly calls this out as the cleanest approach."
+    },
+    {
+      "id": "S3",
+      "name": "retros-derive-command",
+      "title": "New /base:retros-derive command",
+      "description": "Create plugins/base/commands/retros-derive.md from scratch (~60 lines). The command globs ${CLAUDE_PLUGIN_DATA}/retros/<plugin-slug>/*.md, processes retro files oldest-first (sorted by completed: YAML frontmatter, files without the field processed last), applies section-matching priority to extract meta findings, skips findings already carrying a '_Curator: .*_' line, invokes base:project-curator in autonomous mode against this repo's (claude-plugins) BACKLOG.md, surfaces write failures per-file without halting, and emits a final report (N retros scanned, M findings processed, K skipped, decisions applied, annotated file paths). No AskUserQuestion anywhere in the instruction text.",
+      "owning_module": "Retros-derive command",
+      "acceptance_criteria": [
+        "AC-DERIVE-1",
+        "AC-DERIVE-2",
+        "AC-DERIVE-3",
+        "AC-DERIVE-4",
+        "AC-DERIVE-5",
+        "AC-DERIVE-6",
+        "AC-DERIVE-7",
+        "AC-DERIVE-8",
+        "AC-DERIVE-9"
+      ],
+      "scope": {
+        "includes": [
+          "Create plugins/base/commands/retros-derive.md (new file)",
+          "Frontmatter or opening section identifying this as a lead-executed command (no outer-loop subagent)",
+          "Glob pattern: ${CLAUDE_PLUGIN_DATA}/retros/<plugin-slug>/*.md",
+          "Oldest-first sort by completed: YAML field; files without it processed last",
+          "Section-matching priority (6 levels per AC-DERIVE-4)",
+          "Dedup guard: skip findings with '_Curator: .*_' line",
+          "base:project-curator invocation with claude-plugins repo context and BACKLOG.md target",
+          "Per-file error handling: continue after failure, surface in final report",
+          "Final report: N scanned, M processed, K skipped, decisions applied, annotated file paths"
+        ],
+        "excludes": [
+          "project-curator.md changes (S1 responsibility)",
+          "feature.md or bug.md changes (S2 responsibility)",
+          "adr/ changes (S4 responsibility)"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "done",
+      "story_order": 3,
+      "dependencies": [
+        "S1",
+        "S2"
+      ],
+      "creates_seam": false,
+      "consumes_seams": [
+        "CuratorAutonomousContract"
+      ],
+      "notes": "Depends on S2 because the command references the same curator contract; the dependency on S2 is softer than on S1 \u2014 S2 establishes that the curator apply-decisions pattern is wired into the pipeline, while S1 establishes the autonomous contract itself. The section-matching priority fallback (level 6) excludes '## Project-specific', '## Routine', and '## Discrepancies' headers \u2014 spec mentions first two explicitly; '## Discrepancies' is added from AC-DERIVE-4 text."
+    },
+    {
+      "id": "S4",
+      "name": "adr-proposed-status",
+      "title": "ADR proposed-status support",
+      "description": "Edit plugins/base/skills/adr/SKILL.md to document the 'proposed' argument flag (update the argument hint line to include [proposed]; state that when passed, the scaffolded ADR has Status: Proposed instead of Status: Accepted; update or remove the manual-status-change note). Edit plugins/base/skills/adr/ADR-template.md to document Status: Proposed as a valid non-default value on the Status line. Edit plugins/base/agents/project-curator.md to add (or complete) the promote_to_adr operating rule stating the curator passes 'proposed' to the base:adr Skill invocation.",
+      "owning_module": "ADR skill",
+      "acceptance_criteria": [
+        "AC-ADR-1",
+        "AC-ADR-2",
+        "AC-ADR-3",
+        "AC-ADR-4"
+      ],
+      "scope": {
+        "includes": [
+          "plugins/base/skills/adr/SKILL.md \u2014 [proposed] flag in argument hint line",
+          "plugins/base/skills/adr/SKILL.md \u2014 Status: Proposed behavior when flag is passed",
+          "plugins/base/skills/adr/SKILL.md \u2014 update or remove manual-status-change note",
+          "plugins/base/skills/adr/ADR-template.md \u2014 document Status: Proposed as valid non-default on Status line",
+          "plugins/base/agents/project-curator.md \u2014 promote_to_adr operating rule: curator passes 'proposed' to Skill invocation"
+        ],
+        "excludes": [
+          "feature.md Step 6.3 promote_to_adr application rule (S2 responsibility)",
+          "retros-derive.md (S3 responsibility)",
+          "Other curator rule changes (S1 responsibility)"
+        ]
+      },
+      "complexity": "low",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "done",
+      "story_order": 4,
+      "dependencies": [
+        "S1"
+      ],
+      "creates_seam": true,
+      "consumes_seams": [],
+      "notes": "AC-ADR-4 touches project-curator.md which is also modified by S1. S4 implementer must read the S1-completed curator file before editing to avoid clobbering S1 changes. The promote_to_adr operating rule may be scaffolded as a placeholder in S1 (with a TODO referencing AC-ADR-4) and completed in S4. The AdrProposedFlag seam contract is defined in the top-level seams array; S4 is the producing story and S1 consumes it for the curator promote_to_adr rule."
+    }
+  ]
+}

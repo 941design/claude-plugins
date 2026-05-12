@@ -1,0 +1,32 @@
+{
+  "module_name": "adr-proposed-status",
+  "purpose": "Add 'proposed' flag support to the base:adr skill so the curator can autonomously scaffold ADRs with Status: Proposed pending user review, completing the promote_to_adr seam contract.",
+  "public_api": [
+    {
+      "name": "proposed flag (base:adr)",
+      "signature": "Skill(\"base:adr\", args: \"<title> [affects:...] [supersedes:ADR-NNN] [from-archive:...] [proposed]\")",
+      "description": "When 'proposed' is included in args, the scaffolded ADR has Status: Proposed instead of Status: Accepted."
+    }
+  ],
+  "private_files": [],
+  "owned_data": [],
+  "dependencies_allowed": [
+    "plugins/base/skills/adr/SKILL.md",
+    "plugins/base/skills/adr/ADR-template.md",
+    "plugins/base/agents/project-curator.md"
+  ],
+  "dependencies_forbidden": [],
+  "external_ports": [],
+  "events_emitted": [],
+  "events_consumed": [],
+  "test_targets": [
+    "VQ-S4-001: argument hint includes [proposed]",
+    "VQ-S4-002: proposed flag => Status: Proposed; manual note updated",
+    "VQ-S4-003: ADR-template.md Status line documents Proposed as valid alternative",
+    "VQ-S4-004: curator promote_to_adr rule passes proposed; S4 placeholder removed",
+    "VQ-S4-005: omitting proposed still yields Status: Accepted",
+    "VQ-S4-006: all S1 changes intact in project-curator.md",
+    "VQ-S4-007: consistent proposed semantics across all three files",
+    "VQ-S4-008: feature.md and curator both pass proposed (feature.md already done in S2)"
+  ]
+}

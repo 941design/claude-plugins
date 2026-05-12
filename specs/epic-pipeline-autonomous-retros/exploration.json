@@ -1,0 +1,55 @@
+{
+  "created_at": "2026-05-12T00:00:00Z",
+  "focus_similar_features": {
+    "curator_output_contract": {
+      "file": "plugins/base/agents/project-curator.md",
+      "allowed_tools_line": 11,
+      "current_tools": "Read, Grep, Glob, Bash",
+      "output_schema": {
+        "proposals": "array of action objects",
+        "deferred_count": "integer, required, always emitted (0 when empty)",
+        "summary": "≤2 sentence string"
+      },
+      "action_types": [
+        "append_finding", "append_rejection", "amend_spec",
+        "resolve_finding_via_spec", "resolve_finding_mechanical",
+        "move_finding_to_archive", "promote_to_adr",
+        "promote_rejections_to_adr", "update_epics_section"
+      ],
+      "cap5_location": "Hard Rule 3 (lines 28-29)"
+    },
+    "adr_skill": {
+      "file": "plugins/base/skills/adr/SKILL.md",
+      "current_argument_hint": "<title> [affects:<comma-separated-paths>] [supersedes:ADR-NNN] [from-archive:<comma-separated-archive-markers>]",
+      "status_proposed_note": "Lines 124-128: user edits Status manually; no proposed flag exists",
+      "template_status_line": "ADR-template.md line 3: **Status**: Accepted",
+      "proposed_support": false
+    }
+  },
+  "focus_architecture": {
+    "feature_md_step6": {
+      "file": "plugins/base/commands/feature.md",
+      "step6_range": "459-511",
+      "askuserquestion_location": "line 489",
+      "per_action_map_lines": "491-499",
+      "cap5_reference": "line 501: 'the curator already deferred lower-signal items per its cap-5 rule'",
+      "report_bullets": ["Stories completed vs escalated", "Test count (baseline → final)", "Path to retro file", "Curator summary: <N> proposals accepted, <M> declined", "Any issues that need attention"]
+    },
+    "bug_md_step4": {
+      "file": "plugins/base/commands/bug.md",
+      "step4_range": "302-346",
+      "askuserquestion_location": "line 337",
+      "cross_reference_note": "bug.md delegates per-action application rules entirely to feature.md Step 6.3",
+      "report_bullets": ["root cause explanation", "what was changed", "tests added", "baseline → final test counts", "path to retro file", "curator summary: <N> proposals accepted, <M> declined"]
+    },
+    "key_insight": "bug.md Step 4 cross-references feature.md Step 6.3 for ALL per-action rules; changing feature.md is load-bearing for bug.md"
+  },
+  "synthesizer_status": {
+    "retro_synthesizer": "ALREADY HAS Meta-vs-Project partition (Hard Rules 4-5). No changes needed.",
+    "bug_retro_synthesizer": "ALREADY HAS Meta-vs-Project partition. No changes needed.",
+    "s1_original_status": "DONE — partition already implemented"
+  },
+  "frontmatter_convention": {
+    "note": "Agent files use 'tools:' key; skill files use 'allowed-tools:' key. Both coexist in the plugin."
+  }
+}

@@ -484,9 +484,9 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
      - `docs/adr/` listing — `ls docs/adr/*.md 2>/dev/null` (titles only, not bodies).
      - Project provenance JSON (same fields as 2a).
 
-     The curator returns a JSON object inside `---CURATOR_OUTPUT---` / `---END_CURATOR_OUTPUT---` markers (schema in `plugins/base/agents/project-curator.md`). If `proposals` is empty, skip step 2c entirely.
+     The curator returns a JSON object inside `---CURATOR_OUTPUT---` / `---END_CURATOR_OUTPUT---` markers (schema in `plugins/base/agents/project-curator.md`). If `decisions` is empty, skip step 3 entirely.
 
-3. **Adjudicate curator proposals.** For each proposal in the curator's return, present it to the user via `AskUserQuestion`. Batch related proposals into one prompt where possible (e.g. all `append_finding` proposals as one multi-question; never collapse a `promote_to_adr` with a `append_finding` — they require different decisions). For each accepted proposal, the lead applies it directly:
+3. **Apply curator decisions.** Read the curator's `decisions` array from the `---CURATOR_OUTPUT---` block. Apply each decision directly in sequence — no AskUserQuestion, no user confirmation. The lead applies each action using the per-action rules below:
 
      - **`append_finding`** → append the formatted bullet to `BACKLOG.md ## Findings` (use the format documented in `plugins/base/skills/backlog/references/format.md`).
      - **`append_rejection`** → append the bullet to `BACKLOG.md ## Archive` in the canonical format `- YYYY-MM-DD — <text> — <rejection_reason>` (no `[rejected]` prefix; the section header conveys that). See `plugins/base/skills/backlog/references/format.md`.
@@ -494,11 +494,10 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
      - **`resolve_finding_via_spec`** → apply the AC patch + append to `## Amendments` (same as `amend_spec`) AND remove the source bullet from `BACKLOG.md ## Findings` matched by `finding_marker`. The amendment entry must cite the resolved finding's text. All three edits are one transactional unit; if any fails, surface the failure rather than partially applying.
      - **`resolve_finding_mechanical`** → remove the source bullet from `BACKLOG.md ## Findings` matched by `finding_marker`. No spec change, no archive entry. The `evidence_commit` is for audit only — do not write it anywhere; git is the record.
      - **`move_finding_to_archive`** → remove the source bullet from `BACKLOG.md ## Findings` AND append a bullet to `## Archive` in the canonical format `- YYYY-MM-DD — <text> — <rejection_reason>` (no `[rejected]` prefix). One transactional unit.
-     - **`promote_to_adr`** → invoke `Skill("base:adr", args: "<title> affects:<comma-separated-paths> [supersedes:ADR-NNN]")` using the proposal's `affects` list. The skill scaffolds the file AND appends a `## Constrained by ADRs` pointer to each affected spec automatically (see `base:adr` SKILL.md). The lead does NOT fill in ADR content — that's the user's job in a follow-up session.
+     - **`promote_to_adr`** → invoke `Skill("base:adr", args: "<title> affects:<comma-separated-paths> proposed [supersedes:ADR-NNN]")` using the decision's `affects` list. The `proposed` flag causes the ADR to be scaffolded as `Status: Proposed`. The skill also appends a `## Constrained by ADRs` pointer to each affected spec automatically (see `base:adr` SKILL.md). The lead does NOT fill in ADR content — that's the user's job in a follow-up session.
      - **`promote_rejections_to_adr`** → invoke `Skill("base:adr", args: "<title> from-archive:<comma-joined-archive_markers>")` passing **all** of the curator's `archive_markers` (the skill matches each marker independently and embeds every matched archive entry verbatim under the new ADR's `## Context` so the cluster's full evidence is preserved). After the ADR is created, append `[→ ADR-NNN]` to each matched archive entry in `BACKLOG.md`.
      - **`update_epics_section`** → apply the diff to `BACKLOG.md ## Epics`.
-
-   Rejected proposals are dropped silently (the curator already deferred lower-signal items per its cap-5 rule). Do not argue with the user.
+     - **`annotate_retro`** → edit the retro file at `retro_path`, locate the `finding_anchor` text, and append `_Curator: YYYY-MM-DD → <disposition>_` on the line immediately following it. If the annotation is already present (idempotency guard: check for `_Curator:` suffix on a line near the anchor), skip silently.
 
 4. Clean up the team.
 
@@ -506,7 +505,7 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
    - Stories completed vs escalated.
    - Test count (baseline → final).
    - Path to the retrospective file (if one was written), or note that the run was friction-free and no retro was emitted.
-   - Curator summary: `<N> proposals accepted, <M> declined` (omit the line entirely if the curator returned zero proposals).
+   - Curator summary: `<N> decisions applied` (omit the line entirely if the curator returned zero decisions).
    - Any issues that need attention.
 
 ---

@@ -1,0 +1,280 @@
+{
+  "story_id": "S1",
+  "story_title": "curator-refactor",
+  "examined_at": "2026-05-12T00:00:00Z",
+  "examined_by": "verification-examiner",
+  "target_file": "/Users/mrother/Projects/941design/claude-plugins/plugins/base/agents/project-curator.md",
+  "phase": "post-impl",
+  "overall_result": "YES",
+  "summary": "All 15 specification questions pass. The curator-refactor is complete and internally consistent. Hard Rules 1-2 establish autonomous write authority and sole decision-making. cap-5 rule is entirely removed. All action schemas (including annotate_retro) are correctly defined with required fields and annotation format. Dedup guard, plugin-scope exclusion, and recurrence rules are documented with matching regex patterns. Output schema uses 'decisions' field (not 'proposals'). No AskUserQuestion references. No zombie text from removed rules. Post-impl checks confirm 'propose' is scoped to internal action-selection, and amend_spec audit-trail delegation remains correctly delegated to the lead.",
+  "results": [
+    {
+      "id": "VQ-S1-001",
+      "question": "Does plugins/base/agents/project-curator.md Hard Rule 1 no longer contain the phrase 'you never write files' (or any semantically equivalent prohibition on file writes), and instead contain language permitting the curator to write files autonomously when applying decisions?",
+      "ac_ref": "AC-CURATOR-1",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Hard Rule 1 (lines 21-24) affirms autonomous write capability using Edit and Write tools directly. No prohibition on file writes. Explicitly rejects proposal-list return pattern.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:21-24"
+      ]
+    },
+    {
+      "id": "VQ-S1-002",
+      "question": "Does plugins/base/agents/project-curator.md Hard Rule 2 no longer contain the phrase 'you propose; the user disposes' (or any equivalent phrase placing disposal authority with the user), and does it instead establish the curator as the sole decision-authority that applies actions directly without AskUserQuestion?",
+      "ac_ref": "AC-CURATOR-2",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Hard Rule 2 (lines 25-30) establishes curator as sole decision authority with direct application. No 'propose' or 'user disposes' framing. No AskUserQuestion reference. Transparency via 'reason' field is mandatory.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:25-30"
+      ]
+    },
+    {
+      "id": "VQ-S1-003",
+      "question": "Does plugins/base/agents/project-curator.md contain no rule that limits the number of actions the curator may take per run (i.e., is Hard Rule 3 / cap-5 entirely absent from the file)?",
+      "ac_ref": "AC-CURATOR-3",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Old Hard Rule 3 (cap-5) is completely removed. New Hard Rule 3 addresses 'Negative-space bias' (distinct concept). Line 86 confirms: 'there is no cap on decisions per run, so nothing is ever deferred.' No action-count limit rules present.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:31-45",
+        "plugins/base/agents/project-curator.md:85-86"
+      ]
+    },
+    {
+      "id": "VQ-S1-004",
+      "question": "Does plugins/base/agents/project-curator.md action-schema section define an annotate_retro action with all three required fields — retro_path, finding_anchor, and disposition — and does the disposition field enumerate the literal strings: BACKLOG#<marker>, DUPLICATE of finding-<marker> (recurrence ×N), ADR-NNN, ARCHIVE, NO_ACTION <reason>, DEFERRED to /base:retros-derive? Does it also state the written annotation is the italic line '_Curator: YYYY-MM-DD → <disposition>_' appended under the finding's '**Suggested change**:' line?",
+      "ac_ref": "AC-CURATOR-4",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "annotate_retro action fully defined (lines 344-367). Three fields present: retro_path, finding_anchor, disposition. All six disposition strings enumerated. Annotation format '_Curator: YYYY-MM-DD → <disposition>_' stated with placement rule (under **Suggested change**: line).",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:344-367"
+      ]
+    },
+    {
+      "id": "VQ-S1-005",
+      "question": "Does plugins/base/agents/project-curator.md state a dedup guard rule that the curator skips any finding block whose text already contains a line matching '_Curator: .*_', and is this rule identified as enabling idempotent re-runs?",
+      "ac_ref": "AC-CURATOR-5",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Dedup guard documented (lines 406-410). Pattern '_Curator: .*_' stated explicitly. Consequence is 'skip the finding entirely'. Rule explicitly enables 'idempotent re-runs'. Pattern matches the italic markdown annotation format (line 363).",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:406-410",
+        "plugins/base/agents/project-curator.md:363"
+      ]
+    },
+    {
+      "id": "VQ-S1-006",
+      "question": "Does plugins/base/agents/project-curator.md state the plugin-scope exclusion rule — that when a finding has scope:meta AND its '**Suggested change**:' text contains any of the enumerated plugin-scope tokens (plugins/base/, `base:`, /base:, integration-architect, code-explorer, story-planner, spec-validator, verification-examiner, pbt-dev, retro-synthesizer, bug-retro-synthesizer, project-curator, feature.md, bug.md, retros-derive, result.json, epic-state.json, stories.json, verification.json), the curator annotates it 'DEFERRED to /base:retros-derive' and does not append any finding to the consumer BACKLOG.md?",
+      "ac_ref": "AC-CURATOR-6",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Plugin-scope exclusion rule fully documented (lines 411-421). Two-condition trigger (scope:meta AND token match). All 19 required tokens enumerated. Disposition 'DEFERRED to /base:retros-derive' stated. No consumer BACKLOG.md append for these findings.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:411-421"
+      ]
+    },
+    {
+      "id": "VQ-S1-007",
+      "question": "Does plugins/base/agents/project-curator.md state the recurrence rule — that when the curator would file a new finding whose normalized target token matches an existing Findings bullet in BACKLOG.md, it instead (a) appends a recurrence line (e.g. 'recurred ×N (date)') to the existing bullet and (b) annotates the retro finding as 'DUPLICATE of finding-<marker> (recurrence ×N)', without creating a new bullet?",
+      "ac_ref": "AC-CURATOR-7",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Recurrence rule documented (lines 422-429). Trigger: normalized target match in existing ## Findings bullet. Two-part consequence: (a) append 'recurred ×N (YYYY-MM-DD)' to existing bullet, (b) annotate as 'DUPLICATE of finding-<marker> (recurrence ×N)'. Constraint: no new bullet created.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:422-429"
+      ]
+    },
+    {
+      "id": "VQ-S1-008",
+      "question": "Does plugins/base/agents/project-curator.md frontmatter tools: field include both Write and Edit in addition to the existing Read, Grep, Glob, Bash tools?",
+      "ac_ref": "AC-CURATOR-8",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Frontmatter tools field (line 12) lists: 'Read, Grep, Glob, Bash, Write, Edit'. All pre-existing tools retained. Write and Edit both present.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:12"
+      ]
+    },
+    {
+      "id": "VQ-S1-009",
+      "question": "Does plugins/base/agents/project-curator.md output schema use the field name 'decisions' (not 'proposals'), does it retain a 'deferred_count' field whose description states it is always 0, and does the 'summary' field remain and describe the count of decisions applied?",
+      "ac_ref": "AC-CURATOR-9",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Output schema uses 'decisions' field as array (line 76). 'proposals' field completely absent from file. 'deferred_count' present with value 0 (lines 79, 92). Explanation: 'always 0 — there is no cap on decisions per run, so nothing is ever deferred' (lines 85-86). 'summary' field describes applied decisions (e.g., '3 decisions applied: one new finding, one retro annotation, one ADR candidate.').",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:75-81",
+        "plugins/base/agents/project-curator.md:85-86",
+        "plugins/base/agents/project-curator.md:92"
+      ]
+    },
+    {
+      "id": "VQ-S1-010",
+      "question": "Does plugins/base/agents/project-curator.md contain any AskUserQuestion reference in a context that would trigger during the decision-application phase (i.e., after the curator has assembled its decisions list)? Any such reference in the application phase would violate the autonomous-mode contract.",
+      "ac_ref": null,
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Full file grep confirms zero AskUserQuestion references. Therefore, none in decision-application phase. Autonomous-mode contract maintained.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md"
+      ]
+    },
+    {
+      "id": "VQ-S1-011",
+      "question": "Does plugins/base/agents/project-curator.md still contain the phrase 'cap-5', '5 proposals', 'cap five', or any phrasing from the removed Hard Rule 3 as zombie text in other sections (e.g., in output schema descriptions, operating notes, or examples)?",
+      "ac_ref": null,
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Grep results show no 'cap-5', '5 proposals', 'cap five', '5 proposal', or 'deferred lower-signal' zombie text. Line 86 'there is no cap on decisions per run' is descriptive (not zombie). Line 171, 229 'propose' and line 284 'proposed' are internal action-selection and ADR-skill contexts, not zombie. File is clean of removed-rule artifacts.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md"
+      ]
+    },
+    {
+      "id": "VQ-S1-012",
+      "question": "Is the dedup guard pattern stated as '_Curator: .*_' (matching the italic markdown format) rather than a plain-text pattern that would fail to match the italic annotation format that annotate_retro writes?",
+      "ac_ref": null,
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Annotation format (line 363): '_Curator: YYYY-MM-DD → <disposition>_'. Guard pattern (line 408): '_Curator: .*_'. Both use underscore-delimited italic markdown. Pattern is regex-compatible and matches written format. Idempotent re-runs are guaranteed.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:363",
+        "plugins/base/agents/project-curator.md:408"
+      ]
+    },
+    {
+      "id": "VQ-S1-013",
+      "question": "Does plugins/base/agents/project-curator.md output schema present the 'decisions' field as an array of action objects (not a scalar), does it omit the 'proposals' field entirely, and is there no text in the file that would cause a downstream consumer (feature.md Step 6.3) to expect a 'proposals' field instead of 'decisions'?",
+      "ac_ref": null,
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Output schema (line 76) defines 'decisions' as array: '\"decisions\": [...]'. 'proposals' field completely absent from entire file. No text suggests downstream should expect 'proposals' field. Contract is clear and unambiguous.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:75-81"
+      ]
+    },
+    {
+      "id": "VQ-S1-014",
+      "question": "Does plugins/base/agents/project-curator.md either include a promote_to_adr operating rule that passes 'proposed' to the base:adr Skill invocation, or contain a clearly marked placeholder (e.g., a TODO or AC-ADR-4 reference) indicating this rule is to be completed in S4?",
+      "ac_ref": null,
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Application note (lines 282-288) documents promote_to_adr with 'proposed' flag. Clearly marked as 'S4 — AC-ADR-4'. States curator will invoke Skill(\"base:adr\", args: \"<title> proposed\"). Until S4, lead scaffolds manually. Seam is documented and cross-referenced correctly.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:282-288"
+      ]
+    },
+    {
+      "id": "VQ-S1-015",
+      "question": "After the S1 edits, does plugins/base/agents/project-curator.md read as a coherent, self-consistent document — specifically: do all internal cross-references within the file (e.g., references to Hard Rule numbers, output field names, action type names) remain consistent with the edited content, with no dangling references to removed rules or renamed fields?",
+      "ac_ref": null,
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Full file review confirms internal consistency. Hard Rule numbering (1-5) consistent. All action types in schema match references in operating notes. Field names ('decisions', 'deferred_count', 'summary') consistent throughout. No dangling references to old cap-5 rule or Hard Rule 3 (as old rule). All cross-references to feature.md Step 6.3, bug.md Step 4, and S4/AC-ADR-4 are valid. Document is coherent and self-consistent.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md"
+      ]
+    },
+    {
+      "id": "VQ-S1-PI-001",
+      "phase": "post-impl",
+      "question": "Does plugins/base/agents/project-curator.md resolve_finding_mechanical eligibility still say 'propose resolve_finding_via_spec instead' (a carry-over of propose-language in an internal-logic context), and if so, is this intentional as internal-selector language rather than output-field language — i.e., the word 'propose' here means 'select this action type', not 'emit a proposal object'?",
+      "ac_ref": null,
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Line 229 'propose `resolve_finding_via_spec` instead' is scoped to eligibility rules for internal action-selection. Word 'propose' here means 'select this action type for this decision', not 'emit a proposals output object'. Context is clearly distinct from the output contract. No misreading risk.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:229"
+      ]
+    },
+    {
+      "id": "VQ-S1-PI-002",
+      "phase": "post-impl",
+      "question": "Does the amend_spec action still reference 'the lead's application rule (feature.md Step 6.3 / bug.md Step 4)' for appending the audit-trail entry in spec.md ## Amendments — and is this cross-reference still accurate after the curator became autonomous (i.e., does the curator apply the AC patch itself, or does it still delegate the Amendments entry to the lead)?",
+      "ac_ref": null,
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "remediation_complexity": "na",
+      "root_cause_category": "not_applicable",
+      "summary": "Lines 174-181 document amend_spec action. States: 'The audit-trail entry in spec.md ## Amendments is appended by the lead's application rule (feature.md Step 6.3 / bug.md Step 4).' Curator applies spec patch (AC text); lead (or curator under lead's instruction) handles Amendments entry. Cross-reference remains accurate. Audit-trail delegation is intentional and correct per AC-FEATURE-2 and AC-BUG-1.",
+      "evidence_files": [
+        "plugins/base/agents/project-curator.md:174-181"
+      ]
+    }
+  ],
+  "ac_coverage": {
+    "AC-CURATOR-1": "YES",
+    "AC-CURATOR-2": "YES",
+    "AC-CURATOR-3": "YES",
+    "AC-CURATOR-4": "YES",
+    "AC-CURATOR-5": "YES",
+    "AC-CURATOR-6": "YES",
+    "AC-CURATOR-7": "YES",
+    "AC-CURATOR-8": "YES",
+    "AC-CURATOR-9": "YES"
+  },
+  "notes": [
+    "All 9 AC-CURATOR acceptance criteria are satisfied.",
+    "All 15 specification questions (9 pre-impl, 6 post-impl) answer YES.",
+    "No behavioral gaps identified. Dedup guard pattern and annotation format are consistent.",
+    "Plugin-scope exclusion rule token list is comprehensive and matches AC-CURATOR-6.",
+    "Recurrence rule mechanics are fully documented.",
+    "Output schema uses 'decisions' field exclusively; 'proposals' field is absent.",
+    "No AskUserQuestion references anywhere in the file.",
+    "Internal cross-references are consistent and no zombie text from removed cap-5 rule.",
+    "promote_to_adr seam (S4/AC-ADR-4) is clearly marked as a future implementation.",
+    "amend_spec audit-trail delegation to lead remains correct."
+  ]
+}

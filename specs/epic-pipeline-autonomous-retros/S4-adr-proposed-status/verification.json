@@ -1,0 +1,105 @@
+{
+  "story_id": "S4",
+  "authored_by": "story-planner",
+  "authored_at": "2026-05-12T00:00:00Z",
+  "questions": [
+    {
+      "id": "VQ-S4-001",
+      "type": "SPEC",
+      "question": "Does plugins/base/skills/adr/SKILL.md include '[proposed]' as a valid optional argument in its argument hint line (the line documenting '<title> [affects:...] [supersedes:...]')?",
+      "ac_ref": "AC-ADR-1",
+      "check_method": "read plugins/base/skills/adr/SKILL.md; locate the argument hint line that lists the skill's accepted arguments; confirm '[proposed]' appears as an optional token on that line alongside [affects:...] and [supersedes:...]",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S4-002",
+      "type": "SPEC",
+      "question": "Does plugins/base/skills/adr/SKILL.md state that when 'proposed' is passed as an argument, the scaffolded ADR has 'Status: Proposed' instead of 'Status: Accepted', and is any note instructing users to change Status manually either removed or updated to reflect that the 'proposed' flag handles the non-default case?",
+      "ac_ref": "AC-ADR-2",
+      "check_method": "read plugins/base/skills/adr/SKILL.md; verify (a) a rule states the proposed-flag → Status: Proposed behavior, (b) the Status: Accepted default is preserved (for the no-flag case), and (c) any previous manual-change note is removed or amended to acknowledge the flag makes manual editing unnecessary for the Proposed case",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S4-003",
+      "type": "SPEC",
+      "question": "Does plugins/base/skills/adr/ADR-template.md document 'Status: Proposed' as a valid non-default status value — in a comment, note, or inline alternative on the '**Status**' line — so that readers know Proposed is a recognized status distinct from Accepted?",
+      "ac_ref": "AC-ADR-3",
+      "check_method": "read plugins/base/skills/adr/ADR-template.md; find the Status line or its surrounding documentation; confirm 'Status: Proposed' appears as an alternative or annotation; 'Accepted' must remain the default shown or implied, with Proposed explicitly listed as a valid alternative",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S4-004",
+      "type": "SPEC",
+      "question": "Does plugins/base/agents/project-curator.md promote_to_adr action schema or its operating rules state that the curator passes 'proposed' to the base:adr Skill invocation when applying promote_to_adr decisions autonomously, so the scaffolded ADR starts as 'Status: Proposed' pending user review?",
+      "ac_ref": "AC-ADR-4",
+      "check_method": "read plugins/base/agents/project-curator.md promote_to_adr section; confirm 'proposed' appears as an argument to Skill(\"base:adr\") in the operating rule; confirm the rationale 'pending user review' or equivalent is stated; this must be the completed rule, not a TODO placeholder (which would have been acceptable in S1 but must be resolved in S4)",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S4-005",
+      "type": "BEHAVIORAL",
+      "question": "Does plugins/base/skills/adr/SKILL.md preserve the existing default behavior — that omitting 'proposed' yields 'Status: Accepted' — so that existing callers that do not pass the flag are unaffected by the S4 change?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/skills/adr/SKILL.md; confirm either (a) the behavior when 'proposed' is absent is explicitly stated as 'Status: Accepted' (default unchanged), or (b) the argument hint shows '[proposed]' in square brackets (optional), making clear the default is unaffected; the AdrProposedFlag contract invariant 'Omitting proposed yields Status: Accepted' must be satisfied",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S4-006",
+      "type": "BEHAVIORAL",
+      "question": "Does plugins/base/agents/project-curator.md after S4 edits contain no S1-era content that was inadvertently overwritten — specifically, do Hard Rule 1 (autonomous writes), Hard Rule 2 (sole decision authority), the absence of Hard Rule 3 (cap-5 removed), annotate_retro action schema, dedup guard, plugin-scope exclusion, recurrence rule, frontmatter tools (Write, Edit), and renamed 'decisions' field all remain intact?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/agents/project-curator.md after S4 is applied; verify all S1 changes survive: (a) no 'you never write files', (b) no AskUserQuestion in application phase, (c) no cap-5 rule, (d) annotate_retro in action schema, (e) dedup guard present, (f) plugin-scope exclusion present, (g) recurrence rule present, (h) Write and Edit in frontmatter tools, (i) 'decisions' field not reverted to 'proposals'",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S4-007",
+      "type": "CONTRACT",
+      "question": "Is the 'proposed' flag documented consistently across all three files modified in S4 — plugins/base/skills/adr/SKILL.md (argument hint + behavior rule), plugins/base/skills/adr/ADR-template.md (Status line annotation), and plugins/base/agents/project-curator.md (promote_to_adr operating rule) — such that a reader of any one file would receive a consistent picture of what 'proposed' does?",
+      "ac_ref": null,
+      "check_method": "read all three files and compare: (a) SKILL.md argument hint includes [proposed], (b) SKILL.md behavior rule states Status: Proposed when flag passed, (c) ADR-template.md Status line shows Proposed as valid alternative, (d) curator promote_to_adr rule passes 'proposed' to Skill invocation; check for contradictions (e.g., template says Proposed is invalid, SKILL.md says it is valid)",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S4-008",
+      "type": "CONTRACT",
+      "question": "Does plugins/base/commands/feature.md Step 6.3 promote_to_adr application rule (S2's responsibility) and plugins/base/agents/project-curator.md promote_to_adr operating rule (S4's responsibility) both pass 'proposed' — so the AdrProposedFlag seam contract is satisfied end-to-end from the curator's decision through the feature command's application?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/commands/feature.md Step 6.3 promote_to_adr rule AND plugins/base/agents/project-curator.md promote_to_adr rule; confirm 'proposed' appears in both as an argument to the base:adr Skill call; a mismatch (one passes 'proposed', the other does not) breaks the AdrProposedFlag seam contract",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S4-009",
+      "type": "EDGE_CASE",
+      "question": "Does plugins/base/skills/adr/SKILL.md handle (or explicitly leave undefined) the case where both 'proposed' and 'supersedes:NNN' are passed together — i.e., is there any conflict between superseding an existing ADR and scaffolding the new one as Proposed rather than Accepted?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/skills/adr/SKILL.md; check whether the behavior of 'proposed' combined with 'supersedes:NNN' is addressed; if the file is silent on this combination, flag as an unresolved edge case that could surprise callers",
+      "status": "pre_impl"
+    },
+    {
+      "id": "VQ-S4-010",
+      "type": "QUALITY",
+      "question": "Does the S4 change to plugins/base/skills/adr/SKILL.md read cohesively — specifically, does the updated argument hint line parse correctly with '[proposed]' added (proper bracket notation, correct position relative to other optional args), and is the proposed-flag behavior rule positioned logically near the argument hint rather than buried at the end of an unrelated section?",
+      "ac_ref": null,
+      "check_method": "read plugins/base/skills/adr/SKILL.md; confirm '[proposed]' uses consistent bracket notation with other optional args; check that the behavior description for the flag appears in proximity to the argument hint (not in a distant section), so the skill documentation reads as a coherent unit",
+      "status": "pre_impl"
+    }
+  ],
+  "post_impl_questions": [
+    {
+      "id": "VQ-S4-PI-001",
+      "phase": "post-impl",
+      "type": "EDGE_CASE",
+      "question": "Does SKILL.md Step 4 place the 'Status:' substitution rule before 'Affects:' and 'Supersedes:' in the substitution list, ensuring a reader sees the conditional in the same code block that drives all other substitutions — not separated from its siblings?",
+      "check_method": "Read plugins/base/skills/adr/SKILL.md Step 4 substitution list; confirm Status: line appears as the first substitution entry (or near the top), not appended at the end of an unrelated section.",
+      "rationale": "The substitution list in Step 4 is the operative code; a Status entry buried elsewhere creates a split contract that is easy to miss."
+    },
+    {
+      "id": "VQ-S4-PI-002",
+      "phase": "post-impl",
+      "type": "CONTRACT",
+      "question": "Is the promote_to_adr action in project-curator.md free of the S4 placeholder text ('[S4 — AC-ADR-4:...]') after the edit, confirming the placeholder was fully removed rather than left alongside the new rule?",
+      "check_method": "Grep plugins/base/agents/project-curator.md for 'S4' or 'AC-ADR-4'; expect zero matches.",
+      "rationale": "Leaving placeholder text alongside the completed rule would create documentation confusion for future readers and agent consumers."
+    }
+  ]
+}

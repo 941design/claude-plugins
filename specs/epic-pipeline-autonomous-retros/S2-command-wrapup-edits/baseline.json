@@ -1,0 +1,6 @@
+{
+  "story_id": "S2",
+  "captured_at": "2026-05-12T00:00:00Z",
+  "status": "NO_TESTS",
+  "note": "Paradigm is modular markdown prompt editing. No compiled artifacts or test suite. Verification is observational — read edited prompts and confirm specified behaviors are expressed correctly."
+}

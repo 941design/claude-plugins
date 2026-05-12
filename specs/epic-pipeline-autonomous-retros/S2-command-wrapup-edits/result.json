@@ -1,0 +1,192 @@
+{
+  "story_id": "S2",
+  "status": "done",
+  "remediation_rounds": 0,
+  "files_created": [],
+  "files_modified": [
+    "plugins/base/commands/feature.md",
+    "plugins/base/commands/bug.md"
+  ],
+  "implementation_summary": "Replaced Step 6.3 in feature.md from AskUserQuestion-based proposal adjudication to direct decision application. Updated the promote_to_adr rule to pass 'proposed' to base:adr. Added annotate_retro as the 10th per-action rule. Removed the cap-5 and 'Rejected proposals dropped silently' sentences. Updated Step 6.5 curator summary from '<N> proposals accepted, <M> declined' to '<N> decisions applied'. Updated bug.md Step 4.2b to use 'decisions' field name and remove AskUserQuestion; updated Step 4.3 report to use '<N> decisions applied'.",
+  "tests": {
+    "baseline_count": "NO_TESTS",
+    "final_count": "NO_TESTS",
+    "note": "Paradigm is modular markdown prompt editing — no compiled test suite. Verification is observational."
+  },
+  "mocks_introduced": [],
+  "verification_results": [
+    {
+      "id": "VQ-S2-001",
+      "category": "SPEC",
+      "phase": "post-impl",
+      "ac_ref": "AC-FEATURE-1",
+      "question": "Does plugins/base/commands/feature.md Step 6.3 contain no occurrence of 'AskUserQuestion', and does it instead instruct the lead to read the curator's 'decisions' list and apply each action directly?",
+      "answer": "YES",
+      "assessment": {
+        "severity": 1,
+        "confidence": 1.0,
+        "remediation_complexity": "na",
+        "root_cause_category": "not_applicable"
+      },
+      "summary": "Step 6.3 line 489 explicitly states 'Apply each decision directly in sequence — no AskUserQuestion, no user confirmation' as a description of autonomous behavior. The phrase 'no AskUserQuestion' is unambiguously a negation describing absence, not a tool invocation.",
+      "evidence": {
+        "files_examined": ["plugins/base/commands/feature.md:489"],
+        "findings": "Line 489 heading: '3. **Apply curator decisions.** Read the curator's `decisions` array from the `---CURATOR_OUTPUT---` block. Apply each decision directly in sequence — no AskUserQuestion, no user confirmation.' The step uses 'decisions' (not 'proposals') consistently throughout lines 489-500. Step 6.3 applies each action from the curator's decisions array directly using the per-action rules below without any user confirmation mechanism.",
+        "stub_scan": 0
+      }
+    },
+    {
+      "id": "VQ-S2-002",
+      "category": "SPEC",
+      "phase": "post-impl",
+      "ac_ref": "AC-FEATURE-2",
+      "question": "Does plugins/base/commands/feature.md Step 6.3 retain application rules for all nine named action types?",
+      "answer": "YES",
+      "assessment": {
+        "severity": 1,
+        "confidence": 1.0,
+        "remediation_complexity": "na",
+        "root_cause_category": "not_applicable"
+      },
+      "summary": "All 9 per-action application rules are present in Step 6.3 (lines 491-500), with mechanics describing curator-applied actions not user-mediated actions.",
+      "evidence": {
+        "files_examined": ["plugins/base/commands/feature.md:491-500"],
+        "findings": "Step 6.3 per-action rules present: (1) Line 491 append_finding, (2) Line 492 append_rejection, (3) Line 493 amend_spec, (4) Line 494 resolve_finding_via_spec, (5) Line 495 resolve_finding_mechanical, (6) Line 496 move_finding_to_archive, (7) Line 497 promote_to_adr, (8) Line 498 promote_rejections_to_adr, (9) Line 499 update_epics_section. Note: Line 500 also includes 'annotate_retro' (10th rule, documented in AC-CURATOR-4).",
+        "stub_scan": 0,
+        "scope_coverage": "9/9 AC-specified actions"
+      }
+    },
+    {
+      "id": "VQ-S2-003",
+      "category": "SPEC",
+      "phase": "post-impl",
+      "ac_ref": "AC-FEATURE-3",
+      "question": "Does plugins/base/commands/feature.md Step 6.3 promote_to_adr application rule include 'proposed' in the Skill invocation?",
+      "answer": "YES",
+      "assessment": {
+        "severity": 1,
+        "confidence": 1.0,
+        "remediation_complexity": "na",
+        "root_cause_category": "not_applicable"
+      },
+      "summary": "Line 497 promote_to_adr rule explicitly includes 'proposed' as an argument to the base:adr Skill call, ensuring curator-promoted ADRs are scaffolded as Status: Proposed.",
+      "evidence": {
+        "files_examined": ["plugins/base/commands/feature.md:497"],
+        "findings": "Line 497: '**`promote_to_adr`** → invoke `Skill(\"base:adr\", args: \"<title> affects:<comma-separated-paths> proposed [supersedes:ADR-NNN]\")`'. The word 'proposed' appears as a positional argument after the affects clause.",
+        "stub_scan": 0
+      }
+    },
+    {
+      "id": "VQ-S2-004",
+      "category": "SPEC",
+      "phase": "post-impl",
+      "ac_ref": "AC-FEATURE-4",
+      "question": "Does plugins/base/commands/feature.md Step 6.5 report include all required elements with curator summary as '<N> decisions applied'?",
+      "answer": "YES",
+      "assessment": {
+        "severity": 1,
+        "confidence": 1.0,
+        "remediation_complexity": "na",
+        "root_cause_category": "not_applicable"
+      },
+      "summary": "Step 6.5 (lines 504-509) contains all four report elements: stories completed vs escalated, test count, path to retro file, and curator summary phrased as '<N> decisions applied'. No 'proposals' language present.",
+      "evidence": {
+        "files_examined": ["plugins/base/commands/feature.md:504-509"],
+        "findings": "Step 6.5 elements: Line 505 'Stories completed vs escalated', Line 506 'Test count (baseline → final)', Line 507 'Path to the retrospective file (if one was written), or note that the run was friction-free', Line 508 'Curator summary: `<N> decisions applied` (omit the line entirely if the curator returned zero decisions)'.",
+        "stub_scan": 0
+      }
+    },
+    {
+      "id": "VQ-S2-005",
+      "category": "SPEC",
+      "phase": "post-impl",
+      "ac_ref": "AC-FEATURE-5",
+      "question": "Does plugins/base/commands/feature.md contain no reference to cap-5 in Step 6.3 and Step 6.5?",
+      "answer": "YES",
+      "assessment": {
+        "severity": 1,
+        "confidence": 1.0,
+        "remediation_complexity": "na",
+        "root_cause_category": "not_applicable"
+      },
+      "summary": "No cap-5, quantitative per-run caps, or deferred-items language appears in Step 6.3 or Step 6.5. Cap-5 references exist only in Step 6.1 context about lead's epic-state bookkeeping (outside curator's domain).",
+      "evidence": {
+        "files_examined": ["plugins/base/commands/feature.md:489-510"],
+        "findings": "Grep search for 'cap-5', 'cap five', 'deferred lower-signal', 'five proposals', '5 proposals' within Step 6.3-6.5 returns zero matches. Cap-5 references exist at lines 258 and 463 but are in Step 6.1 context explaining the curator's proposal limit does NOT apply to the lead's unconditional epic-state close-out.",
+        "stub_scan": 0
+      }
+    },
+    {
+      "id": "VQ-S2-006",
+      "category": "SPEC",
+      "phase": "post-impl",
+      "ac_ref": "AC-FEATURE-6",
+      "question": "Are all planning-phase AskUserQuestion calls in plugins/base/commands/feature.md present and unchanged?",
+      "answer": "YES",
+      "assessment": {
+        "severity": 1,
+        "confidence": 0.9,
+        "remediation_complexity": "na",
+        "root_cause_category": "not_applicable"
+      },
+      "summary": "Three explicit planning-phase AskUserQuestion calls are present and unchanged: Step 1.5 RECONCILE adjudication, Step 2 spec validation clarifications, and Step 5 escalation prompts.",
+      "evidence": {
+        "files_examined": ["plugins/base/commands/feature.md:140,186,433"],
+        "findings": "Step 1.5 RECONCILE (line 140): 'present an adjudication menu via `AskUserQuestion`'. Step 2 (line 186): 'use AskUserQuestion to get clarifications'. Step 5 escalation (line 433): 'surface to the user via AskUserQuestion'. Mode 3 story-planner (lines 352-362) generates verification.json questions; this is the planner's artifact output, not an explicit AskUserQuestion call in feature.md.",
+        "stub_scan": 0,
+        "scope_coverage": "3/3 explicit AskUserQuestion calls"
+      }
+    },
+    {
+      "id": "VQ-S2-007",
+      "category": "SPEC",
+      "phase": "post-impl",
+      "ac_ref": "AC-BUG-1",
+      "question": "Does plugins/base/commands/bug.md Step 4.2b contain no AskUserQuestion and cross-reference 'base:feature Step 6.3'?",
+      "answer": "YES",
+      "assessment": {
+        "severity": 1,
+        "confidence": 1.0,
+        "remediation_complexity": "na",
+        "root_cause_category": "not_applicable"
+      },
+      "summary": "Bug.md Step 4, section 2b (lines 337-338) contains no AskUserQuestion and explicitly cross-references 'see `base:feature` Step 6.3 for the per-action application rules'.",
+      "evidence": {
+        "files_examined": ["plugins/base/commands/bug.md:337-338"],
+        "findings": "Lines 337-338: 'The curator returns a JSON object inside `---CURATOR_OUTPUT---` / `---END_CURATOR_OUTPUT---` markers. If `decisions` is empty, continue. Otherwise apply each decision directly — see `base:feature` Step 6.3 for the per-action application rules.' No AskUserQuestion appears in this section. The cross-reference to 'base:feature' Step 6.3 is explicit and direct.",
+        "stub_scan": 0
+      }
+    },
+    {
+      "id": "VQ-S2-008",
+      "category": "SPEC",
+      "phase": "post-impl",
+      "ac_ref": "AC-BUG-2",
+      "question": "Does plugins/base/commands/bug.md Step 4.3 report include all six required elements with curator summary as '<N> decisions applied'?",
+      "answer": "YES",
+      "assessment": {
+        "severity": 1,
+        "confidence": 1.0,
+        "remediation_complexity": "na",
+        "root_cause_category": "not_applicable"
+      },
+      "summary": "Bug.md Step 4, section 3 (lines 339-345) report contains all six required elements: root cause, what was changed, tests added, baseline → final counts, retro path, and curator summary as '<N> decisions applied'.",
+      "evidence": {
+        "files_examined": ["plugins/base/commands/bug.md:339-345"],
+        "findings": "Lines 339-345 report: Line 340 'root cause explanation', Line 341 'what was changed (files, lines)', Line 342 'tests added (reproduction test + any others)', Line 343 'baseline → final test counts', Line 344 'path to the retrospective file (if one was written)', Line 345 'curator summary: `<N> decisions applied` (omit if zero)'. No 'proposals accepted' or 'proposals declined' terminology appears.",
+        "stub_scan": 0
+      }
+    }
+  ],
+  "verification_summary": {
+    "total_questions": 8,
+    "yes_count": 8,
+    "partial_count": 0,
+    "no_count": 0,
+    "overall_result": "YES"
+  },
+  "retrospective": {
+    "skipped": true,
+    "reason": "clean_run"
+  }
+}

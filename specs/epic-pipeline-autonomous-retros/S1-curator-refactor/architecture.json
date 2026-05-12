@@ -1,0 +1,56 @@
+{
+  "module_name": "project-curator",
+  "purpose": "Decision-making agent spawned at run wrap-up; reads retro bundles, result.json files, BACKLOG.md, and ADR listings; applies decisions directly to BACKLOG.md and retro markdown files without user adjudication.",
+  "public_api": [
+    {
+      "name": "CURATOR_OUTPUT block",
+      "signature": "{ decisions: ActionObject[], deferred_count: 0, summary: string }",
+      "description": "JSON block emitted between ---CURATOR_OUTPUT--- markers. Consumed by feature.md Step 6.3 and bug.md Step 4 to verify applied actions."
+    },
+    {
+      "name": "annotate_retro action",
+      "signature": "{ action: 'annotate_retro', retro_path: string, finding_anchor: string, disposition: string, reason: string }",
+      "description": "New action type. Curator uses Edit tool to append '_Curator: YYYY-MM-DD → <disposition>_' under the finding's '**Suggested change**:' line."
+    }
+  ],
+  "private_files": [
+    "plugins/base/agents/project-curator.md"
+  ],
+  "owned_data": [
+    "BACKLOG.md (findings bullets, rejection archive entries, epics section corrections)",
+    "retro markdown files (curator annotation lines only)"
+  ],
+  "dependencies_allowed": [
+    "BACKLOG.md (read+write)",
+    "docs/adr/ (read)",
+    "result.json files (read)",
+    "retro markdown files (read+write annotation lines)"
+  ],
+  "dependencies_forbidden": [
+    "spec files (no writes)",
+    "implementation code files",
+    "any artifact not listed in owned_data"
+  ],
+  "external_ports": [],
+  "events_emitted": [
+    "CURATOR_OUTPUT JSON block (synchronous return)"
+  ],
+  "events_consumed": [
+    "retro_bundle (from feature/bug lead spawn prompt)",
+    "story result paths",
+    "BACKLOG.md path",
+    "docs/adr/ listing",
+    "project provenance JSON"
+  ],
+  "test_targets": [
+    "AC-CURATOR-1: Hard Rule 1 permits autonomous file writes",
+    "AC-CURATOR-2: Hard Rule 2 establishes curator as sole decision authority",
+    "AC-CURATOR-3: cap-5 rule removed",
+    "AC-CURATOR-4: annotate_retro action documented",
+    "AC-CURATOR-5: dedup guard documented",
+    "AC-CURATOR-6: plugin-scope exclusion documented",
+    "AC-CURATOR-7: recurrence rule documented",
+    "AC-CURATOR-8: frontmatter tools includes Write and Edit",
+    "AC-CURATOR-9: output schema uses decisions field"
+  ]
+}

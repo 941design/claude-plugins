@@ -1,0 +1,31 @@
+{
+  "module_name": "feature-bug-command-wrapup",
+  "purpose": "Update feature.md Step 6.3 and Step 6.5, and bug.md Step 4 curator section and Step 4.3 report, to replace interactive AskUserQuestion proposal adjudication with direct decision application matching the S1 autonomous curator contract.",
+  "public_api": [],
+  "private_files": [
+    "plugins/base/commands/feature.md",
+    "plugins/base/commands/bug.md"
+  ],
+  "owned_data": [],
+  "dependencies_allowed": [
+    "plugins/base/agents/project-curator.md",
+    "plugins/base/skills/adr/SKILL.md",
+    "plugins/base/skills/backlog/references/format.md"
+  ],
+  "dependencies_forbidden": [],
+  "external_ports": [],
+  "events_emitted": [],
+  "events_consumed": [
+    "CuratorDecisionOutput (decisions array from ---CURATOR_OUTPUT--- block)"
+  ],
+  "test_targets": [
+    "AC-FEATURE-1: feature.md Step 6.3 has no AskUserQuestion",
+    "AC-FEATURE-2: feature.md Step 6.3 retains all 9 per-action rules + annotate_retro",
+    "AC-FEATURE-3: feature.md Step 6.3 promote_to_adr passes 'proposed' flag",
+    "AC-FEATURE-4: feature.md Step 6.5 says '<N> decisions applied'",
+    "AC-FEATURE-5: No cap-5 reference in feature.md Step 6.3 or 6.5",
+    "AC-FEATURE-6: Planning-phase AskUserQuestion calls untouched",
+    "AC-BUG-1: bug.md Step 4.2b has no AskUserQuestion; cross-refs feature.md Step 6.3; uses 'decisions'",
+    "AC-BUG-2: bug.md Step 4.3 says '<N> decisions applied'"
+  ]
+}

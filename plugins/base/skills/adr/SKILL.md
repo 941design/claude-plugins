@@ -8,7 +8,7 @@ description: >-
   work that warrants a structured Proposer↔Codex debate, use `base:arch-debate` instead —
   it produces an ADR of `Type: Debated` plus an `architecture.md`.
 user-invocable: true
-argument-hint: "<title> [affects:<comma-separated-paths>] [supersedes:ADR-NNN] [from-archive:<comma-separated-archive-markers>]"
+argument-hint: "<title> [affects:<comma-separated-paths>] [supersedes:ADR-NNN] [from-archive:<comma-separated-archive-markers>] [proposed]"
 allowed-tools: Read, Write, Edit, Bash
 ---
 
@@ -62,12 +62,19 @@ just the scaffold + the right number + a stub the user fills in.
        and stage a follow-up note to the user: after the ADR is
        Accepted, those archive lines should get a `[→ ADR-NNN]` pointer
        (the user does this; this skill does not edit BACKLOG.md).
+     - Optional `proposed` — when present, the scaffolded ADR is written
+       with `Status: Proposed` instead of `Status: Accepted`. Use this
+       when the curator applies a `promote_to_adr` decision autonomously;
+       the user reviews the scaffolded ADR and changes `Status` to
+       `Accepted` when they agree with the decision.
 
 4. Copy `${CLAUDE_SKILL_DIR}/ADR-template.md` to
    `docs/adr/ADR-{NNN}-{slug}.md`. Substitute:
      - `ADR-NNN` → `ADR-{NNN}` (header + filename)
      - `<Title>` → the title argument
      - `YYYY-MM-DD` → today
+     - `Status:` line → `Accepted` by default, or `Proposed` when the
+       `proposed` argument flag was supplied.
      - `Affects:` line → the comma-separated affects argument or
        `<comma-separated paths or 'project-wide'>` placeholder when not
        supplied
@@ -123,9 +130,11 @@ just the scaffold + the right number + a stub the user fills in.
   the author's job.
 - **No automatic acceptance.** ADRs are written with `Status: Accepted`
   by default for the lightweight path (no debate to gate on). For
-  proposed-but-not-yet-decided decisions, the user changes the line to
-  `Status: Proposed` manually after scaffolding — the workflow assumes
-  the lightweight path is invoked when the decision is already made.
+  proposed-but-not-yet-decided decisions (e.g. when the curator applies
+  a `promote_to_adr` decision autonomously), pass the `proposed` flag —
+  the skill scaffolds with `Status: Proposed` directly. The user reviews
+  and changes to `Accepted` when ready. Manual editing is still valid
+  when the flag is not passed.
 - **No edits to BACKLOG.md.** Promotion of archive entries to an ADR
   pointer is the user's call (or the curator's proposal at the next
   `/feature` retro).

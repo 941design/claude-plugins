@@ -1,0 +1,12 @@
+{
+  "story_id": "S1",
+  "captured_at": "2026-05-12T00:00:00Z",
+  "target_file": "plugins/base/agents/project-curator.md",
+  "line_count": 382,
+  "tools_frontmatter": "tools: Read, Grep, Glob, Bash",
+  "hard_rule_1": "You never write files. Not BACKLOG.md, not specs, not ADRs, not anywhere. You return a JSON proposal list. The lead applies accepted proposals after user adjudication via AskUserQuestion.",
+  "hard_rule_2": "You propose; the user disposes. Every proposal MUST include enough context for the user to accept/reject without re-investigating. File anchors (path:line), verbatim snippets, and explicit reasons are mandatory.",
+  "hard_rule_3": "Cap at 5 proposals per run. If you would return more, keep the 5 highest-signal and drop the rest. Quantity erodes the user's trust and any rejected proposal raises the bar for the next one.",
+  "output_schema_fields": ["proposals", "deferred_count", "summary"],
+  "test_status": "NO_TESTS"
+}

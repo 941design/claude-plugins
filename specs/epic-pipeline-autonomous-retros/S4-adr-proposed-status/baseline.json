@@ -1,0 +1,7 @@
+{
+  "story_id": "S4",
+  "captured_at": "2026-05-12T00:00:00Z",
+  "commit": "b11601f",
+  "test_status": "NO_TESTS",
+  "note": "Markdown-only changes; no executable test suite applicable"
+}

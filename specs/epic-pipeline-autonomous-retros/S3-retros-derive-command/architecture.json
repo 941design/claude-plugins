@@ -1,0 +1,38 @@
+{
+  "module_name": "retros-derive",
+  "purpose": "Meta-cycle command that walks the plugin's back-catalogue of retros and derives pipeline-improvement backlog items for the plugin-development repo. The lead executes this command directly; no outer-loop subagent.",
+  "public_api": [
+    {
+      "name": "retros-derive command",
+      "signature": "/base:retros-derive (no arguments)",
+      "description": "Reads ${CLAUDE_PLUGIN_DATA}/retros/<plugin-slug>/*.md, extracts un-annotated meta-level findings sorted oldest-first, and passes them to base:project-curator for autonomous decision-making against this repo's BACKLOG.md."
+    }
+  ],
+  "private_files": [
+    "plugins/base/commands/retros-derive.md"
+  ],
+  "owned_data": [],
+  "dependencies_allowed": [
+    "base:project-curator"
+  ],
+  "dependencies_forbidden": [
+    "AskUserQuestion"
+  ],
+  "external_ports": [
+    "${CLAUDE_PLUGIN_DATA}/retros/<plugin-slug>/*.md (read)",
+    "BACKLOG.md at repo root (write, via curator)"
+  ],
+  "events_emitted": [],
+  "events_consumed": [],
+  "test_targets": [
+    "AC-DERIVE-1: file exists, lead-executed (no outer-loop subagent)",
+    "AC-DERIVE-2: globs ${CLAUDE_PLUGIN_DATA}/retros/<plugin-slug>/*.md",
+    "AC-DERIVE-3: oldest-first by completed: YAML field; files without field go last",
+    "AC-DERIVE-4: six-level section-matching priority documented with all exclusions",
+    "AC-DERIVE-5: dedup guard skips findings with _Curator: .*_ line",
+    "AC-DERIVE-6: invokes base:project-curator with this repo and BACKLOG.md",
+    "AC-DERIVE-7: zero AskUserQuestion occurrences",
+    "AC-DERIVE-8: per-file errors surfaced in report; command continues after failure",
+    "AC-DERIVE-9: final report has N scanned, M processed, K skipped, decisions applied, annotated file paths"
+  ]
+}

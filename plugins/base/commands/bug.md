@@ -334,7 +334,7 @@ rules, and state transitions.
    - `docs/adr/` listing — `ls docs/adr/*.md 2>/dev/null` (titles only)
    - project provenance JSON: `project_slug`, `project_path`, `commit_at_start`, `commit_at_end`
 
-   The curator returns a JSON object inside `---CURATOR_OUTPUT---` / `---END_CURATOR_OUTPUT---` markers. If `proposals` is empty, continue. Otherwise adjudicate each proposal via `AskUserQuestion` (batch related items) and apply the accepted ones — see `base:feature` Step 6.3 for the per-action application rules.
+   The curator returns a JSON object inside `---CURATOR_OUTPUT---` / `---END_CURATOR_OUTPUT---` markers. If `decisions` is empty, continue. Otherwise apply each decision directly — see `base:feature` Step 6.3 for the per-action application rules.
 
 3. Report to the user:
    - root cause explanation
@@ -342,7 +342,7 @@ rules, and state transitions.
    - tests added (reproduction test + any others)
    - baseline → final test counts
    - path to the retrospective file (if one was written), or note that the run was friction-free and no retro was emitted
-   - curator summary: `<N> proposals accepted, <M> declined` (omit if zero)
+   - curator summary: `<N> decisions applied` (omit if zero)
 
 ---
 

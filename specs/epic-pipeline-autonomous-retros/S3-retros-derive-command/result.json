@@ -1,0 +1,98 @@
+{
+  "story_id": "S3",
+  "verification_timestamp": "2026-05-12T19:00:00Z",
+  "verified_by": "verification-examiner",
+  "target_file": "plugins/base/commands/retros-derive.md",
+  "overall_status": "YES",
+  "ac_results": {
+    "AC-DERIVE-1": {
+      "answer": "YES",
+      "evidence": "File exists at plugins/base/commands/retros-derive.md. Line 13 states: 'You are the **lead**. This command is executed directly by you; no outer-loop subagent is spawned.'"
+    },
+    "AC-DERIVE-2": {
+      "answer": "YES",
+      "evidence": "Line 36 specifies the glob pattern: '${CLAUDE_PLUGIN_DATA}/retros/<plugin-slug>/*.md'. Line 19 references the same env var used in base:feature Step 6 for retro writing. Plugin slug derivation described at lines 25-27."
+    },
+    "AC-DERIVE-3": {
+      "answer": "YES",
+      "evidence": "Lines 49-55 specify oldest-first sort by 'completed:' date. Line 55 handles missing field: 'Files that have no `completed:` field receive a synthetic sort key of `9999-12-31` so they sort after all dated files. Within the undated group, sort alphabetically by filename as the secondary key.'"
+    },
+    "AC-DERIVE-4": {
+      "answer": "YES",
+      "evidence": "Lines 69-76 specify all six section-matching priority levels in exact order: (1) '## Meta-level findings (raise to user)', (2) '## Lead's epic-meta findings', (3) '## Workflow-level findings', (4) '### Meta-level (raise to user)', (5) '## Frictions worth recording', (6) fallback with '**Suggested change**:' and explicit exclusion of 'NOT nested under a `## Project-specific`, `## Routine — skipped retros`, or `## Discrepancies` header.'"
+    },
+    "AC-DERIVE-5": {
+      "answer": "YES",
+      "evidence": "Lines 87-89 specify dedup guard: 'For each finding block, check whether the block already contains a line matching `_Curator: .*_`. If yes, mark the finding as \"skipped (already annotated)\" in the tally and do not pass it to the curator.'"
+    },
+    "AC-DERIVE-6": {
+      "answer": "YES",
+      "evidence": "Lines 100-101 invoke 'base:project-curator'. Line 105: 'this repository (`claude-plugins`)'. Line 106: '`BACKLOG.md` at the repo root (absolute path)'. Line 109: 'the curator operates in its standard autonomous mode — it writes `BACKLOG.md` updates directly and uses its `annotate_retro` action to mark each processed finding in the source retro file. Do not override or supplement the curator's Hard Rules.'"
+    },
+    "AC-DERIVE-7": {
+      "answer": "YES",
+      "evidence": "Grep search for 'AskUserQuestion' in plugins/base/commands/retros-derive.md returns 0 matches. Verified at command line: grep -c 'AskUserQuestion' returned 0."
+    },
+    "AC-DERIVE-8": {
+      "answer": "YES",
+      "evidence": "Lines 115-121 specify error handling for: (1) I/O error/missing BACKLOG.md (line 119), (2) unreadable retro file/I/O error/anchor not located (line 120), (3) continuation rule at line 121: 'Do NOT halt the entire command on a per-file failure.'"
+    },
+    "AC-DERIVE-9": {
+      "answer": "YES",
+      "evidence": "Lines 125-144 specify final report with all five elements: (1) 'Retros scanned: N' (line 130), (2) 'Findings processed: M (un-annotated, passed to curator)' (line 131), (3) 'Findings skipped: K (already annotated)' (line 132), (4) 'Decisions applied: <count and summary from curator>' (line 133), (5) 'Annotated retro files: <list of absolute paths that the curator annotated>' (line 134)."
+    }
+  },
+  "behavioral_questions": {
+    "VQ-S3-010": {
+      "answer": "YES",
+      "question": "Is sort executed before dedup check and all subsequent steps?",
+      "evidence": "Step 3 (lines 49-55) sorts oldest-first before Step 4 processes files. Step 4a (lines 63-65) applies dedup within sorted iteration, before step 5 invokes curator. Processing order is: sort → iterate → dedup-check → extract findings → invoke curator."
+    },
+    "VQ-S3-011": {
+      "answer": "YES",
+      "question": "Is 'processed last' deterministic for files without 'completed:' field?",
+      "evidence": "Line 55: 'Within the undated group, sort alphabetically by filename as the secondary key.' Provides deterministic secondary sort."
+    },
+    "VQ-S3-012": {
+      "answer": "YES",
+      "question": "Does curator invocation use CuratorAutonomousContract seam (no AskUserQuestion, uses 'decisions' field, relies on curator's rules)?",
+      "evidence": "Line 111: 'The curator's `decisions` output field (not `proposals`)'. Line 109: 'Do not override or supplement the curator's Hard Rules.' No AskUserQuestion in file."
+    },
+    "VQ-S3-013": {
+      "answer": "YES",
+      "question": "Does level 6 explicitly exclude '## Discrepancies'?",
+      "evidence": "Line 76: 'NOT nested under a `## Project-specific`, `## Routine — skipped retros`, or `## Discrepancies` header.' All three headers explicitly named."
+    },
+    "VQ-S3-014": {
+      "answer": "YES",
+      "question": "What happens when retro file contains no matching sections?",
+      "evidence": "Line 78: 'If none of the six levels match, the file contributes zero findings. Record it as \"0 findings\" in the tally and continue.'"
+    },
+    "VQ-S3-015": {
+      "answer": "PARTIAL",
+      "severity": 3,
+      "question": "Is file ~60 lines and self-contained (no curator rules duplicated)?",
+      "evidence": "File is 144 lines (2.4× estimated length). Extra content: step-by-step prose, edge-case handling (undated secondary sort, empty retros, error recovery), full report template. No curator Hard Rules duplicated. Self-contained; no maintenance divergence risk. Length increase is pedagogical, not structural."
+    }
+  },
+  "post_impl_questions": {
+    "VQ-S3-016": {
+      "answer": "YES",
+      "ac_ref": "AC-DERIVE-4",
+      "severity": 2,
+      "question": "Does multi-level matching use only highest-priority level or all matching levels?",
+      "evidence": "Line 69: 'Use the first level that yields at least one section' means highest-priority match is selected; lower-priority levels are skipped. Correctly specified design choice (no duplicate findings)."
+    },
+    "VQ-S3-017": {
+      "answer": "YES",
+      "severity": 1,
+      "question": "Does 144-line length affect readability or maintenance?",
+      "evidence": "Extra 84 lines derive from step-by-step prose, templates, and edge-case specs. No curator rules duplicated. Maintains tightness intent while improving clarity and spec completeness."
+    }
+  },
+  "retrospective": {
+    "skipped": false,
+    "flag": "VQ-S3-007 (zero AskUserQuestion grep) carried latent ambiguity: the verification question asks for 'zero occurrences anywhere in instruction text', but the implementation includes 'No AskUserQuestion' in the frontmatter description (line 6: 'Fully non-interactive.'). A naive grep -c would have caught this, but the description does not contain the literal string, so the test passed. The check_method correctly relied on grep; the verification passed as documented.",
+    "scope": "meta"
+  }
+}
