@@ -29,17 +29,25 @@ inputs the lead gives you and emit either a markdown retrospective body or the
    belong in their per-story or per-phase subsection, not as themes.
 4. **No closed-list categorization beyond the Meta-vs-Project partition.** Do not invent
    additional category labels. The prose carries the meaning.
-5. **Partition by `scope`, not by phase.** Every source retro and every theme carries a
-   `scope: project_specific | meta` field. Route every finding into one of two top-level
-   sections by that field — Meta-level (raise to user) vs Project-specific (route to
-   project memory). Within each, group by source phase as sub-sections, omitting
-   sub-sections that have no content.
-6. **Meta-level findings require a concrete suggested change.** A finding under
-   `## Meta-level findings (raise to user)` must include a specific prompt edit, schema
-   field, workflow step, or invariant. If you cannot name one, **demote** the finding to
-   `## Project-specific findings`. You are allowed to demote unilaterally; you do not
-   need the doer's permission to recategorise. "Consider improving X" is filler — demote
-   instead of writing it.
+5. **Partition by `scope`, then re-route plugin-bound findings.** Every source retro and
+   every theme carries a `scope: project_specific | meta` field. First-pass route every
+   finding by `scope`: Meta-level (raise to user) vs Project-specific (route to project
+   memory). Then apply the **plugin-bound classifier** to every finding's `Suggested change:`
+   text: if the text contains any of `plugins/base/`, `base:<cmd>`, or `/base:<cmd>`
+   (regex: `\b(plugins/base/|base:[a-z-]+|/base:[a-z-]+)\b`), re-route the finding to the
+   new top-level section `## Plugin-bound findings (route to plugin BACKLOG)`. Plugin-bound
+   wins over both Meta and Project-specific — the suggested change is about the base
+   plugin's own design, which a different command (`/base:retros-derive` in plugin-dev mode)
+   harvests across all consumers. Within each top-level section, group by source phase as
+   sub-sections, omitting sub-sections that have no content.
+6. **Meta-level and Plugin-bound findings require a concrete suggested change.** A finding
+   under `## Meta-level findings (raise to user)` or `## Plugin-bound findings (route to
+   plugin BACKLOG)` must include a specific prompt edit, schema field, workflow step, or
+   invariant. If you cannot name one, **demote** the finding to `## Project-specific
+   findings`. You are allowed to demote unilaterally; you do not need the doer's
+   permission to recategorise. "Consider improving X" is filler — demote instead of writing
+   it. Plugin-bound classification depends on the suggested-change text; a finding without
+   one cannot be classified as plugin-bound.
 7. **Drop empty or positive `surprised_by`.** When rendering an architect's populated
    retro, omit the "What surprised" line entirely if `surprised_by` is empty, missing,
    or evaluates as positive. Treat these phrasings as positive (filter list, case-insensitive
@@ -128,10 +136,54 @@ record.)
 
 - <verbatim positive observation, attributed to source>
 
+## Plugin-bound findings (route to plugin BACKLOG)
+
+(Findings whose `Suggested change:` text targets the base plugin's own design — its
+commands, agents, skills, schemas, or curator rules. Identified mechanically by the
+plugin-bound classifier (Hard Rule 5). Every entry under this header MUST include a
+concrete `Suggested change` — that's the whole basis for the classification. This
+section is harvested across consumers by `/base:retros-derive` in plugin-dev mode and
+promoted into `claude-plugins/BACKLOG.md`. Same per-phase sub-section structure as Meta.)
+
+### Per-story
+#### S<N> — <story-name>
+**Provenance**: <project-slug> @ commits [<sha>, ...]
+**Source agents**: integration-architect[, pbt-dev (absorbed)]
+**What made this harder**: <verbatim from architect, lightly cleaned>
+
+**Suggested change**: <concrete edit to plugins/base/<X> or base:<cmd>>
+
+### Pre-implementation phase
+
+#### From <agent> (<context>)
+<verbatim flag, attributed>
+**Suggested change**: <concrete edit to plugins/base/<X> or base:<cmd>>
+
+### Verification phase
+
+#### S<N> — examiner flag
+<verbatim flag, attributed>
+**Suggested change**: <concrete edit to plugins/base/<X> or base:<cmd>>
+
+### Lead's epic-meta findings
+
+#### <Theme title>
+**Source stories**: <list>
+**Source agents**: <list>
+**Provenance**: <project-slug> @ commits [<sha>, ...]
+**Observation**:
+> <verbatim quotes>
+
+<synthesis prose>
+
+**Suggested change**: <concrete edit to plugins/base/<X> or base:<cmd>>
+
 ## Meta-level findings (raise to user)
 
 (Every entry under this header MUST include a concrete `Suggested change`. Demote to
-Project-specific if no concrete suggestion is available — see Hard Rule 6.)
+Project-specific if no concrete suggestion is available — see Hard Rule 6. Findings
+whose suggested change targets the base plugin's own design land in
+`## Plugin-bound findings` above instead.)
 
 ### Per-story
 #### S<N> — <story-name>
@@ -165,8 +217,9 @@ Project-specific if no concrete suggestion is available — see Hard Rule 6.)
 
 ### Verification phase
 
-- **S<N>** (examiner): <verbatim flag>
-  **Suggested change**: <concrete edit>
+#### S<N> — examiner flag
+<verbatim flag, attributed>
+**Suggested change**: <concrete edit>
 
 ### Lead's epic-meta findings
 
@@ -201,7 +254,8 @@ in this section.)
 <verbatim flag, attributed>
 
 ### Verification phase
-- **S<N>** (examiner): <verbatim flag>
+#### S<N> — examiner flag
+<verbatim flag, attributed>
 
 ### Lead's epic-meta findings
 #### <Theme title>
@@ -227,12 +281,27 @@ in this section.)
   no findings, omit that sub-section. If an entire partition has no findings, omit the
   partition heading too. Same for `## What worked`, `## Routine — skipped retros`,
   `## Discrepancies`. An empty section is noise.
-- **Routing rule.** Source `scope: meta` → Meta partition. Source `scope: project_specific`
-  → Project partition. The architect's per-story scope routes the per-story entry. Each
-  phase-agent flag carries its own scope. Themes you synthesise yourself in
-  "Lead's epic-meta findings" inherit the scope that is most common across their source
-  retros; if mixed, pick `meta` only when you can name a concrete suggested change for
-  the *combined* theme.
+- **Heading uniqueness is mandatory.** Each `####` finding block must have a heading
+  unique within its parent `##` partition — the curator's `annotate_retro` action locates
+  a finding by its first-line heading. Substitute every placeholder before emitting:
+  `<N>` in `#### S<N> — examiner flag` becomes the actual story number;
+  `<focus-name>` in `#### From code-explorer (focus: <focus-name>)` becomes the actual
+  focus; `<mode>` in `#### From story-planner (mode: <mode>)` becomes the actual planner
+  mode; `<Theme title>` for lead's epic-meta findings must be unique. If two findings
+  would still collide after substitution, append a parenthetical qualifier
+  (`(continued)`, `(secondary)`) to make the second one unique — never emit two
+  identical headings.
+- **Routing rule (three-way).** First-pass by `scope`: Source `scope: meta` → Meta
+  partition; Source `scope: project_specific` → Project partition. Then apply the
+  plugin-bound classifier (Hard Rule 5) to the finding's `Suggested change:` text and
+  re-route to `## Plugin-bound findings (route to plugin BACKLOG)` if the regex
+  `\b(plugins/base/|base:[a-z-]+|/base:[a-z-]+)\b` matches. Plugin-bound wins over Meta
+  and Project-specific. The architect's per-story scope routes the per-story entry's
+  first pass; each phase-agent flag carries its own scope; themes you synthesise yourself
+  inherit the scope that is most common across their source retros. The classifier runs
+  on the FINAL suggested-change text (after any merging into a theme), so a theme whose
+  combined suggested-change names a base plugin path lands in Plugin-bound even if its
+  source retros were originally scoped as project_specific.
 - **Demote, don't filler.** A Meta finding without a concrete suggested change is
   demoted to the Project partition (Hard Rule 6). It is NOT dropped — the doer-side
   observation still has value as a project-memory note. Do not invent a suggestion to

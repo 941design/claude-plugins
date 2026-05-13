@@ -364,7 +364,7 @@ the file becomes a durable, searchable record of curatorial decisions.
   "action": "annotate_retro",
   "retro_path": "<absolute path to the retro markdown file>",
   "finding_anchor": "<verbatim first line of the finding's header or **Suggested change**: line — enough to uniquely locate the block>",
-  "disposition": "<one of: BACKLOG#<marker> | DUPLICATE of finding-<marker> (recurrence ×N) | ADR-NNN | ARCHIVE | NO_ACTION <reason> | DEFERRED to /base:retros-derive>",
+  "disposition": "<one of: BACKLOG#<marker> | DUPLICATE of finding-<marker> (recurrence ×N) | ADR-NNN | ARCHIVE | NO_ACTION <reason>>",
   "reason": "<why this disposition was chosen>"
 }
 ```
@@ -421,17 +421,29 @@ line.
   contains a line matching `_Curator: .*_`. If it does, skip the finding
   entirely — it has already been processed. This rule enables idempotent
   re-runs.
-- **Plugin-scope exclusion.** When a finding carries `scope: meta` AND
-  its `**Suggested change**:` text contains any of the following tokens —
-  `plugins/base/`, `` `base:` ``, `/base:`, `integration-architect`,
-  `code-explorer`, `story-planner`, `spec-validator`,
-  `verification-examiner`, `pbt-dev`, `retro-synthesizer`,
-  `bug-retro-synthesizer`, `project-curator`, `feature.md`, `bug.md`,
-  `retros-derive`, `result.json`, `epic-state.json`, `stories.json`,
-  `verification.json` — annotate it with disposition
-  `DEFERRED to /base:retros-derive` and do NOT append any bullet to the
-  consumer project's `BACKLOG.md`. The finding is a pipeline-improvement
-  candidate for the plugin-development repo, not the consumer project.
+- **Plugin-bound section skip (consumer-mode invocations).** When invoked by
+  `base:feature` Step 6 or `base:bug` Step 4 in a consumer project, **ignore
+  every finding under the `## Plugin-bound findings (route to plugin BACKLOG)`
+  section entirely** — those findings were pre-routed by the retro-synthesizer
+  using the plugin-bound classifier, and they are not destined for the
+  consumer's `BACKLOG.md`. They sit un-annotated in the retro file until the
+  base plugin's own `/base:retros-derive` (plugin-dev mode) harvests them
+  across consumers into `claude-plugins/BACKLOG.md`. Do NOT annotate them with
+  any disposition — leaving them un-annotated is what lets plugin-dev mode
+  pick them up via its dedup convention. Process the other partitions
+  (`## Meta-level findings (raise to user)`, `## Project-specific findings`)
+  normally.
+- **Plugin-dev-mode dispatch (only when invoked by `/base:retros-derive`).**
+  When the spawn prompt explicitly declares `Mode: plugin-dev`, the curator's
+  scope is the inverse of the above: process findings under
+  `## Plugin-bound findings (route to plugin BACKLOG)` (workflow retros) and
+  `## Meta-level findings (route to plugin memory)` (meta-retros), landing
+  each in `claude-plugins/BACKLOG.md` with disposition
+  `BACKLOG#plugins/base/<path>`. The disposition string
+  `DEFERRED to /base:retros-derive` is FORBIDDEN — there is no downstream
+  handler; this dispatch IS the handler. If a finding is too vague to file,
+  use `NO_ACTION <reason>` instead. Other dispositions (`DUPLICATE`, `ADR-NNN`,
+  `ARCHIVE`) remain available with their existing semantics.
 - **Recurrence rule.** When the curator would file a new finding whose
   normalized target matches an existing `## Findings` bullet in
   `BACKLOG.md` (match by the primary subject noun or anchor path),
