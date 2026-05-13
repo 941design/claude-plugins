@@ -103,10 +103,20 @@ now prose-based; classification falls out of comprehension.
   `ABORT:UNDERSPECIFIED:<reason>` output, truncated to ≤80 characters
   with a trailing `…` when longer. The one-line tonality rule still
   applies; truncation is non-optional.
-- The stamp marks the bullet as **deferred** until the paired question
-  finding (added by the auto-aborting target command alongside this
-  stamp) is resolved. It is not a rejection — rejections live in
-  `## Archive`.
+- The stamp marks the bullet as **deferred** until the user un-stamps it
+  (manually or via `/base:next <hint>` re-dispatch) or resolves it. It
+  is not a rejection — rejections live in `## Archive`.
+- **Sole signal.** The stamp is the canonical and only bookkeeping
+  artifact for an auto-abort. Earlier versions of this contract had the
+  auto-aborting target (`/base:feature`, `/base:bug`) ALSO append a
+  separate question finding capturing the gap; that produced duplicate
+  writes (the stamp said "skip in walk" while the question said "halt
+  the pipeline") and the question would later orphan when the original
+  was resolved. The append was retired 2026-05-13. Existing pre-retire
+  orphans (question findings whose `<text>` contains the literal
+  substring `Auto-dispatch aborted:`) are folded into the same
+  `insufficient` bucket by `/base:next` Step 3 — they no longer block
+  the pipeline; they're awaiting manual resolve.
 - **Validity.** Stamped bullets are NOT a malformation. `/base:orient`
   Rule 0 (format-integrity check) treats the `[INSUFFICIENT: <gap>]`
   prefix as valid grammar — this reference is the authority Rule 0
@@ -125,10 +135,10 @@ now prose-based; classification falls out of comprehension.
   dispatching (see below).
 - **Workload-signal exclusion.** Scanners that surface `## Findings`
   as workload-pressure or activity signal MUST exclude stamped
-  bullets — otherwise they double-count the deferred bullet against
-  the paired live question finding that already represents the active
-  concern. The specific exclusion points (other scanner sites NOT
-  listed here continue to see stamped bullets normally):
+  bullets — they're deferred work, not active pressure, and counting
+  them against the cap or oldest-N lists creates phantom load. The
+  specific exclusion points (other scanner sites NOT listed here
+  continue to see stamped bullets normally):
     - `/base:orient` Rule 5 (cap pressure count + oldest-5 listing),
       Rule 6 (oscillation vs `## Archive`), Rule 8 (ready-to-promote
       age clock).
@@ -138,10 +148,10 @@ now prose-based; classification falls out of comprehension.
       recurrence must not be absorbed into a stamped bullet that
       `/base:next` will never pick).
 - **Manual un-stamping.** A user may un-stamp a finding by hand
-  (delete the `[INSUFFICIENT: …] ` prefix) once the paired question
-  is resolved and the original is actionable again.
-  `/base:backlog resolve` does not currently provide an automated
-  un-stamp op.
+  (delete the `[INSUFFICIENT: …] ` prefix) once the gap referenced
+  in the stamp text has been addressed and the original is actionable
+  again. `/base:backlog resolve` does not currently provide an
+  automated un-stamp op.
 - **Automatic un-stamping on hint re-dispatch.** `/base:next <hint>`
   automatically un-stamps a finding when its hint uniquely targets a
   stamped bullet (the escape-hatch path). The bullet is rewritten in

@@ -39,14 +39,16 @@ ELSE:
 When `non_interactive = true`, every `AskUserQuestion` call site in this document
 has a paired abort branch — see Step 1 (no-argument gather, BACKLOG_PROMOTE slug
 conflict and ambiguity) and Step 3 (ESCALATE). At each such site, instead of
-invoking `AskUserQuestion`, append a question finding to `BACKLOG.md ## Findings`
-and output `ABORT:UNDERSPECIFIED: <reason>` then exit.
+invoking `AskUserQuestion`, output `ABORT:UNDERSPECIFIED: <reason>` on stdout and
+exit. **Do not write to `BACKLOG.md`.**
 
-The BACKLOG.md write protocol at every such site: read-modify-write the file —
-read it, locate the `## Findings` section heading, append the new bullet immediately
-after that heading line, write back. If `## Findings` is absent, create the section.
-If `BACKLOG.md` does not exist, skip the finding write silently (still output the
-ABORT signal and exit).
+The dispatcher (`/base:next` Step 6a) is the sole writer of the deferred-state
+bookkeeping artifact: it catches the `ABORT:UNDERSPECIFIED` signal on return and
+stamps the original finding it dispatched with `[INSUFFICIENT: <gap>]`. Earlier
+versions of this contract had `/base:bug` also append a separate question finding
+capturing the gap; that produced duplicate writes and orphan accumulation when
+the original was later resolved. The append has been retired. Direct invocations
+(no dispatcher in front) still emit the signal on stdout for the human watching.
 
 **Propagation to subagents and teammates.** The `non_interactive` flag does not
 stop at the lead. Subagents (`base:code-explorer`, `base:verification-examiner`)
@@ -69,18 +71,15 @@ And after every Agent spawn return or teammate message receive, when
 ```
 IF the return/message contains the literal string "ABORT:UNDERSPECIFIED":
     Extract the gap text: everything after the first "ABORT:UNDERSPECIFIED:" on that line, trimmed.
-    Append a question finding to BACKLOG.md ## Findings (read-modify-write):
-        "- {relevant_path} — Is this work ready for auto-dispatch? {gap text}. Resolve then remove this finding. (YYYY-MM-DD)"
-    Where {relevant_path} is the most relevant file path available in context
-    (bug report path, result.json path, or "-" if none).
-    Output: "ABORT:UNDERSPECIFIED: {gap text}" and exit the current skill.
+    Output: "ABORT:UNDERSPECIFIED: {gap text}" on stdout and exit the current skill.
+    Do NOT write to BACKLOG.md — the dispatcher stamps the original on return.
 ```
 
-The subagent does NOT write the backlog finding — only the lead does, when it
-catches the cascaded signal. Subagents that are pure data processors with no
+`{relevant_path}` references previously used by this catch (bug report path,
+result.json path, etc.) are now obsolete: the lead no longer writes a finding,
+so no anchor is needed. Subagents that are pure data processors with no
 human-judgment decision points (`base:bug-retro-synthesizer`,
-`base:project-curator`) are exempt from both the instruction injection and the
-catch.
+`base:project-curator`) are exempt from the instruction injection and the catch.
 
 ---
 
@@ -294,7 +293,7 @@ When `non_interactive = true`, append the non-interactive mode instruction (see 
 >
 > You do not spawn subagents. You do not manage state files. You do not write files.
 
-When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Decider's role definition. Additionally, because the Decider's `ESCALATE` response routes back to `AskUserQuestion` in the lead, append: "When `non_interactive = true`, if you would respond `ESCALATE`, respond `ABORT:UNDERSPECIFIED: <reason>` instead — the lead will catch this and persist the gap to the backlog rather than asking the user."
+When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Decider's role definition. Additionally, because the Decider's `ESCALATE` response routes back to `AskUserQuestion` in the lead, append: "When `non_interactive = true`, if you would respond `ESCALATE`, respond `ABORT:UNDERSPECIFIED: <reason>` instead — the lead will catch this and emit `ABORT:UNDERSPECIFIED` on stdout (the dispatcher then stamps the original finding) rather than asking the user."
 
 ---
 
@@ -367,18 +366,14 @@ rules, and state transitions.
        - reviewer and examiner evidence materially disagree
        - bug fix has hit max remediation rounds (3)
      → SendMessage(Decider) with: bug name, bug report summary, fix contract, fixer result, examiner results, reviewer verdict, remediation history, and a specific question.
-     → When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the Decider's message before acting on it. Use `bug-reports/{slug}-result.json` as `{relevant_path}`. If the message contains `ABORT:UNDERSPECIFIED`, the lead persists the gap to BACKLOG.md and exits — do not also fall through to the ESCALATE branch.
+     → When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the Decider's message before acting on it. If the message contains `ABORT:UNDERSPECIFIED`, the lead emits `ABORT:UNDERSPECIFIED: <gap>` on stdout and exits — the dispatcher stamps the original finding on return; do not also fall through to the ESCALATE branch.
      → Execute the Decider's response:
          RETRY    → increment remediation_round; update state file phase to REMEDIATING; message the fixer with the Decider's remediation prompt; re-run steps 2-4.
          ESCALATE → update state file as escalated; surface to the user via AskUserQuestion.
          ACCEPT   → record the caveats in bug-reports/{slug}-result.json; proceed to Step 4.
          REJECT   → treat as a remediation round; message the fixer with the Decider's failure list; re-run steps 2-4.
 
-   **Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion`. Instead, append a question finding to `BACKLOG.md ## Findings`:
-   ```
-   - bug-reports/{slug}-result.json — Is bug-fix spec for {slug} complete? Auto-dispatch aborted: fix escalated — {escalation reason}. Manual resolution required. Remove this finding when resolved. (YYYY-MM-DD)
-   ```
-   Output `ABORT:UNDERSPECIFIED: bug fix for {slug} escalated — {reason}` and exit.
+   **Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion` and do NOT write to `BACKLOG.md`. Output `ABORT:UNDERSPECIFIED: bug fix for {slug} escalated — {reason}` on stdout and exit. The dispatcher (`/base:next`) stamps the original finding with `[INSUFFICIENT]` on return.
 
 6. Retrospective discrepancy check:
    - If bug-reports/{slug}-result.json has `retrospective.skipped: true` AND remediation_round > 0, append a discrepancy note to `retro_bundle.discrepancies`.

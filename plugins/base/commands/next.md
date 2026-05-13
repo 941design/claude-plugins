@@ -106,10 +106,16 @@ For every finding bullet, read its prose (anchor + text) and classify it
 into exactly one of four buckets:
 
 - **`insufficient`** — the bullet's `<text>` (everything between ` — ` and
-  ` (YYYY-MM-DD)`) begins with the literal token `[INSUFFICIENT:`. The
-  bullet was stamped by a prior `/base:next auto` dispatch whose target
-  returned `ABORT:UNDERSPECIFIED`. See
-  `plugins/base/skills/backlog/references/format.md` for the stamp
+  ` (YYYY-MM-DD)`) matches **either** of:
+    - begins with the literal token `[INSUFFICIENT:` — the canonical stamp
+      written by Step 6a of a prior `/base:next auto` dispatch whose target
+      returned `ABORT:UNDERSPECIFIED`.
+    - contains the literal substring `Auto-dispatch aborted:` anywhere in
+      `<text>` — a legacy orphan from the pre-2026-05-13 contract, when
+      auto-aborting targets also appended a separate question finding
+      capturing the gap. That append has been retired; existing orphans
+      are absorbed into this bucket so they no longer halt the pipeline.
+  See `plugins/base/skills/backlog/references/format.md` for the stamp
   grammar. These are **deferred**, not blocking — the walk treats them
   as not-present.
 - **`bug`** — describes a defect: something is broken, fails, errors, regresses,
@@ -291,9 +297,10 @@ through immediately to Step 5 with the selected candidate.
 
 The Skill dispatch in Step 6 will append ` auto` to the args when `mode == auto`,
 signaling non-interactive mode to the downstream skill (`/base:feature` or `/base:bug`).
-If the downstream skill cannot proceed without user input, it will append a question
-finding to `BACKLOG.md` and return the literal abort signal `ABORT:UNDERSPECIFIED`,
-which Step 6a inspects.
+If the downstream skill cannot proceed without user input, it returns the literal
+abort signal `ABORT:UNDERSPECIFIED: <gap>` (and writes nothing to `BACKLOG.md`).
+Step 6a then stamps the original finding in `BACKLOG.md` with `[INSUFFICIENT: <gap>]`
+as the canonical and sole bookkeeping signal.
 
 ---
 
@@ -515,7 +522,7 @@ literal string `ABORT:UNDERSPECIFIED`. If present:
    Auto-dispatch aborted.
    Reason: {extracted gap description}
    Original finding stamped [INSUFFICIENT] in BACKLOG.md (deferred).
-   A question finding capturing the gap has been added; run /base:next (without auto) to address it interactively.
+   Address the gap (fill the referenced anchor) then re-dispatch via `/base:next <hint>` to un-stamp and retry, or close via `/base:backlog resolve <marker>`.
    ```
 
    If the stamp failed (per the fallback above), replace the
