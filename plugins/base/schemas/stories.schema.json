@@ -156,6 +156,11 @@
           "default": false,
           "description": "True if this story creates a new cross-story seam contract"
         },
+        "lighter_path": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, /base:feature Step 5 skips the integration-architect spawn for this story; lead implements directly via Edit. Examiner still runs. Emitted by base:story-planner Mode 2 only when all three conditions of AC-STORY-2 hold (markdown-class file targets, ACs fully specified, no new-file scaffolding). See specs/epic-fast-track-routing/spec.md ## Technical Approach and base:story-planner Mode 2 for the deterministic emission rule."
+        },
         "consumes_seams": {
           "type": "array",
           "items": { "type": "string" },

@@ -55,18 +55,98 @@ ELSE:
 When `non_interactive = true`, every `AskUserQuestion` call site in this document
 has a paired abort branch — see Step 1 (slug derivation, SCAN), Step 1.5 (RECONCILE
 adjudication), Step 2 (clarification rounds), and Step 5 (ESCALATE). At each such
-site, instead of invoking `AskUserQuestion`, output `ABORT:UNDERSPECIFIED: <reason>`
-on stdout and exit. **Do not write to `BACKLOG.md`.**
+site, instead of invoking `AskUserQuestion`, run the **Stamp-write procedure**
+below with `variant = INSUFFICIENT` (so the deferred-state bookkeeping lands
+on disk while the marker is still in scope), then output
+`ABORT:UNDERSPECIFIED: <reason>` on stdout and exit. A second deferred-state
+variant — `ALREADY-RESOLVED` — is emitted by the BACKLOG_PROMOTE working-tree
+probe below (Step 1 ### BACKLOG_PROMOTE mode) when the worker detects
+uncommitted changes touching the dispatched finding's anchor path; it uses the
+same Stamp-write procedure with `variant = ALREADY-RESOLVED` and the matching
+`ABORT:ALREADY-RESOLVED: <evidence>` signal.
 
-The dispatcher (`/base:next` Step 6a) is the sole writer of the deferred-state
-bookkeeping artifact: it catches the `ABORT:UNDERSPECIFIED` signal on return and
-stamps the original finding it dispatched with `[INSUFFICIENT: <gap>]`. Earlier
-versions of this contract had `/base:feature` also append a separate question
-finding capturing the gap; that produced duplicate writes (the stamp said
-"deferred, skip" while the question said "blocked, halt the pipeline"), and the
-question would later become an orphan when the original was resolved. The append
-has been retired. Direct invocations (no dispatcher in front) still emit the
-signal on stdout; the human watching the run reads it from there.
+**The worker is the primary writer of the deferred-state stamp.** When this
+skill is dispatched in auto mode from `/base:next` with a `backlog:<marker>`
+argument, the marker and the gap/evidence both live here, in the worker's
+context. Co-locating the stamp write with the actor that holds the data makes
+the bookkeeping survive prompt-context locality: the abort signal does not
+need to round-trip through a dispatcher catch step in order to land on
+`BACKLOG.md`. `/base:next` Step 6a is now a **post-return sanity check /
+fallback** that re-stamps only when the worker skipped the write (direct
+invocation without a marker, `Edit` failure mid-write, etc.) — the loop-break
+invariant holds under both paths and for both variants. See
+`plugins/base/skills/backlog/references/format.md` "Sole signal" subsection.
+
+Earlier versions of this contract had `/base:feature` also append a separate
+question finding capturing the gap; that produced duplicate writes (the
+stamp said "deferred, skip" while the question said "blocked, halt the
+pipeline"), and the question would later become an orphan when the original
+was resolved. The append has been retired (and stays retired here). Direct
+invocations (no dispatcher in front and therefore no `backlog:<marker>`
+argument) still emit the abort signal on stdout for the human watching, but
+skip the stamp write — there is no marker in scope to stamp against.
+
+#### Stamp-write procedure (worker-side)
+
+Run before emitting an abort signal on stdout, at every abort site referenced
+from this section. Parameterised by a `variant` argument:
+
+- `variant = INSUFFICIENT` → emitted stamp framing is `[INSUFFICIENT: <text>]`;
+  caller follows with `ABORT:UNDERSPECIFIED: <text>` on stdout. Used at every
+  `AskUserQuestion` / ESCALATE abort site (spec gap, decider escalation, etc.).
+- `variant = ALREADY-RESOLVED` → emitted stamp framing is
+  `[ALREADY-RESOLVED: <text>]`; caller follows with
+  `ABORT:ALREADY-RESOLVED: <text>` on stdout. Used by the BACKLOG_PROMOTE
+  working-tree probe below.
+
+The grammar, transform, and failure handling are otherwise identical across
+variants — only the literal token in the injected prefix differs.
+
+```
+Preconditions: non_interactive = true AND the worker was invoked with
+argument `backlog:<marker>` (so <marker> is in scope from Step 1's
+BACKLOG_PROMOTE mode lookup, captured as `pending_finding_removal`).
+If either fails, skip the stamp; the dispatcher's sanity check
+(`/base:next` Step 6a) will fall back.
+
+1. Compute stamp_text from the abort reason / evidence being
+   constructed. Truncate to ≤80 chars; if longer, replace the trailing
+   portion with a single `…` so the total stamp framing
+   (`[<variant>: ` + stamp_text + `]`) fits the one-line tonality rule
+   in `plugins/base/skills/backlog/references/format.md`.
+
+2. Read `BACKLOG.md` at the repo root. If missing, skip the stamp.
+
+3. Locate the bullet under `## Findings` whose anchor or text matches
+   <marker> — by construction this is unique (the worker already used
+   the same marker to look up the finding when entering BACKLOG_PROMOTE
+   mode in Step 1). If the lookup is now ambiguous (file was hand-edited
+   between dispatch and abort), skip the stamp.
+
+4. Use the `Edit` tool to inject `[<variant>: <stamp_text>] ` (with a
+   trailing space) immediately after the ` — ` separator between
+   <anchor> and <text>. The anchor, the original <text>, and the
+   ` (YYYY-MM-DD)` trailer are unchanged. Example transforms:
+
+       INSUFFICIENT variant:
+       before: - `path/to/spec.md` — Original prose. (2026-05-13)
+       after:  - `path/to/spec.md` — [INSUFFICIENT: gap reason] Original prose. (2026-05-13)
+
+       ALREADY-RESOLVED variant:
+       before: - `path/to/spec.md` — Original prose. (2026-05-13)
+       after:  - `path/to/spec.md` — [ALREADY-RESOLVED: M path/to/spec.md] Original prose. (2026-05-13)
+
+5. If the `Edit` fails for any reason (file gone, marker no longer
+   unique, race condition), proceed to emit the abort signal anyway;
+   the dispatcher's sanity check (`/base:next` Step 6a) is the
+   fallback writer.
+```
+
+After the stamp attempt (success, no-op, or fail-silently), continue to
+emit the matching abort signal on stdout
+(`ABORT:UNDERSPECIFIED: <reason>` for `variant = INSUFFICIENT`,
+`ABORT:ALREADY-RESOLVED: <evidence>` for `variant = ALREADY-RESOLVED`) and
+exit, exactly as before.
 
 **Propagation to subagents and teammates.** The `non_interactive` flag does not
 stop at the lead. Subagents (`base:spec-validator`, `base:code-explorer`,
@@ -90,15 +170,13 @@ And after every Agent spawn return or teammate message receive, when
 ```
 IF the return/message contains the literal string "ABORT:UNDERSPECIFIED":
     Extract the gap text: everything after the first "ABORT:UNDERSPECIFIED:" on that line, trimmed.
+    Run the Stamp-write procedure above with variant = INSUFFICIENT and stamp_text = <gap text>.
     Output: "ABORT:UNDERSPECIFIED: {gap text}" on stdout and exit the current skill.
-    Do NOT write to BACKLOG.md — the dispatcher stamps the original on return.
 ```
 
-`{relevant_path}` references previously used by this catch (spec.md path, story
-result.json path, exploration target, etc.) are now obsolete: the lead no longer
-writes a finding, so no anchor is needed. Subagents that are pure data processors
-with no human-judgment decision points (`base:retro-synthesizer`,
-`base:project-curator`) are exempt from the instruction injection and the catch.
+Subagents that are pure data processors with no human-judgment decision
+points (`base:retro-synthesizer`, `base:project-curator`) are exempt from
+the instruction injection and the catch.
 
 ---
 
@@ -120,8 +198,13 @@ ELSE:
 If SCAN finds in-progress epics, ask the user which to resume or whether to start fresh. SCAN should also note whether `BACKLOG.md` exists and has open Findings — if so, mention it as one option ("Or run `/base:orient` to see the project-wide picture") without making it the default.
 
 **Non-interactive abort.** When `non_interactive = true` and mode resolves to SCAN
-(no argument), abort immediately: output `ABORT:UNDERSPECIFIED: auto mode requires
-an explicit backlog marker or spec path; cannot scan interactively.` and exit.
+(no argument), abort immediately. This path is reached without a
+`backlog:<marker>` argument (the worker was invoked on a bare prompt with
+`auto`), so the Stamp-write procedure's precondition fails and the stamp is
+skipped — the dispatcher's sanity check (`/base:next` Step 6a) is the writer
+of last resort if a dispatcher is upstream. Output
+`ABORT:UNDERSPECIFIED: auto mode requires an explicit backlog marker or spec
+path; cannot scan interactively.` and exit.
 
 ### BACKLOG_PROMOTE mode
 
@@ -130,6 +213,32 @@ Argument form: `backlog:<finding-marker>` where `<finding-marker>` is a substrin
 ```
 1. Read BACKLOG.md. If missing, abort with: "no BACKLOG.md — run /base:backlog init first."
 2. Locate the matching finding bullet under ## Findings. If zero or >1 matches, abort with the candidates listed; the user re-invokes with a more specific marker.
+2a. **Working-tree probe (auto mode only).** When `non_interactive = true`,
+    before doing any other work for this finding, perform the BACKLOG_PROMOTE
+    working-tree probe defined canonically in
+    `plugins/base/commands/bug.md` ### BACKLOG_PROMOTE mode (Step 3a). The
+    algorithm is identical here: parse the bullet's anchor into
+    `(path, line_range)`; when the anchor has a `:line` or `:N-M` suffix
+    the probe is line-precise (uses `git diff HEAD -- <path>` and requires
+    a hunk's HEAD-side range to overlap the anchored line range); when
+    the anchor has no line component it falls back to file-level
+    detection via `git status --porcelain -- <path>`; when the anchor is
+    `-` the probe is skipped entirely. See `bug.md` for the full
+    procedure, including edge cases (untracked files with a line_range,
+    empty `git diff` despite non-empty porcelain status, pure-addition
+    `-0,0` hunks) and the truncation rules for `<evidence>`.
+
+    On abort, run the **Stamp-write procedure** (see Non-Interactive Mode
+    Detection block above) with `variant = ALREADY-RESOLVED` and
+    `stamp_text = <evidence>`, then emit on stdout, exactly:
+        ABORT:ALREADY-RESOLVED: <evidence>
+    and exit the worker. Do not scaffold the spec stub, do not write
+    `epic-state.json`, do not invoke any subagent. (This is the
+    `/base:feature` substitution for `bug.md`'s "do not scaffold the bug
+    report …" abort exit — the rest of the algorithm is unchanged.)
+
+    Skip this probe entirely when `non_interactive = false` (the user
+    can see the working tree themselves).
 3. Derive an epic slug from the finding (kebab-case, ≤40 chars). Confirm with the user via AskUserQuestion if ambiguous. **When `non_interactive = true`, skip `AskUserQuestion` and derive the slug deterministically: take the first 8 words of the finding text, kebab-case them. No confirmation.**
 4. Scaffold the empty stub by invoking Skill("base:spec-template", args: "<slug>") — that skill creates `specs/epic-<slug>/spec.md` and `acceptance-criteria.md` with title-only content (it deliberately does NOT generate project-specific content; see its SKILL.md). Then the lead **Edit**s the just-created `specs/epic-<slug>/spec.md` to inject the finding's text into `## Problem` and the finding's anchor (when present) into `## Technical Approach` as a starting reference. This pre-fill is the lead's job, not the skill's — keep the inserted text minimal (the finding's verbatim text plus a "Source: BACKLOG.md finding promoted YYYY-MM-DD" line); the user expands it before Step 2 validation.
 5. Capture the finding marker in an in-session variable `pending_finding_removal = <marker>`. **Do NOT remove the bullet yet** — the source finding stays in `## Findings` until Step 3 has successfully written `epic-state.json`. This makes promotion atomic: if Step 2 validation aborts or the user abandons the run, the finding is still in the backlog (and the orphaned `specs/epic-<slug>/` stub is detectable by `/base:orient` Rule 2 as drift).
@@ -199,7 +308,7 @@ If every verdict is `holds` or `unverifiable`, log the result and proceed to Ste
 
 If ANY verdict is `partially-holds` or `violated`, present an adjudication menu via `AskUserQuestion`. For each non-holds AC, the user picks one of:
 
-**Non-interactive abort.** When `non_interactive = true`, do NOT present the adjudication menu and do NOT write to `BACKLOG.md`. Output `ABORT:UNDERSPECIFIED: RECONCILE requires human adjudication.` on stdout and exit. The dispatcher (`/base:next`) stamps the original finding with `[INSUFFICIENT]` on return.
+**Non-interactive abort.** When `non_interactive = true`, do NOT present the adjudication menu. RECONCILE only runs in RESUME mode (Step 1.5), so there is no `backlog:<marker>` argument in scope — the Stamp-write procedure's precondition fails and the stamp is skipped here; `/base:next` Step 6a is the writer of last resort if a dispatcher is upstream. Output `ABORT:UNDERSPECIFIED: RECONCILE requires human adjudication.` on stdout and exit.
 
 
 - **`keep`** — the AC stays unchanged. Use this both when "the AC is correct, the code is wrong" (defect to be fixed during this epic) AND when "the AC is correct and the code already satisfies it" (the verification examiner will find it satisfied during normal flow — usually fast-path pass with no architect work). RECONCILE does not pre-mark stories `done`; that pathway corrupts crash-recovery's artifact-validation contract (each `done` story must own all four artifacts, which RECONCILE does not produce).
@@ -248,11 +357,11 @@ For NEW mode (spec just authored or scaffolded from BACKLOG_PROMOTE), this is th
 
 If gaps exist, use AskUserQuestion to get clarifications. Update the spec. Max 3 rounds — if still unclear, stop and explain what's missing.
 
-**Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion` for spec clarifications and do NOT write to `BACKLOG.md`. Capture the first gap identified and output `ABORT:UNDERSPECIFIED: {first gap}` on stdout, then exit. The dispatcher (`/base:next`) stamps the original finding with `[INSUFFICIENT]` on return.
+**Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion` for spec clarifications. Capture the first gap identified, run the Stamp-write procedure (see Non-Interactive Mode Detection block above) with `variant = INSUFFICIENT` and `stamp_text = "{first gap}"`, then output `ABORT:UNDERSPECIFIED: {first gap}` on stdout and exit. `/base:next` Step 6a is the fallback writer if the stamp Edit fails or no marker is in scope (direct invocation).
 
 For complex specs, use the Agent tool with `subagent_type: base:spec-validator` for thorough analysis. Pass the discovered ADRs and matching archive entries to the validator as input context. When `non_interactive = true`, include the non-interactive mode instruction (see Non-Interactive Mode Detection block above) in the spawn prompt — the validator might otherwise surface clarification needs via `AskUserQuestion`. If its return contains a `RETROSPECTIVE:` block with `skipped: false`, capture it into `retro_bundle.spec_validation` (see "Retrospective collection (cross-cutting)" near the top of this file).
 
-When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the spec-validator return before processing the retrospective. Use `<spec_file>` as `{relevant_path}`.
+When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the spec-validator return before processing the retrospective.
 
 ---
 
@@ -339,7 +448,7 @@ When `non_interactive = true`, append the non-interactive mode instruction (see 
 
 Merge results into `specs/epic-{name}/exploration.json`. For each explorer return that contains a `RETROSPECTIVE:` block with `skipped: false`, append it to `retro_bundle.exploration` (one entry per non-skipped flag, with the focus name preserved).
 
-When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to each explorer return before merging. Use `specs/epic-{name}/spec.md` as `{relevant_path}`.
+When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to each explorer return before merging.
 
 ### Initialize Mocks Registry
 
@@ -360,7 +469,7 @@ Check `specs/epic-{name}/spec.md` YAML frontmatter for `arch_debate: true`.
 
 **If `arch_debate: true`:**
 
-When `non_interactive = true`, do NOT invoke the skill — `base:arch-debate` requires human deliberation and is not auto-dispatchable. Output `ABORT:UNDERSPECIFIED: arch_debate: true requires human deliberation; not auto-dispatchable.` on stdout and exit. Do NOT write to `BACKLOG.md`; the dispatcher stamps the original finding with `[INSUFFICIENT]` on return.
+When `non_interactive = true`, do NOT invoke the skill — `base:arch-debate` requires human deliberation and is not auto-dispatchable. Run the Stamp-write procedure (see Non-Interactive Mode Detection block above) with `variant = INSUFFICIENT` and `stamp_text = "arch_debate: true requires human deliberation; not auto-dispatchable."`, then output `ABORT:UNDERSPECIFIED: arch_debate: true requires human deliberation; not auto-dispatchable.` on stdout and exit. `/base:next` Step 6a is the fallback writer if the stamp Edit fails.
 
 Otherwise (interactive mode), invoke `Skill("base:arch-debate", args: "--epic {epic_name} --spec specs/epic-{name}/spec.md")`.
 The skill reads `exploration.json`, runs a two-round Proposer ↔ Codex adversary debate, and outputs:
@@ -404,7 +513,7 @@ Create an agent team with one role. The lead (this session, running on Sonnet) d
 > You do not spawn subagents. You do not manage state files. You do not read
 > artifacts yourself unless the lead provides them in context.
 
-When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Decider's role definition. Additionally, because the Decider's `ESCALATE` response routes back to `AskUserQuestion` in the lead, append: "When `non_interactive = true`, if you would respond `ESCALATE`, respond `ABORT:UNDERSPECIFIED: <reason>` instead — the lead will catch this and emit `ABORT:UNDERSPECIFIED` on stdout (the dispatcher then stamps the original finding) rather than asking the user."
+When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Decider's role definition. Additionally, because the Decider's `ESCALATE` response routes back to `AskUserQuestion` in the lead, append: "When `non_interactive = true`, if you would respond `ESCALATE`, respond `ABORT:UNDERSPECIFIED: <reason>` instead — the lead will catch this, stamp the original finding `[INSUFFICIENT]` via the worker-side Stamp-write procedure, and emit `ABORT:UNDERSPECIFIED` on stdout rather than asking the user."
 
 ### Planning Phase
 
@@ -417,15 +526,13 @@ three modes; spawn it once per mode (fresh subagent each time).
    non-interactive mode instruction (see Non-Interactive Mode Detection block
    above) in the spawn prompt. Wait for completion. When `non_interactive = true`,
    apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection
-   block above) to the planner return before processing. Use
-   `specs/epic-{name}/spec.md` as `{relevant_path}`.
+   block above) to the planner return before processing.
 2. Spawn `Agent(subagent_type: base:story-planner)` in **Mode 2** with: spec
    path, acceptance-criteria.md path, architecture.md path. Output:
    `stories.json`. When `non_interactive = true`, include the non-interactive
    mode instruction in the spawn prompt. Wait for completion. When
    `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch to the
-   planner return before processing. Use `specs/epic-{name}/spec.md` as
-   `{relevant_path}`.
+   planner return before processing.
 3. Read `stories.json` directly. Sanity check: all ACs covered,
    `story_order` defined, no duplicate story IDs.
    - If issues are minor and unambiguous (typos, missing scope boundary,
@@ -436,8 +543,9 @@ three modes; spawn it once per mode (fresh subagent each time).
      and the specific question. Apply the Decider's response before
      proceeding. When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED
      catch to the Decider's message before acting on it — if it contains
-     `ABORT:UNDERSPECIFIED`, the lead emits `ABORT:UNDERSPECIFIED: <gap>` on
-     stdout and exits (the dispatcher stamps the original on return).
+     `ABORT:UNDERSPECIFIED`, run the Stamp-write procedure with
+     `variant = INSUFFICIENT` and `stamp_text = <extracted gap text>`,
+     then emit `ABORT:UNDERSPECIFIED: <gap>` on stdout and exit.
 4. Spawn `Agent(subagent_type: base:story-planner)` in **Mode 3** with:
    stories.json path, acceptance-criteria.md path, architecture.md path.
    Output: one `{story_dir}/verification.json` per story containing the
@@ -447,8 +555,7 @@ three modes; spawn it once per mode (fresh subagent each time).
    `stories.json` has a `verification.json` with at least 5 pre-impl
    records plus one SPEC record per AC in its `acceptance_criteria`. When
    `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch to the
-   planner return before processing. Use `specs/epic-{name}/spec.md` as
-   `{relevant_path}`.
+   planner return before processing.
 5. When all three modes have produced their artifacts, proceed to the
    implementation loop in Step 5.
 
@@ -477,7 +584,77 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
   1. Update stories.json: story status → in_progress.
      Update epic-state.json: updated_at.
 
-  2. Spawn Agent(subagent_type: base:integration-architect) with:
+  2. Read `story.lighter_path` from stories.json for the current story
+     (default `false` if the property is absent — the schema marks it
+     optional; old stories.json files that predate S2 of
+     `epic-fast-track-routing` lack the field and MUST route through the
+     full architect path).
+
+     **IF `story.lighter_path == true` (lighter-path branch):**
+
+       a. Write `{story_dir}/architecture.json` with the minimal
+          lighter-path contract:
+
+          ```json
+          {
+            "decision": "lighter_path",
+            "architect_skipped": true,
+            "reason": "<one-line summary of the heuristic match — e.g. 'all file targets in markdown_class_extensions; every AC fully specified; no new file'>"
+          }
+          ```
+
+       b. Write `{story_dir}/baseline.json` with the no-test-baseline
+          stub:
+
+          ```json
+          {
+            "test_snapshot": "skipped",
+            "reason": "markdown-class-no-test-baseline"
+          }
+          ```
+
+       c. The lead implements the story directly via `Edit` calls on the
+          story's file targets, citing the story's ACs inline as the
+          implementation proceeds. **No `Agent(subagent_type:
+          base:integration-architect)` spawn occurs on this story under
+          this branch** (AC-FEATURE-1). There is no architect agentId to
+          capture for the retro probe in bullet 5; record the absence
+          via the `result.json.retrospective.skipped: true` write in
+          step 2d below.
+
+       d. Write `{story_dir}/result.json` with the lighter-path stub.
+          The four fields below are the load-bearing additions for
+          AC-FEATURE-2 and AC-OBS-2; honour the rest of
+          `plugins/base/schemas/result.schema.json` for required fields
+          (`story_id`, `status`, `remediation_rounds`, `retrospective`):
+
+          ```json
+          {
+            "story_id": "<id>",
+            "status": "done",
+            "final_outcome": "accepted",
+            "architect_skipped": true,
+            "files_modified": ["<list of files Edit was called on>"],
+            "remediation_rounds": 0,
+            "completed_at": "<ISO 8601 timestamp>",
+            "retrospective": {
+              "skipped": true,
+              "reason": "lighter-path; no architect retro"
+            }
+          }
+          ```
+
+       e. **Continue to bullet 3 below — the examiner still runs**
+          (AC-FEATURE-3). The lighter-path branch only skips the
+          architect, not the examiner. Do NOT mark `stories.json` /
+          `epic-state.json` done yet — that promotion lives in bullet
+          4's FAST PATH — pass / FAST PATH — retry / Decider branches,
+          which run identically for both paths.
+
+     **ELSE (`story.lighter_path == false` or absent — existing full
+     path):**
+
+     Spawn Agent(subagent_type: base:integration-architect) with:
        - the story spec (the relevant entry from stories.json)
        - acceptance criteria (acceptance-criteria.md, filtered to this story's ACs)
        - exploration.json (path)
@@ -490,8 +667,7 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
      Context MUST NOT include result.json or artifacts from prior stories — every story gets a fresh subagent with a clean context window. **Capture the architect's agentId** (returned by the Agent tool) and keep it for this story so Step 5 (the optional retro probe) can re-engage the same architect by agentId. Wait for the subagent to write {story_dir}/result.json.
 
      When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see
-     Non-Interactive Mode Detection block above) to the architect return. Use
-     `{story_dir}/result.json` as `{relevant_path}`.
+     Non-Interactive Mode Detection block above) to the architect return.
 
      If {story_dir}/verification.json is missing for this story, the
      planner did not complete Mode 3 — re-spawn `base:story-planner` in
@@ -500,13 +676,18 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
 
   3. Read {story_dir}/verification.json.
      Spawn Agent(subagent_type: base:verification-examiner) for each verification question, or each batch of related questions. Independent batches MUST be sent in parallel — single message, multiple Agent tool calls. When `non_interactive = true`, include the non-interactive mode instruction (see Non-Interactive Mode Detection block above) in each examiner's spawn prompt. Each examiner returns YES, NO, or PARTIAL with severity and evidence.
-     Collect all results. When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch to each examiner return before tallying. Use `{story_dir}/result.json` as `{relevant_path}`. For each examiner return that contains a `RETROSPECTIVE:` block with `skipped: false`, append `{story_id, flag}` to `retro_bundle.examiners` (see "Retrospective collection (cross-cutting)" near the top of this file).
+     Collect all results. When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch to each examiner return before tallying. For each examiner return that contains a `RETROSPECTIVE:` block with `skipped: false`, append `{story_id, flag}` to `retro_bundle.examiners` (see "Retrospective collection (cross-cutting)" near the top of this file).
+
+     **Examiner spawn is unconditional on `lighter_path`** (AC-FEATURE-3).
+     This bullet runs identically whether bullet 2 took the lighter-path
+     branch or the full-path branch; only the architect is skipped on
+     the lighter path, never the examiner.
 
   4. Apply decision rules:
 
      FAST PATH — pass:
        All questions YES, or PARTIAL with severity < 4 AND confidence ≥ 0.7. All tests pass. No examiner reports a stub-scan hit or a missing-test downgrade. No `root_cause_category` of `security_gap`, `arch_violation`, or `missing_contract` on any PARTIAL.
-       → Update {story_dir}/result.json: status=done, final_outcome=accepted, completed_at.
+       → Update {story_dir}/result.json: status=done, final_outcome=accepted, completed_at. (On the lighter-path branch the stub written in bullet 2d already has these fields; treat the FAST PATH — pass write as idempotent.)
        → Update stories.json: this story's status → done.
        → Update epic-state.json: append story ID to completed_stories.
        → Continue to next story. (No Decider consult.)
@@ -515,6 +696,33 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
        One or more questions NO, or PARTIAL with severity 4–6. remediation_round = 0. Root cause is clear and unambiguous in the examiner output (single named file, single named defect) AND `root_cause_category` is one of {missing_test, impl_bug, dead_code, duplication, documentation}.
        → Spawn a fresh Agent(subagent_type: base:integration-architect) with the examiner findings as the remediation brief.
        → Re-run step 3 (spawn fresh examiners). If the result is now FAST PATH — pass, advance. Otherwise → ESCALATE.
+
+     **Lighter-path remediation fallback (AC-FEATURE-4).** If bullet 2
+     took the lighter-path branch (this story's `architect_skipped` is
+     `true` in the freshly-written `result.json`) AND the examiner
+     outcome triggers either FAST PATH — first retry OR an ESCALATE that
+     leads to a Decider `RETRY` / `REJECT` response, the remediation
+     path MUST spawn `Agent(subagent_type: base:integration-architect)`
+     with the examiner findings (or Decider remediation prompt) as the
+     brief — even though no architect ran in bullet 2. The lead MUST NOT
+     attempt a second lead-written implementation on the same story.
+     The architect is the round-1 remediator for lighter-path failures.
+
+     Before that fallback spawn, update bookkeeping so the recorded path
+     matches the actual path taken:
+       - Set `story.lighter_path = false` in stories.json (the recorded
+         flag now reflects that this story fell through to the full
+         path; subsequent crash recovery and retros see reality).
+       - On the eventual final write of `{story_dir}/result.json` by the
+         architect, the `architect_skipped` field MUST be `false` (or
+         omitted, which defaults to `false`) — the architect actually
+         ran. The lighter-path stub's `architect_skipped: true` is
+         superseded by the architect's authoritative write.
+
+     Capture the architect's agentId from the fallback spawn so bullet 5's
+     optional retro probe can reach the architect that did the
+     remediation work — same agentId-capture convention as bullet 2's
+     full-path branch.
 
      ESCALATE:
        Triggered by any of:
@@ -528,18 +736,25 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
          - Architecture seam dispute
          - Story has hit max remediation rounds (5)
        → SendMessage(Decider) with: story ID, verification.json summary, examiner results, remediation history, and a specific question.
-       → When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the Decider's message before acting on it. If the message contains `ABORT:UNDERSPECIFIED`, the lead emits `ABORT:UNDERSPECIFIED: <gap>` on stdout and exits — the dispatcher stamps the original finding on return; do not also fall through to the ESCALATE branch.
+       → When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the Decider's message before acting on it. If the message contains `ABORT:UNDERSPECIFIED`, run the Stamp-write procedure with `variant = INSUFFICIENT` and `stamp_text = <extracted gap text>`, then emit `ABORT:UNDERSPECIFIED: <gap>` on stdout and exit — do not also fall through to the ESCALATE branch.
        → Execute the Decider's response:
-           RETRY    → spawn a fresh Agent(subagent_type: base:integration-architect) with the Decider's remediation prompt (apply the same non-interactive instruction injection and ABORT catch as bullet 2 above); re-run step 3.
+           RETRY    → spawn a fresh Agent(subagent_type: base:integration-architect) with the Decider's remediation prompt (apply the same non-interactive instruction injection and ABORT catch as bullet 2 above); re-run step 3. **If the current story is on the lighter path, apply the lighter-path remediation-fallback bookkeeping above (flip stories.json's `story.lighter_path` to `false`) before the architect spawn.**
            ESCALATE → mark the story escalated in stories.json and epic-state.json; surface to the user via AskUserQuestion.
            ACCEPT   → update result.json with the Decider's caveats; mark done.
-           REJECT   → treat as a remediation round; re-run step 2 with the Decider's failure list.
+           REJECT   → treat as a remediation round; re-run step 2 with the Decider's failure list. **If the current story is on the lighter path, apply the lighter-path remediation-fallback bookkeeping above (flip stories.json's `story.lighter_path` to `false`) so the re-run takes the full-path branch of bullet 2.**
 
-     **Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion` for escalations and do NOT write to `BACKLOG.md`. Output `ABORT:UNDERSPECIFIED: story {story-id} escalated — {reason}` on stdout and exit. The dispatcher (`/base:next`) stamps the original finding with `[INSUFFICIENT]` on return.
+     **Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion` for escalations. Run the Stamp-write procedure (see Non-Interactive Mode Detection block above) with `variant = INSUFFICIENT` and `stamp_text = "story {story-id} escalated — {reason}"`, then output `ABORT:UNDERSPECIFIED: story {story-id} escalated — {reason}` on stdout and exit. `/base:next` Step 6a is the fallback writer if the stamp Edit fails or no marker is in scope (direct invocation).
 
   5. **Optional retro probe** (per story, end-of-iteration). After bullet 4 has reached a terminal state for this story (FAST PATH pass, FAST PATH retry-then-pass, or post-Decider RETRY/ACCEPT/REJECT settled), read `{story_dir}/result.json.retrospective`.
+       - **Lighter-path skip case.** If the story took the lighter-path
+         branch in bullet 2 AND never fell back to a full-path architect
+         spawn in bullet 4 (no architect ever ran for this story), skip
+         the probe entirely. The `result.json.retrospective.skipped:
+         true` write from step 2d is the canonical record; there is no
+         architect agentId to probe and no architect retro to enrich.
+         The probe is a no-op for these stories.
        - If `retrospective.skipped: true` AND `result.json.remediation_rounds > 0`, append a discrepancy note to `retro_bundle.discrepancies` (e.g. `"S{id} retro skipped despite N remediation rounds"`). Do NOT probe — that punishes skip-allowed.
-       - Else if `retrospective.skipped: false` AND a field is unclear or incomplete in a way that would materially improve the meta-retro at Step 6, you MAY probe the architect via `SendMessage(to: <architect_agentId>, message: <one specific question>)`. Use the agentId you captured in bullet 2 above. This is agentId-based addressing — see "Conventions for spawning vs. messaging" — NOT role-name SendMessage. Cap: 3 follow-ups per architect.
+       - Else if `retrospective.skipped: false` AND a field is unclear or incomplete in a way that would materially improve the meta-retro at Step 6, you MAY probe the architect via `SendMessage(to: <architect_agentId>, message: <one specific question>)`. Use the agentId you captured in bullet 2 above (or, on a lighter-path remediation fallback, the agentId captured during bullet 4's fallback spawn). This is agentId-based addressing — see "Conventions for spawning vs. messaging" — NOT role-name SendMessage. Cap: 3 follow-ups per architect.
        - Append each Q/A pair to `result.json.retrospective.lead_clarifications` as `[{question, answer}]`.
        - Skip the probe entirely when the retro is clear; that is the default.
        - The most recent architect spawn's agentId is the one to use. If a story went through multiple architect spawns (FAST PATH retry, Decider RETRY/REJECT), only the agentId of the spawn whose `result.json` is the final canonical record is reachable for this probe.

@@ -164,6 +164,56 @@ the in-run case; this op is the inter-run equivalent.
 (typically the path component of its anchor or the first few words of its
 text).
 
+### Argument forms
+
+The op accepts a `<marker>` plus an OPTIONAL action token that pre-selects
+the resolution path. The action-token forms are what `/base:next` Step 6
+dispatches when routing `(feature-work, amendment)` and `(*, mechanical)`
+findings; the bare `<marker>` form is the interactive path used when a
+human invokes `/base:backlog resolve <marker>` directly.
+
+```
+resolve <marker>                              [interactive — existing flow]
+resolve <marker> done-mechanical              [pre-selected — skip top-level prompt]
+resolve <marker> done→spec:<spec-path>        [pre-selected — skip top-level prompt + path prompt]
+resolve <marker> rejected:<reason>            [pre-selected — skip top-level prompt + reason prompt]
+```
+
+**Backward-compat guarantee.** Invoking `resolve <marker>` with no action
+token preserves the existing interactive flow verbatim — the top-level
+`AskUserQuestion` for resolution path still fires and the user picks
+one of the four paths. This op is safe to invoke either way; the action
+token is purely an optimisation for non-interactive dispatchers.
+
+### Parsing
+
+```
+tokens = $ARGUMENTS split on whitespace, with the leading `resolve`
+         op token removed.
+marker = tokens[0]    (required)
+
+IF tokens has length >= 2:
+    action_token = tokens[1] (joined with subsequent tokens when the
+                              action's payload itself contains
+                              whitespace — currently none of the
+                              recognised action tokens do, but the
+                              join is defensive).
+
+    Match action_token against the prefixes:
+      - exactly "done-mechanical"    → action = "done-mechanical",
+                                        payload = None
+      - starts with "done→spec:"      → action = "done→spec",
+                                        payload = everything after
+                                        "done→spec:" (the spec path)
+      - starts with "rejected:"       → action = "rejected",
+                                        payload = everything after
+                                        "rejected:" (the reason)
+      - anything else                 → REJECT with the three-op summary
+                                        message (do not guess)
+ELSE:
+    action = None    (existing interactive flow applies)
+```
+
 The four resolution paths and where each lives:
 
 | Path | Where it goes | Source |
@@ -183,8 +233,25 @@ The four resolution paths and where each lives:
        with a more specific marker.
      - Multiple matches: list them and ask the user to disambiguate.
 
-3. Show the matched bullet via AskUserQuestion. Ask which resolution path
-   applies:
+3. **Resolution-path selection.**
+
+   IF `action` was supplied via args (parsed above), SKIP the top-level
+   "which resolution path?" `AskUserQuestion` and branch directly into
+   the corresponding sub-flow:
+     - `action == "done-mechanical"` → sub-flow (b), no confirmation
+       prompt (the dispatcher has already classified the bullet as
+       mechanical; the two-word test was applied at classification
+       time). Proceed directly to step 4.
+     - `action == "done→spec"` → sub-flow (a) with the target spec path
+       set from `payload` (skip the path-selection prompt). The AC ID
+       / AC text / amendment rationale prompts in sub-flow (a) STILL
+       FIRE — those require user authorship and are not derivable
+       from the dispatcher's args.
+     - `action == "rejected"` → sub-flow (c) with the reason set from
+       `payload` (skip the reason prompt). Proceed directly to step 4.
+
+   ELSE (no `action`, i.e. interactive invocation), show the matched
+   bullet via `AskUserQuestion` and ask which resolution path applies:
 
      a. done→spec — a spec was (or needs to be) amended. Ask for:
           - target spec path (default: search `specs/epic-*/` for one whose
@@ -228,7 +295,10 @@ The four resolution paths and where each lives:
            `- YYYY-MM-DD — <original finding text> — <reason>`
 
 5. Report in 2–3 lines: which resolution path, which files touched, and
-   (for done→spec) the AC ID that was added or tightened.
+   (for done→spec) the AC ID that was added or tightened. When the op
+   was invoked with an action token via args, prefix the report with
+   `Resolved via args (<action>):` so audits can distinguish
+   dispatcher-driven resolutions from interactive ones.
 ```
 
 ---

@@ -125,18 +125,19 @@ trigger a RECONCILE phase; budget for it."
 ### Rule 5 — Backlog cap pressure
 
 Count entries in `## Findings`, **excluding bullets whose `<text>` begins
-with the literal `[INSUFFICIENT:` token** — those are deferred (see the
-stamp grammar in `plugins/base/skills/backlog/references/format.md`) and
-do not contribute to working-set pressure. If the live count > 15 → emit
-a "prune or promote" move listing the oldest 5 (also live, not stamped).
-Stale findings (no date, or date > 90 days old) lead the list.
+with the literal `[INSUFFICIENT:` or `[ALREADY-RESOLVED:` token** — those
+are deferred (see the stamp grammar in
+`plugins/base/skills/backlog/references/format.md`) and do not contribute
+to working-set pressure. If the live count > 15 → emit a "prune or
+promote" move listing the oldest 5 (also live, not stamped). Stale
+findings (no date, or date > 90 days old) lead the list.
 
 ### Rule 6 — Oscillation
 
-For each entry in `## Findings` **excluding `[INSUFFICIENT:`-stamped
-bullets** (stamped bullets are paired with a live question finding that
-already represents the active concern; comparing the stamped bullet to
-the archive double-counts), compare against `## Archive`:
+For each entry in `## Findings` **excluding bullets stamped
+`[INSUFFICIENT:` or `[ALREADY-RESOLVED:`** (stamped bullets are deferred
+work, not active concerns; comparing them to the archive double-counts
+against the live oscillation signal), compare against `## Archive`:
 - **Hard match**: identical anchor (path or path:line) appears in archive →
   surface verbatim, "previously rejected YYYY-MM-DD because <reason>."
 - **Soft match**: anchor's path component matches AND the prose is
@@ -159,10 +160,12 @@ let `/base:next` classify and dispatch. Findings that have been resolved in
 the user's head but never closed in BACKLOG should get
 `/base:backlog resolve <marker>` as the suggested next move.
 
-**Skip `[INSUFFICIENT:`-stamped bullets** in this rule. They are
-deferred until their paired question finding is resolved, and their
-age clock applies to the *un-stamped* lifetime — surfacing them as
-"ready to promote" would re-invite the same auto-abort loop.
+**Skip bullets stamped `[INSUFFICIENT:` or `[ALREADY-RESOLVED:`** in
+this rule. They are deferred until the user un-stamps or resolves them,
+and their age clock applies to the *un-stamped* lifetime — surfacing
+them as "ready to promote" would re-invite the same auto-abort loop
+(for `[INSUFFICIENT:]`, against the same spec gap; for
+`[ALREADY-RESOLVED:]`, against the same uncommitted diff).
 
 ### Rule 9 — ADRs awaiting acceptance
 

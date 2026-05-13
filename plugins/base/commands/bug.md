@@ -39,16 +39,96 @@ ELSE:
 When `non_interactive = true`, every `AskUserQuestion` call site in this document
 has a paired abort branch — see Step 1 (no-argument gather, BACKLOG_PROMOTE slug
 conflict and ambiguity) and Step 3 (ESCALATE). At each such site, instead of
-invoking `AskUserQuestion`, output `ABORT:UNDERSPECIFIED: <reason>` on stdout and
-exit. **Do not write to `BACKLOG.md`.**
+invoking `AskUserQuestion`, run the **Stamp-write procedure** below with
+`variant = INSUFFICIENT` (so the deferred-state bookkeeping lands on disk
+while the marker is still in scope), then output
+`ABORT:UNDERSPECIFIED: <reason>` on stdout and exit. A second deferred-state
+variant — `ALREADY-RESOLVED` — is emitted by the BACKLOG_PROMOTE working-tree
+probe below (Step 1 ### BACKLOG_PROMOTE mode) when the worker detects
+uncommitted changes touching the dispatched finding's anchor path; it uses the
+same Stamp-write procedure with `variant = ALREADY-RESOLVED` and the matching
+`ABORT:ALREADY-RESOLVED: <evidence>` signal.
 
-The dispatcher (`/base:next` Step 6a) is the sole writer of the deferred-state
-bookkeeping artifact: it catches the `ABORT:UNDERSPECIFIED` signal on return and
-stamps the original finding it dispatched with `[INSUFFICIENT: <gap>]`. Earlier
-versions of this contract had `/base:bug` also append a separate question finding
-capturing the gap; that produced duplicate writes and orphan accumulation when
-the original was later resolved. The append has been retired. Direct invocations
-(no dispatcher in front) still emit the signal on stdout for the human watching.
+**The worker is the primary writer of the deferred-state stamp.** When this
+skill is dispatched in auto mode from `/base:next` with a `backlog:<marker>`
+argument, the marker and the gap/evidence both live here, in the worker's
+context. Co-locating the stamp write with the actor that holds the data makes
+the bookkeeping survive prompt-context locality: the abort signal does not
+need to round-trip through a dispatcher catch step in order to land on
+`BACKLOG.md`. `/base:next` Step 6a is now a **post-return sanity check /
+fallback** that re-stamps only when the worker skipped the write (direct
+invocation without a marker, `Edit` failure mid-write, etc.) — the loop-break
+invariant holds under both paths and for both variants. See
+`plugins/base/skills/backlog/references/format.md` "Sole signal" subsection.
+
+Earlier versions of this contract had `/base:bug` also append a separate
+question finding capturing the gap; that produced duplicate writes and orphan
+accumulation when the original was later resolved. The append has been
+retired (and stays retired here). Direct invocations (no dispatcher in front
+and therefore no `backlog:<marker>` argument) still emit the abort signal on
+stdout for the human watching, but skip the stamp write — there is no marker
+in scope to stamp against.
+
+#### Stamp-write procedure (worker-side)
+
+Run before emitting an abort signal on stdout, at every abort site referenced
+from this section. Parameterised by a `variant` argument:
+
+- `variant = INSUFFICIENT` → emitted stamp framing is `[INSUFFICIENT: <text>]`;
+  caller follows with `ABORT:UNDERSPECIFIED: <text>` on stdout. Used at every
+  `AskUserQuestion` / ESCALATE abort site (spec gap, decider escalation, etc.).
+- `variant = ALREADY-RESOLVED` → emitted stamp framing is
+  `[ALREADY-RESOLVED: <text>]`; caller follows with
+  `ABORT:ALREADY-RESOLVED: <text>` on stdout. Used by the BACKLOG_PROMOTE
+  working-tree probe below.
+
+The grammar, transform, and failure handling are otherwise identical across
+variants — only the literal token in the injected prefix differs.
+
+```
+Preconditions: non_interactive = true AND the worker was invoked with
+argument `backlog:<marker>` (so <marker> is in scope from Step 1's
+BACKLOG_PROMOTE mode lookup). If either fails, skip the stamp; the
+dispatcher's sanity check (`/base:next` Step 6a) will fall back.
+
+1. Compute stamp_text from the abort reason / evidence being
+   constructed. Truncate to ≤80 chars; if longer, replace the trailing
+   portion with a single `…` so the total stamp framing
+   (`[<variant>: ` + stamp_text + `]`) fits the one-line tonality rule
+   in `plugins/base/skills/backlog/references/format.md`.
+
+2. Read `BACKLOG.md` at the repo root. If missing, skip the stamp.
+
+3. Locate the bullet under `## Findings` whose anchor or text matches
+   <marker> — by construction this is unique (the worker already used
+   the same marker to look up the finding when entering BACKLOG_PROMOTE
+   mode in Step 1). If the lookup is now ambiguous (file was hand-edited
+   between dispatch and abort), skip the stamp.
+
+4. Use the `Edit` tool to inject `[<variant>: <stamp_text>] ` (with a
+   trailing space) immediately after the ` — ` separator between
+   <anchor> and <text>. The anchor, the original <text>, and the
+   ` (YYYY-MM-DD)` trailer are unchanged. Example transforms:
+
+       INSUFFICIENT variant:
+       before: - `path/to/spec.md` — Original prose. (2026-05-13)
+       after:  - `path/to/spec.md` — [INSUFFICIENT: gap reason] Original prose. (2026-05-13)
+
+       ALREADY-RESOLVED variant:
+       before: - `path/to/spec.md` — Original prose. (2026-05-13)
+       after:  - `path/to/spec.md` — [ALREADY-RESOLVED: M path/to/spec.md] Original prose. (2026-05-13)
+
+5. If the `Edit` fails for any reason (file gone, marker no longer
+   unique, race condition), proceed to emit the abort signal anyway;
+   the dispatcher's sanity check (`/base:next` Step 6a) is the
+   fallback writer.
+```
+
+After the stamp attempt (success, no-op, or fail-silently), continue to
+emit the matching abort signal on stdout
+(`ABORT:UNDERSPECIFIED: <reason>` for `variant = INSUFFICIENT`,
+`ABORT:ALREADY-RESOLVED: <evidence>` for `variant = ALREADY-RESOLVED`) and
+exit, exactly as before.
 
 **Propagation to subagents and teammates.** The `non_interactive` flag does not
 stop at the lead. Subagents (`base:code-explorer`, `base:verification-examiner`)
@@ -71,15 +151,13 @@ And after every Agent spawn return or teammate message receive, when
 ```
 IF the return/message contains the literal string "ABORT:UNDERSPECIFIED":
     Extract the gap text: everything after the first "ABORT:UNDERSPECIFIED:" on that line, trimmed.
+    Run the Stamp-write procedure above with variant = INSUFFICIENT and stamp_text = <gap text>.
     Output: "ABORT:UNDERSPECIFIED: {gap text}" on stdout and exit the current skill.
-    Do NOT write to BACKLOG.md — the dispatcher stamps the original on return.
 ```
 
-`{relevant_path}` references previously used by this catch (bug report path,
-result.json path, etc.) are now obsolete: the lead no longer writes a finding,
-so no anchor is needed. Subagents that are pure data processors with no
-human-judgment decision points (`base:bug-retro-synthesizer`,
-`base:project-curator`) are exempt from the instruction injection and the catch.
+Subagents that are pure data processors with no human-judgment decision
+points (`base:bug-retro-synthesizer`, `base:project-curator`) are exempt
+from the instruction injection and the catch.
 
 ---
 
@@ -106,7 +184,12 @@ ELSE:
     - Any error messages?
     Write bug report to bug-reports/{slug}-report.md
 
-    When `non_interactive = true`, do NOT use `AskUserQuestion`. Output
+    When `non_interactive = true`, do NOT use `AskUserQuestion`. This path is
+    reached without a `backlog:<marker>` argument (the worker was invoked
+    on a bare prompt with `auto`), so the Stamp-write procedure's
+    precondition fails and the stamp is skipped — the dispatcher's
+    sanity check (`/base:next` Step 6a) is the writer of last resort if a
+    dispatcher is upstream. Output
     `ABORT:UNDERSPECIFIED: auto mode requires a backlog marker or bug report file
     path; cannot gather bug details interactively.` and exit.
 ```
@@ -133,6 +216,153 @@ uniquely identifies one entry in `BACKLOG.md ## Findings`.
    Do NOT process non-defect findings under the bug workflow. When the
    classification is genuinely ambiguous, proceed — the bug workflow's own
    reproduction step will surface the mismatch.
+
+3a. **Working-tree probe (auto mode only).** When `non_interactive = true`,
+    before doing any other work for this finding, check whether the working
+    tree already has uncommitted changes touching the finding's anchored
+    location — a conservative heuristic that the finding *might* already be
+    addressed. If so, stamp the bullet `[ALREADY-RESOLVED: <evidence>]` and
+    abort. The user decides what to do next (commit and re-dispatch, or
+    close via `/base:backlog resolve <marker> done-mechanical`). Skip this
+    probe entirely when `non_interactive = false` (the user can see the
+    working tree themselves).
+
+    The probe is **line-precise** when the anchor carries a `:line` or
+    `:N-M` line suffix: only working-tree hunks that overlap the anchored
+    line range trigger an abort. When the anchor has no line component, the
+    probe falls back to file-level uncommitted-change detection. The intent
+    is to suppress the false deferrals that file-level detection produces
+    on dirty branches where unrelated edits sit elsewhere in the anchored
+    file.
+
+    ```
+    Preconditions: non_interactive = true AND the worker was invoked with
+    argument `backlog:<marker>`. (Step 2 above already established the
+    marker; this probe only runs once the bullet is in hand.)
+
+    1. Parse the bullet's anchor field (the first token before ` — ` in
+       the bullet grammar; see
+       `plugins/base/skills/backlog/references/format.md`) into
+       `(path, line_range)`:
+
+         - Split the anchor on the LAST `:` only. If the remainder
+           matches `^[0-9]+$`, line_range = (N, N). If it matches
+           `^[0-9]+-[0-9]+$`, line_range = (N, M). Otherwise (no
+           colon, or the token after the last colon is not numeric),
+           treat the entire anchor as the path with line_range = None.
+         - Special case: when the anchor token is exactly `-`, the
+           finding is not file-anchored. Skip the probe entirely and
+           proceed to step 4. Nothing to probe.
+
+       Four anchor forms in total:
+         - `path/to/file.ext`       → path-only,    line_range = None
+         - `path/to/file.ext:42`    → single line,  line_range = (42, 42)
+         - `path/to/file.ext:42-99` → range,        line_range = (42, 99)
+         - `-`                      → no file,      skip probe
+
+    2. Run, exactly:
+           git status --porcelain -- <path>
+       from the repo root. If the command fails (non-zero exit), skip
+       the probe and proceed to step 4 — never block on a git failure.
+       If the output is empty (whitespace only), there are no
+       uncommitted changes touching the anchored file. Proceed to
+       step 4.
+
+    3. The file has uncommitted changes. Branch on line_range.
+
+       **Path-only anchor (line_range = None):**
+
+       File-level fallback — compose `evidence` from the porcelain
+       status output and abort:
+         - Take the first line of the `git status --porcelain` output.
+         - Strip leading/trailing whitespace.
+         - Truncate so the full stamp framing
+           `[ALREADY-RESOLVED: ` + evidence + `]` is ≤80 chars total
+           (per the one-line tonality rule in
+           `plugins/base/skills/backlog/references/format.md`).
+         - If truncation is needed, replace the trailing portion of
+           `evidence` with a single `…`.
+
+       Then run the **Stamp-write procedure** (above) with
+       `variant = ALREADY-RESOLVED` and `stamp_text = <evidence>`, emit
+       `ABORT:ALREADY-RESOLVED: <evidence>` on stdout (exactly), and
+       exit the worker. Do not scaffold the bug report, do not invoke
+       any subagent, do not write a state file.
+
+       **Line-anchored (line_range = (L_start, L_end)):**
+
+       Run, exactly:
+           git diff HEAD -- <path>
+       from the repo root and capture stdout. If the diff is empty
+       even though `git status` showed the file as modified (mode-bit
+       changes, etc.) or if the file is untracked (the porcelain code
+       was `??`, so there is no HEAD-side content to diff against),
+       treat as no overlap → do NOT abort. Proceed to step 4.
+
+       Parse unified-diff hunk headers. The header shape is:
+           @@ -<old_start>[,<old_count>] +<new_start>[,<new_count>] @@
+       where `<old_count>` defaults to 1 when omitted. The HEAD-side
+       lines touched by a hunk are
+       `[old_start, old_start + old_count - 1]`. A pure-addition hunk
+       (header `-0,0 ...`) has no HEAD-side range — the anchored lines
+       themselves are unchanged in HEAD space and new lines slot in
+       around them; treat such hunks as not overlapping with any
+       line_range.
+
+       For each remaining hunk, compute
+       `hunk_head_range = (old_start, old_start + old_count - 1)`.
+       The hunk overlaps the anchor iff
+           hunk_head_range[1] >= line_range[0]
+       AND hunk_head_range[0] <= line_range[1].
+
+       **If any hunk overlaps:** the working tree may already address
+       this finding. Compose `evidence` describing the first
+       overlapping hunk. Suggested form (truncate so the full stamp
+       framing `[ALREADY-RESOLVED: ` + evidence + `]` is ≤80 chars
+       total, replacing the trailing portion with a single `…` when
+       needed):
+           lines <H_start>-<H_end> in <path>: <first 40 chars of the
+           hunk's first context/added/removed line>
+       Then run the **Stamp-write procedure** (above) with
+       `variant = ALREADY-RESOLVED` and `stamp_text = <evidence>`, emit
+       `ABORT:ALREADY-RESOLVED: <evidence>` on stdout (exactly), and
+       exit the worker. Do not scaffold the bug report, do not invoke
+       any subagent, do not write a state file.
+
+       **If no hunk overlaps:** the file has uncommitted changes but
+       none of them touch the anchored line range. Do NOT abort. The
+       finding is not resolved by the working tree; proceed to
+       step 4.
+    ```
+
+    Edge cases:
+      - **Untracked file (`??` in status) with a line_range.** Untracked
+        files have no HEAD-side content, so the line_range concept is
+        moot — the entire file is new. Treat as no overlap, do NOT
+        abort. (When line_range is None and the file is untracked, the
+        path-only fallback applies and the probe aborts as before.)
+      - **`git diff HEAD -- <path>` empty despite a non-empty
+        porcelain status.** Can happen for mode-bit-only changes and
+        similar. Treat as no overlap → do NOT abort.
+      - **Anchor refers to lines past the file's current length.** The
+        probe does not validate that. The overlap check just compares
+        numeric ranges; if a hunk happens to cover those numbers in
+        HEAD space, it counts. Don't over-engineer.
+
+    The heuristic is intentionally conservative: uncommitted hunks
+    overlapping the anchored line range are evidence the finding
+    *might* already be addressed, not proof. The audit trail simply
+    distinguishes "we deferred because the working tree may already
+    fix this" from "we deferred because the spec is incomplete."
+    `/base:next` Step 3 classifies an `[ALREADY-RESOLVED:]`-stamped
+    bullet under the same `deferred` bucket as `[INSUFFICIENT:]`, so
+    the loop-break invariant is shared.
+
+    This is the **canonical source** of the working-tree probe
+    algorithm. `/base:feature`'s BACKLOG_PROMOTE mode performs the
+    identical procedure (with "scaffold the spec stub" substituted for
+    "scaffold the bug report" in the abort exits) and refers to this
+    section rather than duplicating the prose.
 
 4. Derive a kebab-case slug from the finding's text (≤40 chars).
    Confirm via AskUserQuestion if ambiguous.
@@ -169,7 +399,7 @@ When `non_interactive = true`, append the non-interactive mode instruction (see 
 
 Read 5-10 key files to understand the affected area.
 
-When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to each explorer return before merging. Use the bug report path (`bug-reports/{slug}-report.md`) as `{relevant_path}`.
+When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to each explorer return before merging.
 
 For each explorer return that contains a `RETROSPECTIVE:` block with `skipped: false`,
 append it to `retro_bundle.exploration`.
@@ -293,7 +523,7 @@ When `non_interactive = true`, append the non-interactive mode instruction (see 
 >
 > You do not spawn subagents. You do not manage state files. You do not write files.
 
-When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Decider's role definition. Additionally, because the Decider's `ESCALATE` response routes back to `AskUserQuestion` in the lead, append: "When `non_interactive = true`, if you would respond `ESCALATE`, respond `ABORT:UNDERSPECIFIED: <reason>` instead — the lead will catch this and emit `ABORT:UNDERSPECIFIED` on stdout (the dispatcher then stamps the original finding) rather than asking the user."
+When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Decider's role definition. Additionally, because the Decider's `ESCALATE` response routes back to `AskUserQuestion` in the lead, append: "When `non_interactive = true`, if you would respond `ESCALATE`, respond `ABORT:UNDERSPECIFIED: <reason>` instead — the lead will catch this, stamp the original finding `[INSUFFICIENT]` via the worker-side Stamp-write procedure, and emit `ABORT:UNDERSPECIFIED` on stdout rather than asking the user."
 
 ---
 
@@ -315,11 +545,11 @@ rules, and state transitions.
    - bug-reports/{slug}-contract.json
    - bug-reports/{slug}-result.json
    Update state file phase to FIX_READY.
-   When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the fixer's message before proceeding. Use `bug-reports/{slug}-result.json` as `{relevant_path}`.
+   When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the fixer's message before proceeding.
 
 3. Read bug-reports/{slug}-result.json.
    Spawn Agent(subagent_type: base:verification-examiner) for each verification question, or each batch of related questions. Independent batches MUST be sent in parallel — single message, multiple Agent tool calls. When `non_interactive = true`, include the non-interactive mode instruction (see Non-Interactive Mode Detection block above) in each examiner's spawn prompt.
-   Collect all results. When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch to each examiner return before tallying. Use `bug-reports/{slug}-result.json` as `{relevant_path}`. For each examiner return that contains a `RETROSPECTIVE:` block with `skipped: false`, append `{question_id, flag}` to `retro_bundle.examiners`.
+   Collect all results. When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch to each examiner return before tallying. For each examiner return that contains a `RETROSPECTIVE:` block with `skipped: false`, append `{question_id, flag}` to `retro_bundle.examiners`.
 
 4. Message the reviewer with:
    - bug report path
@@ -327,7 +557,7 @@ rules, and state transitions.
    - result path
    - examiner results
    - remediation history so far
-   When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the reviewer's verdict message before acting on it. Use `bug-reports/{slug}-result.json` as `{relevant_path}`.
+   When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the reviewer's verdict message before acting on it.
    If the reviewer returns a `RETROSPECTIVE:` block with `skipped: false`, store it in `retro_bundle.reviewer`.
 
 5. Apply decision rules:
@@ -366,14 +596,14 @@ rules, and state transitions.
        - reviewer and examiner evidence materially disagree
        - bug fix has hit max remediation rounds (3)
      → SendMessage(Decider) with: bug name, bug report summary, fix contract, fixer result, examiner results, reviewer verdict, remediation history, and a specific question.
-     → When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the Decider's message before acting on it. If the message contains `ABORT:UNDERSPECIFIED`, the lead emits `ABORT:UNDERSPECIFIED: <gap>` on stdout and exits — the dispatcher stamps the original finding on return; do not also fall through to the ESCALATE branch.
+     → When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the Decider's message before acting on it. If the message contains `ABORT:UNDERSPECIFIED`, run the Stamp-write procedure with `variant = INSUFFICIENT` and `stamp_text = <extracted gap text>`, then emit `ABORT:UNDERSPECIFIED: <gap>` on stdout and exit — do not also fall through to the ESCALATE branch.
      → Execute the Decider's response:
          RETRY    → increment remediation_round; update state file phase to REMEDIATING; message the fixer with the Decider's remediation prompt; re-run steps 2-4.
          ESCALATE → update state file as escalated; surface to the user via AskUserQuestion.
          ACCEPT   → record the caveats in bug-reports/{slug}-result.json; proceed to Step 4.
          REJECT   → treat as a remediation round; message the fixer with the Decider's failure list; re-run steps 2-4.
 
-   **Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion` and do NOT write to `BACKLOG.md`. Output `ABORT:UNDERSPECIFIED: bug fix for {slug} escalated — {reason}` on stdout and exit. The dispatcher (`/base:next`) stamps the original finding with `[INSUFFICIENT]` on return.
+   **Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion`. Run the Stamp-write procedure (see Non-Interactive Mode Detection block above) with `variant = INSUFFICIENT` and `stamp_text = "bug fix for {slug} escalated — {reason}"`, then output `ABORT:UNDERSPECIFIED: bug fix for {slug} escalated — {reason}` on stdout and exit. `/base:next` Step 6a is the fallback writer if the stamp Edit fails.
 
 6. Retrospective discrepancy check:
    - If bug-reports/{slug}-result.json has `retrospective.skipped: true` AND remediation_round > 0, append a discrepancy note to `retro_bundle.discrepancies`.

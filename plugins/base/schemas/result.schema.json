@@ -71,6 +71,11 @@
       "default": 0,
       "description": "Count of architect re-spawns triggered by failed verification"
     },
+    "architect_skipped": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when /base:feature Step 5 took the lighter_path branch and the lead implemented the story directly without spawning base:integration-architect. Queryable from retros and audit scripts to track lighter-path adoption rates. See specs/epic-fast-track-routing/spec.md and AC-OBS-2. Resets to false (or is omitted) on remediation fallback per AC-FEATURE-4 — if a lighter-path story fails examiner verification, round 1 re-spawns the architect and stories.json's story.lighter_path is also flipped to false so the recorded path matches reality."
+    },
     "escalation_history": {
       "type": "array",
       "items": {

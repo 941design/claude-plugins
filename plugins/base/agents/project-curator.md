@@ -129,11 +129,12 @@ Eligibility:
   for genuinely cross-cutting questions; if you cannot anchor, ask
   yourself whether the finding is too vague to be useful and drop it.
 - Reject findings that are already addressed by the current spec, an
-  open finding, or a recent commit. **Exclude `[INSUFFICIENT:`-stamped
-  bullets** (see the stamp grammar in
+  open finding, or a recent commit. **Exclude bullets stamped
+  `[INSUFFICIENT:` or `[ALREADY-RESOLVED:`** (see the stamp grammar in
   `plugins/base/skills/backlog/references/format.md`) when checking
-  this dedup — a stamped bullet is deferred and should not suppress a
-  fresh actionable finding on the same topic.
+  this dedup — both deferred-state stamps mark the bullet as deferred,
+  and a deferred bullet should not suppress a fresh actionable finding
+  on the same topic.
 
 ### `action: append_rejection`
 
@@ -438,12 +439,13 @@ line.
   `recurred ×N (YYYY-MM-DD)`; (b) annotate the retro finding with
   disposition `DUPLICATE of finding-<marker> (recurrence ×N)`. Do not
   create a new bullet. This keeps the backlog from accumulating duplicate
-  entries across runs. **Exclude `[INSUFFICIENT:`-stamped bullets from
-  this matching pass** (see
-  `plugins/base/skills/backlog/references/format.md`) — they are
-  deferred and `/base:next` will not pick them, so absorbing a fresh
-  recurrence into one would suppress real signal. Treat a topic that
-  matches only a stamped bullet as if no existing bullet matched and
+  entries across runs. **Exclude bullets stamped `[INSUFFICIENT:` or
+  `[ALREADY-RESOLVED:` from this matching pass** (see
+  `plugins/base/skills/backlog/references/format.md`) — both
+  deferred-state stamps mark the bullet as deferred, `/base:next` will
+  not pick them, and absorbing a fresh recurrence into one would
+  suppress real signal. Treat a topic that matches only a stamped
+  bullet (of either variant) as if no existing bullet matched and
   create the new finding normally.
 
 ## Why a separate subagent

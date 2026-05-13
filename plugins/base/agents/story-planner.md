@@ -16,6 +16,69 @@ You are a **Story Planner** responsible for breaking down feature specifications
 - Input: Feature specification + acceptance criteria
 - Output: `stories.json` following `schemas/stories.schema.json`
 
+Mode 2 also emits the per-story `lighter_path` boolean (see
+**Per-story `lighter_path` flag emission** below) alongside the other
+story properties, immediately before writing `stories.json`.
+
+#### Per-story `lighter_path` flag emission
+
+This section is the **normative source** for `lighter_path` semantics.
+The schema's `lighter_path` description cites this section by reference;
+do not duplicate the rule elsewhere.
+
+For each story being emitted to `stories.json`, decide `story.lighter_path`
+deterministically from the planner's inputs (`acceptance-criteria.md`,
+the story's `files` list, the story's `scope` and `acceptance_criteria`
+fields). Never guess; never emit `true` on missing data.
+
+Define:
+
+```
+markdown_class_extensions = {.md, .json, .yaml, .yml, .toml, .txt}
+```
+
+Compute three predicates per story:
+
+1. **`files_md` / `files_code`.** Partition the story's file targets by
+   extension. `files_md` = every file target whose extension is in
+   `markdown_class_extensions`. `files_code` = every other file target.
+
+2. **`ac_complete`.** For every AC ID listed in
+   `story.acceptance_criteria`, look up the AC text in
+   `acceptance-criteria.md` (the same lookup already used for AC
+   coverage verification). The AC is `ac_complete` IFF **all five**
+   sub-conditions hold:
+   - (a) the AC exists in `acceptance-criteria.md`;
+   - (b) the rendered AC text contains no `<placeholder>` token;
+   - (c) the rendered AC text contains no `…` literal (ellipsis);
+   - (d) the rendered AC text contains no trailing `?`;
+   - (e) the rendered AC text uses MUST / MUST NOT normative form
+     (the literal substring `MUST` or `MUST NOT` appears).
+
+   The story-level `ac_complete` is the conjunction across every AC in
+   the story's `acceptance_criteria` array.
+
+3. **`new_file`.** True if any of the following signals point to
+   new-file work — be conservative; any single signal flips it true:
+   - the story's `scope.includes` (or other scope words) contains
+     `create new file`, `new file`, or `scaffold`;
+   - the story's `files` list references a path that does not exist on
+     disk at planning time (Mode 2 has `Read` access — check existence).
+
+Final rule:
+
+```
+lighter_path = (len(files_code) == 0) AND ac_complete AND (NOT new_file)
+story.lighter_path = lighter_path
+```
+
+**Conservative default (AC-STORY-3).** If any of the three predicates
+above cannot be deterministically verified from Mode 2's inputs (e.g.
+an AC text cannot be located, a file-target existence check is
+indeterminate, scope words are absent so the new-file signal is
+ambiguous in either direction), emit `story.lighter_path = false`.
+Never emit `true` on missing or uncertain data.
+
 ### Mode 3: Author Verification Commitments
 - Input: `stories.json` + `acceptance-criteria.md` + `architecture.md`
 - Output: `{story_dir}/verification.json` for each story with the pre-impl
