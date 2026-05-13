@@ -89,6 +89,69 @@ vocabulary added friction for hand-edited todos and pushed the burden of
 classification onto the writer rather than letting prose speak. Routing is
 now prose-based; classification falls out of comprehension.
 
+### `[INSUFFICIENT: <gap>]` text prefix (deferred state)
+
+`<text>` MAY be preceded by `[INSUFFICIENT: <gap>]`, written by
+`/base:next auto` when the dispatched target returned
+`ABORT:UNDERSPECIFIED`. Full shape:
+
+```
+- <anchor> — [INSUFFICIENT: <gap>] <original text> (YYYY-MM-DD)
+```
+
+- `<gap>` is the abort reason copied from the target's
+  `ABORT:UNDERSPECIFIED:<reason>` output, truncated to ≤80 characters
+  with a trailing `…` when longer. The one-line tonality rule still
+  applies; truncation is non-optional.
+- The stamp marks the bullet as **deferred** until the paired question
+  finding (added by the auto-aborting target command alongside this
+  stamp) is resolved. It is not a rejection — rejections live in
+  `## Archive`.
+- **Validity.** Stamped bullets are NOT a malformation. `/base:orient`
+  Rule 0 (format-integrity check) treats the `[INSUFFICIENT: <gap>]`
+  prefix as valid grammar — this reference is the authority Rule 0
+  cites. The anchor and `(YYYY-MM-DD)` trailer are unchanged from the
+  un-stamped form, so substring-marker lookups (curator
+  `finding_marker`, `/base:next` Step 5 derivation) continue to work.
+  Operations that intentionally target a stamped bullet — resolve,
+  reject, hand-edit, or `/base:next <hint>` re-dispatch — remain
+  fully functional and MUST NOT be filtered out.
+- **Dispatch classification.** `/base:next` Step 3 classifies stamped
+  bullets as a separate `insufficient` bucket: not a candidate in the
+  document-order walk, not surfaced in the detail-mode top-3 render,
+  and not subject to question-halt. The hint short-circuit's first
+  pass also excludes them; only the explicit "escape hatch" second
+  pass can reach a stamped bullet, and that path un-stamps before
+  dispatching (see below).
+- **Workload-signal exclusion.** Scanners that surface `## Findings`
+  as workload-pressure or activity signal MUST exclude stamped
+  bullets — otherwise they double-count the deferred bullet against
+  the paired live question finding that already represents the active
+  concern. The specific exclusion points (other scanner sites NOT
+  listed here continue to see stamped bullets normally):
+    - `/base:orient` Rule 5 (cap pressure count + oldest-5 listing),
+      Rule 6 (oscillation vs `## Archive`), Rule 8 (ready-to-promote
+      age clock).
+    - `base:project-curator` `append_finding` dedup check (a stamped
+      bullet must not suppress a fresh actionable finding on the same
+      topic) and the Recurrence rule's matching pass (a fresh
+      recurrence must not be absorbed into a stamped bullet that
+      `/base:next` will never pick).
+- **Manual un-stamping.** A user may un-stamp a finding by hand
+  (delete the `[INSUFFICIENT: …] ` prefix) once the paired question
+  is resolved and the original is actionable again.
+  `/base:backlog resolve` does not currently provide an automated
+  un-stamp op.
+- **Automatic un-stamping on hint re-dispatch.** `/base:next <hint>`
+  automatically un-stamps a finding when its hint uniquely targets a
+  stamped bullet (the escape-hatch path). The bullet is rewritten in
+  place to drop the prefix *before* dispatch so downstream consumers
+  (`/base:feature backlog:<marker>` slug + spec stub derivation,
+  `/base:bug backlog:<marker>` slug + report-text derivation) read
+  the original prose and not the defer-marker. If the downstream
+  skill aborts again with `ABORT:UNDERSPECIFIED`, the bullet gets
+  re-stamped with the new gap reason.
+
 Empty placeholder when no findings exist: `- _no findings yet_`.
 
 ---

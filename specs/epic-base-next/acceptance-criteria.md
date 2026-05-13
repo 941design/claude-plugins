@@ -198,3 +198,96 @@ modes.
 **AC-NONREG-3** — `/base:orient` MUST remain read-only. The
 cross-reference text addition (AC-ORIENT-1) MUST NOT introduce any
 write operation, mutation, or Skill invocation into the orient flow.
+
+## Insufficient-Stamping on Auto-Abort
+
+**AC-NEXT-17** — When `/base:next auto` dispatches finding `F` and the
+target's return output contains the literal substring
+`ABORT:UNDERSPECIFIED:<gap>`, the dispatcher MUST stamp `F` in
+`## Findings` by injecting `[INSUFFICIENT: <gap-truncated-to-80>] `
+immediately after the ` — ` separator between `<anchor>` and `<text>`,
+in a single `Edit` read-modify-write, BEFORE printing the abort
+message. The anchor and the `(YYYY-MM-DD)` trailer MUST remain
+unchanged. The stamp MUST be durable across sessions.
+
+**AC-NEXT-18** — Step 3 MUST treat any `## Findings` bullet whose
+`<text>` (the substring between ` — ` and ` (YYYY-MM-DD)`) begins with
+the literal token `[INSUFFICIENT:` as classification `insufficient`.
+These bullets MUST NOT be selected as candidates, MUST NOT trigger
+question-halt, and MUST NOT appear in detail-mode's top-3 render.
+
+**AC-NEXT-19** — If the Step 6a stamp `Edit` fails (file missing,
+marker no longer unique, or any other Edit error), the dispatcher MUST
+proceed to print the abort message with a single appended `WARNING`
+line stating that the stamp could not be written and recommending
+`/base:backlog resolve` as a manual remediation. The abort message
+MUST still be printed and the dispatcher MUST still exit.
+
+## Content-Hint Argument
+
+**AC-NEXT-20** — `/base:next` MUST accept a non-empty argument string
+that is not exactly the bare token `auto` as a **content hint**. The
+hint MAY have a trailing whitespace-separated `auto` token; when
+present, that token MUST select `mode = "auto"` and MUST be excluded
+from the hint string used for matching. The dispatcher MUST NOT exit
+with a usage hint on any non-empty argument.
+
+**AC-NEXT-21** — When `hint != None`, Step 3 MUST short-circuit the
+document-order walk and instead select the bullet in `## Findings`
+with the strongest content overlap with the hint, computed as the
+count of meaningful (non-stopword) hint tokens appearing as
+substrings in the bullet. Selection MUST be unique iff the top score
+is ≥2 matching tokens AND exceeds the second-best score by ≥1 token.
+On no-match or ambiguity, the dispatcher MUST exit with a candidate
+set listed (up to 5 entries) and MUST NOT dispatch.
+
+**AC-NEXT-22** — When the hint short-circuit's first pass (excluding
+`insufficient`-stamped bullets) produces no unique winner, Step 3
+MUST re-run the match including stamped bullets as an escape hatch.
+If a stamped bullet becomes the unique winner under that second pass,
+the dispatcher MUST: (a) surface a one-line warning naming the
+`[INSUFFICIENT]` match and the un-stamp action; (b) **rewrite the
+matched bullet in `BACKLOG.md` to strip the leading
+`[INSUFFICIENT: …]` prefix** (including the trailing space) via a
+single `Edit` read-modify-write before falling through to Step 4. If
+the un-stamp `Edit` fails, the dispatcher MUST print a WARNING and
+exit WITHOUT dispatching, to avoid the stamp prefix poisoning
+downstream slug or spec/report stub derivation in
+`/base:feature backlog:<marker>` or `/base:bug backlog:<marker>`. The
+escape hatch MUST override the skip semantics from AC-NEXT-18 only
+for explicit hint matches.
+
+## Scanner Propagation
+
+**AC-INSUFF-1** — `/base:orient` Rule 5 (backlog cap pressure) MUST
+exclude bullets classified as `insufficient` (`<text>` begins with
+`[INSUFFICIENT:`) from the working-set count and from the "oldest 5"
+prune-or-promote listing. Stamped bullets are deferred and do not
+contribute to cap pressure.
+
+**AC-INSUFF-2** — `/base:orient` Rule 6 (oscillation vs `## Archive`)
+MUST exclude `[INSUFFICIENT:`-stamped bullets when comparing
+`## Findings` against `## Archive`. The paired question finding
+already represents the active concern; double-surfacing the stamped
+bullet as a possible re-decision is noise.
+
+**AC-INSUFF-3** — `/base:orient` Rule 8 (findings ready to promote)
+MUST exclude `[INSUFFICIENT:`-stamped bullets. Their lifetime clock
+applies to the un-stamped state; surfacing a stamped bullet as
+"ready to promote" would re-invite the same auto-abort loop the
+stamp was created to break.
+
+**AC-INSUFF-4** — `base:project-curator` MUST exclude
+`[INSUFFICIENT:`-stamped bullets from its `append_finding` dedup
+check (so a stamped bullet does not suppress a fresh actionable
+finding on the same topic) and from the Recurrence rule's matching
+pass (so fresh recurrences are not absorbed into a bullet that
+`/base:next` will never pick).
+
+**AC-NEXT-23** — In `mode == detail` with `hint != None`, Step 4 MUST
+render a single-candidate block titled `## Hint-matched finding`
+(synthesised via Step 4a) and MUST present `AskUserQuestion` with
+exactly two options: `Dispatch` and `Abort`. In `mode == auto` with
+`hint != None`, Step 4 MUST print a one-line notice of the form
+`Dispatching as <classification> (hint-matched): <truncated-bullet>`
+and MUST NOT invoke `AskUserQuestion`.

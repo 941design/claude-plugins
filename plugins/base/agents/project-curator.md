@@ -129,7 +129,11 @@ Eligibility:
   for genuinely cross-cutting questions; if you cannot anchor, ask
   yourself whether the finding is too vague to be useful and drop it.
 - Reject findings that are already addressed by the current spec, an
-  open finding, or a recent commit.
+  open finding, or a recent commit. **Exclude `[INSUFFICIENT:`-stamped
+  bullets** (see the stamp grammar in
+  `plugins/base/skills/backlog/references/format.md`) when checking
+  this dedup — a stamped bullet is deferred and should not suppress a
+  fresh actionable finding on the same topic.
 
 ### `action: append_rejection`
 
@@ -434,7 +438,13 @@ line.
   `recurred ×N (YYYY-MM-DD)`; (b) annotate the retro finding with
   disposition `DUPLICATE of finding-<marker> (recurrence ×N)`. Do not
   create a new bullet. This keeps the backlog from accumulating duplicate
-  entries across runs.
+  entries across runs. **Exclude `[INSUFFICIENT:`-stamped bullets from
+  this matching pass** (see
+  `plugins/base/skills/backlog/references/format.md`) — they are
+  deferred and `/base:next` will not pick them, so absorbing a fresh
+  recurrence into one would suppress real signal. Treat a topic that
+  matches only a stamped bullet as if no existing bullet matched and
+  create the new finding normally.
 
 ## Why a separate subagent
 

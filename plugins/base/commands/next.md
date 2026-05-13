@@ -1,7 +1,7 @@
 ---
 name: next
 description: Pick the next actionable finding from BACKLOG.md and dispatch it to the right workflow (/base:bug or /base:feature). Runs in detail mode by default (renders top candidates with a prose paragraph and asks for confirmation) or auto mode (/base:next auto — silently dispatches the top actionable finding without prompting).
-argument-hint: "(no args = detail) | auto"
+argument-hint: "(no args = detail) | auto | <hint> [auto]"
 allowed-tools: Read, Edit, Bash, AskUserQuestion, Skill, Grep
 model: sonnet
 ---
@@ -12,35 +12,59 @@ You are a thin dispatcher. Your job is to pick the top actionable finding from `
 
 ## Input: $ARGUMENTS
 
-Accepts an optional single positional token. Valid forms:
+Accepts an optional argument string. Valid forms:
 
 - `/base:next` — no argument; runs in **detail** mode (default).
 - `/base:next auto` — single token `auto`; runs in **auto** mode (silent dispatch).
+- `/base:next <hint>` — free-text content hint; runs in **detail** mode and
+  short-circuits selection to the bullet that best matches the hint.
+- `/base:next <hint> auto` — hint plus trailing `auto`; auto-dispatches the
+  hint-matched bullet without confirmation.
 
 ---
 
 ## Step 0: Parse Mode Argument
 
-Parse `$ARGUMENTS` into a `mode` variable before any other step executes.
+Parse `$ARGUMENTS` into `mode` and `hint` variables before any other step
+executes. Both are consumed by Steps 3 and 4.
 
 ```
-IF $ARGUMENTS is empty or whitespace-only:
-    mode = "detail"
-    proceed to Step 1
+trimmed = $ARGUMENTS with leading/trailing whitespace removed.
 
-ELSE IF $ARGUMENTS is exactly the token "auto" (case-sensitive, exact match — "Auto", "AUTO", " auto", "--auto" do not qualify):
+IF trimmed is empty:
+    mode = "detail"
+    hint = None
+
+ELSE IF trimmed == "auto" (case-sensitive, exact match — "Auto", "AUTO",
+                           "--auto" do NOT qualify; a leading/trailing
+                           space was already stripped above):
     mode = "auto"
-    proceed to Step 1
+    hint = None
 
 ELSE:
-    exit immediately with usage hint (do NOT proceed to Step 1):
+    # trimmed is non-empty and is not the bare token "auto".
+    # Check for a trailing auto-mode token.
+    tokens = trimmed split on whitespace.
+    IF tokens has length ≥ 2 AND the LAST token == "auto" (case-sensitive):
+        mode = "auto"
+        hint = tokens[:-1] rejoined with single spaces
+    ELSE:
+        mode = "detail"
+        hint = trimmed
 
-    > Unrecognised argument. Valid forms:
-    >   /base:next        — detail mode (renders top findings with synthesis, then asks)
-    >   /base:next auto   — auto mode (silently dispatches the top actionable finding)
+    # hint is now a non-empty string; mode is "detail" or "auto".
+
+proceed to Step 1.
 ```
 
-`mode` is exactly one of the two string literals `"detail"` or `"auto"`. It is set here and consumed by Step 4.
+`mode` is exactly one of `"detail"` or `"auto"`. `hint` is either `None`
+(no hint supplied; document-order walk applies) or a non-empty string
+(hint-mode dispatch, see Step 3).
+
+There is no longer a strict-exit branch on unrecognised arguments —
+anything that is not empty and is not exactly `auto` is interpreted as
+a content hint. Hint matching itself can still fail (Step 3 handles
+zero-match and ambiguous-match cases).
 
 ---
 
@@ -73,13 +97,21 @@ If the section is absent, empty, or contains only the placeholder `- _no finding
 
 ## Step 3: Classify and Pick
 
-Walk findings in **document order** — do not reorder by age or any other heuristic.
+Two paths: **hint short-circuit** (when `hint != None` from Step 0) or the
+default **document-order walk**.
 
 ### Per-bullet classification
 
-For every finding bullet, read its prose (anchor + text) and classify it into
-exactly one of three buckets:
+For every finding bullet, read its prose (anchor + text) and classify it
+into exactly one of four buckets:
 
+- **`insufficient`** — the bullet's `<text>` (everything between ` — ` and
+  ` (YYYY-MM-DD)`) begins with the literal token `[INSUFFICIENT:`. The
+  bullet was stamped by a prior `/base:next auto` dispatch whose target
+  returned `ABORT:UNDERSPECIFIED`. See
+  `plugins/base/skills/backlog/references/format.md` for the stamp
+  grammar. These are **deferred**, not blocking — the walk treats them
+  as not-present.
 - **`bug`** — describes a defect: something is broken, fails, errors, regresses,
   or behaves incorrectly. Verbs like "fails", "crashes", "returns wrong", "leaks",
   "silently drops" signal this.
@@ -97,11 +129,16 @@ that lets the right workflow take over — `/base:bug` is for defects with a
 reproduction; `/base:feature` handles everything else, including chores so
 small they barely warrant a story.
 
-### Question halt
+### Default path: document-order walk (when `hint == None`)
 
-If any finding classified as `question` appears **before** the first
-non-question finding in document order, surface the bullet verbatim and exit
-without dispatching:
+Walk findings in **document order** — do not reorder by age or any other
+heuristic. **Skip every bullet classified as `insufficient`** as if it
+were not in the file (do not surface, do not count toward question-halt
+or the top-3 list).
+
+**Question halt** — if any finding classified as `question` appears
+**before** the first non-question, non-insufficient finding in document
+order, surface the bullet verbatim and exit without dispatching:
 
 > **Blocked by an open question:**
 > `<full bullet text>`
@@ -111,26 +148,128 @@ without dispatching:
 > - `/base:backlog resolve <marker> done→spec:<path>` — answer is captured in a spec
 > - `/base:backlog resolve <marker> rejected` — close without action
 
-### Candidate selection
+**Candidate selection** — the first finding classified as `bug` or
+`feature-work` (skipping `insufficient` bullets, halting on a leading
+`question`) is the candidate.
 
-The first finding classified as `bug` or `feature-work` (i.e. not `question`)
-in document order is the candidate.
+### Hint path: content-overlap match (when `hint != None`)
+
+Skip the document-order walk. Instead, narrow `## Findings` to the single
+bullet whose content best matches the hint:
+
+1. Tokenize `hint` on whitespace and punctuation, lowercase, then drop
+   stopwords: `the / a / an / is / are / and / or / to / of / in / on /
+   for / this / that / it / be / do`. Call the result `hint_tokens`. If
+   `hint_tokens` is empty after stopword removal, fall through to step 5
+   (no-match exit) — a hint composed entirely of stopwords cannot
+   discriminate.
+
+2. For each bullet in `## Findings` (**excluding** `insufficient` bullets
+   in this first pass; step 4 revisits them as an escape hatch):
+     - Tokenize the bullet's full content (anchor + text + date) the
+       same way to get `bullet_tokens`.
+     - Score = count of `hint_tokens` that appear in `bullet_tokens`
+       (substring match, case-insensitive).
+
+3. Pick the bullet with the highest score. Selection is unique iff:
+     - Top score ≥ 2 meaningful tokens matched, AND
+     - Top score exceeds the second-best score by ≥ 1 token.
+
+   On a unique winner, the bullet becomes the candidate. Classify it
+   (per the four buckets above). If its classification is `question`,
+   the question-halt above still applies — surface and exit. Otherwise
+   proceed to Step 4 with this single candidate; the candidate list
+   has size 1 and Step 4 still renders synthesis in detail mode.
+
+4. **`insufficient` escape hatch.** If step 3 produced no unique winner
+   from non-insufficient bullets, re-run step 3 *including*
+   `insufficient` bullets. If a unique winner now emerges and it is
+   `insufficient`-stamped:
+
+     a. Surface a one-line warning:
+
+        > Warning: hint matched an `[INSUFFICIENT]`-stamped finding.
+        > Re-dispatching anyway because you named it explicitly; un-stamping in BACKLOG.md before dispatch.
+
+     b. **Un-stamp the bullet on disk.** Perform a single `Edit`
+        read-modify-write on `BACKLOG.md` that strips the leading
+        `[INSUFFICIENT: <anything>] ` prefix (including the trailing
+        space) from the matched bullet's `<text>`. The anchor,
+        original text, and `(YYYY-MM-DD)` trailer are unchanged.
+        Example transform:
+
+        ```
+        before: - `path/spec.md` — [INSUFFICIENT: gap reason] Original prose. (2026-05-13)
+        after:  - `path/spec.md` — Original prose. (2026-05-13)
+        ```
+
+        Rationale: the bullet text flows downstream into
+        `/base:feature` and `/base:bug` (slug derivation, spec stub,
+        bug-report description). Leaving the stamp in place would
+        poison those derivations. Un-stamping reactivates the
+        finding — the user has explicitly chosen to work on it
+        again. If the downstream skill aborts again with
+        `ABORT:UNDERSPECIFIED`, Step 6a will re-stamp it with the
+        new gap reason.
+
+        If the Edit fails (file gone, marker no longer unique,
+        etc.), print a single WARNING line and **do not proceed**:
+
+        > WARNING: could not un-stamp finding in BACKLOG.md; aborting hint dispatch to avoid poisoned downstream slug/text.
+
+        Exit without dispatching. The user can resolve manually.
+
+     c. Classify the un-stamped bullet (per the four buckets
+        above; it is now no longer `insufficient`). If the
+        classification is `question`, the question-halt applies —
+        surface and exit. Otherwise proceed to Step 4 with this
+        single candidate.
+
+   This honors explicit user intent — a hint that points squarely at a
+   stamped bullet overrides the default skip semantics, and the
+   un-stamp action keeps downstream consumers (feature/bug slug and
+   stub derivation) reading clean text.
+
+5. **No unique match** (zero hits, or ambiguous even after the escape
+   hatch). Print and exit without dispatching:
+
+   ```
+   No unique BACKLOG finding matches: "<hint>"
+
+   Closest candidates:
+     1. <bullet text, truncated to ~120 chars>
+     2. <bullet text, truncated to ~120 chars>
+     ...
+
+   Refine the hint or run `/base:next` (no args) to see top findings.
+   ```
+
+   List up to 5 candidates ranked by score (include `insufficient`
+   bullets here, prefixed `[insufficient]` so the user sees them).
 
 ---
 
 ## Step 4: Mode-Gated Dispatch
 
 **Pre-branch invariant (question-halt):** The question-halt check in Step 3
-already ran before this step. If execution reaches Step 4, no leading `question`
-finding was present — the first actionable candidate is a `bug` or `feature-work`.
-Neither `auto` mode nor `detail` mode bypasses the question-halt; both modes rely
-on Step 3's check firing before this branch. This satisfies AC-INV-1.
+already ran before this step. If execution reaches Step 4, no leading
+`question` finding was present (or, in hint mode, the matched bullet is not
+a `question` — an `insufficient` bullet may have been accepted via the
+escape hatch). The candidate is `bug` or `feature-work`. Neither `auto`
+mode nor `detail` mode bypasses the question-halt; both modes rely on
+Step 3's check firing before this branch. This satisfies AC-INV-1.
 
-Branch on `mode` (set by Step 0):
+Branch first on **`hint`** (set by Step 0), then on `mode`:
+
+- `hint == None` → doc-order top-3 detail rendering OR doc-order auto
+  one-shot, depending on `mode`. This is the original two-branch flow.
+- `hint != None` → single-candidate rendering (detail) OR silent
+  single-candidate dispatch (auto). Step 3's hint path produced exactly
+  one candidate.
 
 ---
 
-### IF mode == auto
+### IF mode == auto AND hint == None
 
 Select the candidate using the following rule: **the first actionable finding
 in document order** from `## Findings` — the same position-1 candidate that
@@ -158,7 +297,43 @@ which Step 6a inspects.
 
 ---
 
-### IF mode == detail
+### IF mode == auto AND hint != None
+
+Step 3's hint path produced a unique candidate. Print exactly one notice
+line before proceeding — no other output, no prompt:
+
+```
+Dispatching as <classification> (hint-matched): <truncated-bullet>
+```
+
+`<classification>` and `<truncated-bullet>` follow the same rules as the
+no-hint auto branch above. Fall through immediately to Step 5 with the
+hint-matched candidate. Do **not** invoke `AskUserQuestion`.
+
+---
+
+### IF mode == detail AND hint != None
+
+Step 3's hint path produced a unique candidate. Invoke Step 4a to
+synthesise a paragraph for it. Render:
+
+```
+## Hint-matched finding
+
+**Match.** <anchor> → <classification>
+      <paragraph>
+```
+
+Then invoke `AskUserQuestion` with two options:
+
+- `Dispatch` — proceed to Step 5 with this candidate.
+- `Abort` — exit without dispatching.
+
+On `Dispatch`: continue to Step 5. On `Abort`: exit.
+
+---
+
+### IF mode == detail AND hint == None
 
 Collect candidates: take the first 3 actionable findings in document order (the same
 ordered list Step 3 produced — position 1, 2, 3). There may be fewer than 3.
@@ -298,19 +473,60 @@ This step runs only when `mode == auto`. Skip entirely in detail mode.
 After the Skill call in Step 6 returns in auto mode, inspect the return output for the
 literal string `ABORT:UNDERSPECIFIED`. If present:
 
-1. Extract the gap description: take all text following the first `ABORT:UNDERSPECIFIED:`
-   occurrence in the return output, trimmed. Use only the first such line if multiple exist.
-2. Print:
+1. **Extract the gap description.** Take all text following the first
+   `ABORT:UNDERSPECIFIED:` occurrence in the return output, trimmed. Use
+   only the first such line if multiple exist. Then truncate the gap to
+   ≤80 characters; if longer, replace the trailing portion with a single
+   `…` so the total length (excluding the literal `[INSUFFICIENT: ` and
+   `]` framing added in step 2) is ≤80. This preserves the
+   one-line-per-bullet tonality rule
+   (`plugins/base/skills/backlog/references/format.md`).
 
-```
-Auto-dispatch aborted.
-Reason: {extracted gap description}
-A question finding has been added to BACKLOG.md.
-Run /base:next (without auto) to work on the spec interactively.
-```
+2. **Stamp the original finding in `BACKLOG.md`.** Perform a single
+   read-modify-write before printing anything to the user:
+     a. Read `BACKLOG.md` at the repo root.
+     b. Locate the dispatched finding's bullet using the marker derived
+        in Step 5 — it is unique by construction.
+     c. Compute the new bullet line by injecting
+        `[INSUFFICIENT: <truncated-gap>] ` (with a trailing space)
+        immediately after the ` — ` separator between `<anchor>` and
+        `<text>`. The anchor, the original `<text>`, and the
+        ` (YYYY-MM-DD)` trailer are unchanged. Example transform:
 
-Then exit. Do NOT attempt the next candidate. Auto mode processes exactly one item
-regardless of result (success or abort).
+        ```
+        before: - `path/to/spec.md` — Original prose. (2026-05-13)
+        after:  - `path/to/spec.md` — [INSUFFICIENT: gap reason] Original prose. (2026-05-13)
+        ```
+
+     d. Apply via the `Edit` tool with the full original bullet line as
+        `old_string` and the stamped bullet line as `new_string`. Edit's
+        uniqueness guarantee combined with the unique marker makes this
+        write safe.
+
+   **Stamp failure fallback.** If the Edit fails (file not found, marker
+   no longer unique because BACKLOG.md was edited between Step 5 and
+   here, or any other Edit error), skip the stamp silently and append a
+   single warning line to the abort message in step 3:
+   `WARNING: could not stamp original finding — manual /base:backlog resolve recommended to avoid re-dispatch.`
+
+3. **Print the abort message:**
+
+   ```
+   Auto-dispatch aborted.
+   Reason: {extracted gap description}
+   Original finding stamped [INSUFFICIENT] in BACKLOG.md (deferred).
+   A question finding capturing the gap has been added; run /base:next (without auto) to address it interactively.
+   ```
+
+   If the stamp failed (per the fallback above), replace the
+   "stamped" line with the WARNING line.
+
+Then exit. Do NOT attempt the next candidate. Auto mode processes exactly
+one item regardless of result (success or abort).
+
+The next `/base:next auto` invocation will see the stamped bullet,
+classify it as `insufficient` in Step 3, and skip it — breaking the
+re-rejection loop.
 
 ---
 
