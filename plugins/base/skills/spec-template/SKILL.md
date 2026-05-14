@@ -240,10 +240,9 @@ The form is `**AC-<TAG>-<N>**` where:
     - `UX` — user-visible behavior assertions.
   Authors may introduce new tags as needed; keep the set small and
   self-documenting.
-- `<N>` is a 1-based integer **unique within the AC file** (not within
-  each tag). So `AC-STRUCT-7` and `AC-DEP-7` cannot both exist —
-  `AC-STRUCT-1`, `AC-DEP-2`, `AC-ERR-3` is the pattern. This makes every
-  AC ID a globally stable reference.
+- `<N>` is a 1-based integer **unique within its tag** (not across the
+  entire AC file). `AC-NEXT-1` and `AC-BUG-1` can coexist — the counter
+  resets for each tag. This matches every existing AC file.
 - IDs are **stable, not sequential numbering**. When an AC is removed,
   do not renumber the rest. Leave a `**AC-<TAG>-N** — *removed*` line so
   existing references in stories.json, verification questions, and PR
@@ -321,3 +320,9 @@ fills in project-specific material themselves.
 The citation form is short and greppable, e.g.:
 
 > spec rejected: `## Non-Goals` is missing — see `base:spec-template`.
+
+---
+
+## Amendments
+
+- **2026-05-14** — Corrected AC ID scheme `<N>` uniqueness rule: per-tag resetting (counter resets per tag; IDs are unique within a tag, not globally across the file). Source: BACKLOG finding `plugins/base/skills/spec-template/SKILL.md:244`. Rationale: align spec with de facto convention — every existing AC file resets per tag; the spec was wrong, not the files.
