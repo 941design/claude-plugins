@@ -1,0 +1,20 @@
+{
+  "slug": "verifier-cannot-distinguish-pre-existing",
+  "allowed_changes": {
+    "files": [
+      "plugins/base/commands/feature.md",
+      "plugins/base/agents/verification-examiner.md"
+    ],
+    "description": "Add pre_existing_dirty_files capture at feature.md startup and pass to verification-examiner; update verification-examiner input contract and scope-boundary instruction"
+  },
+  "constraints": [
+    "Do not change the epic-state.json schema for any field other than adding pre_existing_dirty_files",
+    "Do not alter the examiner's behavior for SPEC, TEST, QUALITY, or SECURITY questions — only scope-boundary (ARCHITECTURE) questions need the exclusion",
+    "Keep changes minimal and surgical — no refactoring of unrelated sections"
+  ],
+  "non_goals": [
+    "Line-precise hunk overlap detection (file-level exclusion is sufficient)",
+    "Retroactive patching of existing epic-state.json files",
+    "Schema file for epic-state.json"
+  ]
+}

@@ -425,6 +425,8 @@ The `realpath` check skips a self-copy in `BACKLOG_PROMOTE` mode (where `$spec_f
 
 ### Write epic state
 
+Before writing `epic-state.json`, capture the pre-run working-tree snapshot. Run `git diff --name-only HEAD` to list tracked files with modifications, and `git ls-files --others --exclude-standard` to list untracked-but-not-ignored files; merge the two outputs (dedup, sort) into the array. This combination handles renames and paths containing spaces correctly (each tool emits one NUL-or-newline-terminated path per line without status-prefix munging). Store as `pre_existing_dirty_files` — an array of quoted relative file paths, or `[]` when both commands return empty (clean working tree). This list is the baseline for all story verification: it identifies files that had changes before the epic started, so examiners can distinguish pre-existing modifications from story-introduced ones.
+
 Write `specs/epic-${epic_name}/epic-state.json`:
 ```json
 {
@@ -433,6 +435,7 @@ Write `specs/epic-${epic_name}/epic-state.json`:
   "phase": "SPEC_VALIDATED",
   "created_at": "{timestamp}",
   "updated_at": "{timestamp}",
+  "pre_existing_dirty_files": [],
   "completed_stories": [],
   "escalated_stories": [],
   "phase_history": [
@@ -695,7 +698,7 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
      non-interactive instruction injection and ABORT catch as in Step 4).
 
   3. Read {story_dir}/verification.json.
-     Spawn Agent(subagent_type: base:verification-examiner) for each verification question, or each batch of related questions. Independent batches MUST be sent in parallel — single message, multiple Agent tool calls. When `non_interactive = true`, include the non-interactive mode instruction (see Non-Interactive Mode Detection block above) in each examiner's spawn prompt. Each examiner returns YES, NO, or PARTIAL with severity and evidence.
+     Spawn Agent(subagent_type: base:verification-examiner) for each verification question, or each batch of related questions. Independent batches MUST be sent in parallel — single message, multiple Agent tool calls. When `non_interactive = true`, include the non-interactive mode instruction (see Non-Interactive Mode Detection block above) in each examiner's spawn prompt. Include the `pre_existing_dirty_files` array (read from `epic-state.json`) in each examiner's spawn context — when a scope-boundary check finds a file in `git diff --name-only` AND in this baseline AND NOT in the story's `scope.includes`, the examiner answers **PARTIAL with confidence ≤ 0.5** and notes in GAPS that human verification is required to distinguish pre-existing from story-introduced changes. This prevents severity-7 false positives while preserving the ability to flag genuine out-of-scope edits to files that are NOT in the baseline (those still take the hard scope-violation path, unchanged) and while leaving authorized in-scope edits to pre-dirty files (the file appears in `scope.includes`) on the normal pass path. Each examiner returns YES, NO, or PARTIAL with severity and evidence.
      Collect all results. When `non_interactive = true`, apply the ABORT:DEFERRED catch to each examiner return before tallying. For each examiner return that contains a `RETROSPECTIVE:` block with `skipped: false`, append `{story_id, flag}` to `retro_bundle.examiners` (see "Retrospective collection (cross-cutting)" near the top of this file).
 
      **Examiner spawn is unconditional on `lighter_path`** (AC-FEATURE-3).

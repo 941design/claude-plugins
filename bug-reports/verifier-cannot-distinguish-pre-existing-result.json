@@ -1,0 +1,71 @@
+{
+  "slug": "verifier-cannot-distinguish-pre-existing",
+  "root_cause": "feature.md startup (Step 3) did not capture which files had uncommitted changes before the epic started; verification-examiners therefore ran git diff --name-only and saw pre-existing hunks alongside story-introduced changes, raising false-positive severity-7 scope violations",
+  "fix_description": "Added pre_existing_dirty_files capture at feature.md Step 3 (before epic-state.json write) using `git diff --name-only HEAD` + `git ls-files --others --exclude-standard` (robust against renames and spaces); added the field to the epic-state.json template with `[]` as the canonical default; instructed the verification-examiner spawn to pass the list in spawn context, citing the PARTIAL/low-confidence mechanism with the in-scope guard clause; updated verification-examiner.md Input section to declare the baseline; rewrote the scope-coverage check as an ordered three-step procedure — enumerate diff files, then hard scope check on non-baseline files first (preserves the existing severity-7 path for definite out-of-scope edits), then PARTIAL/confidence≤0.5/GAPS-note for files that are in the baseline AND in the diff AND NOT in `scope.includes` only when no hard violation was found. Reviewer reject cycle 1 addressed REJECT-1 (over-broad exemption) and REJECT-2 (ambiguous template placeholder); cycle 2 addressed REJECT-2-1 (spawn-context wording still described the rejected exclusion mechanism) and REJECT-2-2 (per-file PARTIAL could mask a co-occurring real violation — now enforced by step ordering); cycle 3 addressed REJECT-3-1 / REJECT-3-2 by adding the `AND NOT in scope.includes` guard to step 3's trigger condition in both files, so authorized in-scope edits to pre-dirty files pass normally instead of being downgraded to PARTIAL.",
+  "files_changed": [
+    "plugins/base/commands/feature.md",
+    "plugins/base/agents/verification-examiner.md"
+  ],
+  "tests_added": [],
+  "baseline_test_counts": "n/a — markdown/JSON repo with no automated test suite",
+  "final_test_counts": "n/a",
+  "verification_question_answers": {
+    "VQ-B1-001": {
+      "category": "SPEC",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "evidence": "plugins/base/commands/feature.md:428 — new paragraph immediately before the `Write specs/epic-${epic_name}/epic-state.json:` directive instructs the lead to run `git diff --name-only HEAD` and `git ls-files --others --exclude-standard`, merging (dedup + sort) the two outputs into the `pre_existing_dirty_files` array. This pair of commands handles renames and paths containing spaces correctly — both of which would have been mangled by the earlier `git status --porcelain | awk` approach (rejected during reviewer cycle 1)."
+    },
+    "VQ-B1-002": {
+      "category": "SPEC",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "evidence": "plugins/base/commands/feature.md:438 — the epic-state.json template now contains `\"pre_existing_dirty_files\": [],` as the canonical default. The prose paragraph at line 428 instructs the lead to populate the array with quoted relative file paths when the working tree is dirty. The empty array `[]` is unambiguous JSON; a lead copying the template literally produces valid JSON without further substitution (reviewer REJECT-2 addressed)."
+    },
+    "VQ-B1-003": {
+      "category": "SPEC",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "evidence": "plugins/base/commands/feature.md:701 — the verification-examiner spawn paragraph at Step 5.3 now contains the sentence: \"Include the `pre_existing_dirty_files` array (read from `epic-state.json`) in each examiner's spawn context — when a scope-boundary check finds a file in `git diff --name-only` AND in this baseline AND NOT in the story's `scope.includes`, the examiner answers PARTIAL with confidence ≤ 0.5 and notes in GAPS that human verification is required to distinguish pre-existing from story-introduced changes. This prevents severity-7 false positives while preserving the ability to flag genuine out-of-scope edits to files that are NOT in the baseline (those still take the hard scope-violation path, unchanged) and while leaving authorized in-scope edits to pre-dirty files (the file appears in `scope.includes`) on the normal pass path.\" Reviewer REJECT-2-1 (mechanism word \"exclude\" replaced) and REJECT-3-2 (added the `AND NOT in scope.includes` guard) both addressed in this sentence."
+    },
+    "VQ-B1-004": {
+      "category": "SPEC",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "evidence": "plugins/base/agents/verification-examiner.md:16 — the Input section now lists a fourth bullet: \"Pre-existing dirty files baseline: list of files that had uncommitted changes before the epic started (from `epic-state.json#pre_existing_dirty_files`; empty list if the epic started with a clean working tree)\"."
+    },
+    "VQ-B1-005": {
+      "category": "SPEC",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "evidence": "plugins/base/agents/verification-examiner.md:53-58 — the Scope coverage bullet is now an ordered three-step procedure: (1) enumerate every file in `git diff --name-only`; (2) FIRST run the hard scope check on non-baseline files — any file NOT in the baseline AND NOT in `scope.includes` emits a hard scope violation via the existing severity-7 path, and the question's verdict is driven by that violation regardless of any baseline overlap; (3) ONLY IF step 2 found no hard violations, files that are IN the baseline AND in the diff AND NOT in `scope.includes` trigger PARTIAL with confidence ≤ 0.5 and a GAPS note requesting human verification. A file in `scope.includes` is treated as an authorized edit and passes normally even when it overlaps the baseline. The invariant is stated explicitly: \"a definite non-baseline out-of-scope file always triggers a hard violation; the PARTIAL path applies only when the residual ambiguity is limited to baseline files.\" When the baseline is `[]`, step 3 is inert and the rule reduces to step 2 (historical behavior). Cross-product coverage: (a) unauthorized non-baseline file in diff → hard violation via step 2; (b) baseline-only file in diff, not in scope → PARTIAL via step 3; (c) clean baseline + in-scope file in diff → pass via step 2; (d) baseline + in-scope file in diff → pass via step 3's NOT-in-scope guard. Addresses REJECT-1 (over-broad exemption — replaced by structured rule), REJECT-2-2 (per-file PARTIAL could mask a co-occurring hard violation — prevented by step ordering), and REJECT-3-1 (in-scope guard added so authorized edits to pre-dirty files are not downgraded to PARTIAL)."
+    },
+    "VQ-B1-006": {
+      "category": "ARCHITECTURE",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "evidence": "The capture paragraph sits in feature.md Step 3 (`### Write epic state`, line 428), which runs once at epic startup before any story loop begins (the per-story loop starts at Step 5). The examiner reads the value from `epic-state.json#pre_existing_dirty_files` (verification-examiner.md:16) — a read of a persisted field, not a re-capture. No git status call occurs anywhere inside the Step 5 per-story loop. Single-capture-at-startup invariant holds."
+    },
+    "VQ-B1-007": {
+      "category": "QUALITY",
+      "answer": "YES",
+      "severity": 1,
+      "confidence": 1.0,
+      "evidence": "The examiner instruction (verification-examiner.md:53) triggers the PARTIAL-with-low-confidence path only when a diff-modified file is ALSO in the pre-existing dirty files baseline. With an empty baseline (`[]`), the intersection with `git diff --name-only` is always empty, so no file ever satisfies the trigger condition — every scope check proceeds through the normal pass/violation path, identical to prior behavior. The final sentence of the bullet states this explicitly: \"When the baseline is `[]` (clean working tree at epic start), this rule is inert and scope-boundary checks proceed normally.\" The Input bullet (verification-examiner.md:16) further reinforces that the clean-tree case is a normal value, not a special case. No conditional code path is required; backwards compatibility is structural."
+    }
+  },
+  "retrospective": {
+    "skipped": false,
+    "scope": "project_specific",
+    "harder_than_needed": "The fix touches two files (feature.md and verification-examiner.md) that have no typed interface between them — the lead's spawn prose and the examiner's input contract must be kept in sync manually with no compile-time check, which requires reading both files carefully to ensure the field names match.",
+    "surprised_by": "epic-state.json has no schema file (unlike verification.json, result.json, and stories.json), so adding a new field has no schema barrier but also no validation — the field addition is purely convention-based.",
+    "absorbed_from": [],
+    "lead_clarifications": []
+  }
+}

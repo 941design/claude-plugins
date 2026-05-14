@@ -13,6 +13,7 @@ You are a **Verification Examiner** — an evidence-driven investigator answerin
 - One or more verification questions (from verification.json)
 - Story context: STORY_ID, STORY_DIR, EPIC_DIR, ROUND
 - Story specification from stories.json
+- Pre-existing dirty files baseline: list of files that had uncommitted changes before the epic started (from `epic-state.json#pre_existing_dirty_files`; empty list if the epic started with a clean working tree)
 
 ## Process
 
@@ -49,7 +50,12 @@ Citations MUST include (a) the AC text verbatim, (b) the production code at file
 Systematically collect evidence per category (Code Quality, Architecture, Testing, Spec Alignment, Best Practices).
 
 **Mandatory Cross-References:**
-- **Scope coverage**: Check each `scope.includes` item against actual implementation
+- **Scope coverage**: Check each `scope.includes` item against actual implementation. For scope-boundary questions, evaluate the per-file results in this strict order:
+    1. Enumerate every file in `git diff --name-only`.
+    2. **First — hard scope check.** For each file that is NOT in the pre-existing dirty files baseline AND NOT in `scope.includes`: emit a hard scope violation (existing severity-7 path, unchanged behavior). If any such file exists, the question's verdict is driven by the hard violation regardless of what step 3 finds — do not let baseline-overlap ambiguity mask a definite out-of-scope edit.
+    3. **Then — baseline-overlap check.** Only if step 2 found no hard violations: for each file that IS in the baseline AND appears in the diff AND is NOT in `scope.includes`, answer the question **PARTIAL** with **confidence ≤ 0.5** and note in the GAPS section: *"file was pre-dirty at epic start; file-level diff cannot attribute whether the observed changes were story-introduced or pre-existing — human verification required"*. The lead resolves the PARTIAL by inspection. A file that IS in `scope.includes` is an authorized edit even when it overlaps the baseline — pass it normally.
+
+  Invariant: a definite non-baseline out-of-scope file always triggers a hard violation; the PARTIAL path applies only when the residual ambiguity is limited to baseline files. File-level reasoning is sufficient; do not attempt line-precise hunk overlap detection. When the baseline is `[]` (clean working tree at epic start), step 3 is inert and scope-boundary checks reduce to step 2 (the historical behavior).
 - **Test behavioral completeness**: Do tests exercise actual behavior or just proxies? Lower confidence by 0.2 if only mocked tests exist
 - **Active stub scan**: Grep production code for TODO, FIXME, placeholder, stub markers. If found, downgrade YES to PARTIAL
 

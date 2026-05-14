@@ -1,0 +1,52 @@
+{
+  "bug_name": "verifier-cannot-distinguish-pre-existing",
+  "bug_report_file": "bug-reports/verifier-cannot-distinguish-pre-existing-report.md",
+  "created_at": "2026-05-14T00:00:00Z",
+  "updated_at": "2026-05-14T00:00:00Z",
+  "phase": "ACCEPTED",
+  "complexity": "medium",
+  "verification_questions": [
+    {
+      "id": "VQ-B1-001",
+      "category": "SPEC",
+      "question": "Does feature.md Step 3 ('Write epic state') now capture pre_existing_dirty_files by running a git status command immediately before writing epic-state.json, storing the list of files with uncommitted changes?"
+    },
+    {
+      "id": "VQ-B1-002",
+      "category": "SPEC",
+      "question": "Does the epic-state.json template in feature.md include a pre_existing_dirty_files field (an array of file paths, defaulting to []) alongside the existing epic_name/status/phase fields?"
+    },
+    {
+      "id": "VQ-B1-003",
+      "category": "SPEC",
+      "question": "Does the verification-examiner spawn call in feature.md Step 5.3 (lines ~697-699) pass the pre_existing_dirty_files list (read from epic-state.json) to each examiner in the spawn prompt context?"
+    },
+    {
+      "id": "VQ-B1-004",
+      "category": "SPEC",
+      "question": "Does verification-examiner.md's Input section (lines ~11-15) declare the pre-existing dirty files baseline as an explicit input field so the examiner knows to expect and use it?"
+    },
+    {
+      "id": "VQ-B1-005",
+      "category": "SPEC",
+      "question": "Does verification-examiner.md's scope coverage check instruct the examiner to exclude files listed in pre_existing_dirty_files when evaluating scope-boundary ACs (i.e., a file in pre_existing_dirty_files should not be flagged as a scope violation even if git diff --name-only lists it)?"
+    },
+    {
+      "id": "VQ-B1-006",
+      "category": "ARCHITECTURE",
+      "question": "Is the snapshot positioned at the correct epic lifecycle point — captured once at epic startup (Step 3), before any story work or architect runs, and not re-captured per-story — so that the baseline reflects the true pre-epic working-tree state?"
+    },
+    {
+      "id": "VQ-B1-007",
+      "category": "QUALITY",
+      "question": "Is the fix backwards-compatible: when the working tree is clean at epic start, pre_existing_dirty_files is [] (empty array, never null or absent), and the examiner's exclusion logic degrades gracefully to the existing behavior?"
+    }
+  ],
+  "baseline": null,
+  "fix": null,
+  "review_rounds": [],
+  "remediation_round": 3,
+  "phase_history": [
+    {"phase": "INITIALIZED", "timestamp": "2026-05-14T00:00:00Z", "trigger": "workflow_start"}
+  ]
+}
