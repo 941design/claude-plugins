@@ -5,7 +5,6 @@ vm:
   cpus: 4
   memory: 8GiB
   disk: 20GiB
-  previous_name: clauded-claude-plugins
 mount:
   host: /Users/mrother/Projects/941design/claude-plugins
   guest: /Users/mrother/Projects/941design/claude-plugins
