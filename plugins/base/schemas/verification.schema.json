@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verification.schema.json",
+  "title": "Verification Commitments Schema",
+  "description": "Authoritative schema for verification.json — the pre-impl commitment set authored by base:story-planner Mode 3 for each story",
+  "type": "object",
+  "required": ["story_id", "authored_by", "authored_at", "questions"],
+  "additionalProperties": false,
+  "properties": {
+    "story_id": {
+      "type": "string",
+      "pattern": "^S[0-9]+$",
+      "description": "Story identifier this verification file belongs to (form: S<N>, e.g. S1)"
+    },
+    "authored_by": {
+      "type": "string",
+      "description": "Agent that authored the pre-impl questions (always story-planner)"
+    },
+    "authored_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when this file was authored"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/question"
+      },
+      "minItems": 1,
+      "description": "Ordered list of verification questions (pre-impl and post-impl records)"
+    }
+  },
+  "$defs": {
+    "question": {
+      "type": "object",
+      "required": ["question_id", "phase", "category", "question"],
+      "additionalProperties": false,
+      "properties": {
+        "question_id": {
+          "type": "string",
+          "pattern": "^VQ-S[0-9]+-[0-9]{3}$",
+          "description": "Unique question identifier (form: VQ-{story_id}-{NNN})"
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["pre-impl", "post-impl"],
+          "description": "pre-impl questions are locked by story-planner; post-impl questions are appended by integration-architect after implementation"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["QUALITY", "ARCHITECTURE", "TEST", "SPEC", "SECURITY", "BEST_PRACTICES"],
+          "description": "Question category — MUST use 'category' not 'type' as the field name"
+        },
+        "ac_id": {
+          "type": "string",
+          "pattern": "^AC-[A-Z]+-[0-9]+$",
+          "description": "AC identifier this question covers — set only on SPEC questions derived from an AC; omit on all other question categories"
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The normative verification question text — must be a concrete, evidence-demanding question"
+        }
+      }
+    }
+  }
+}

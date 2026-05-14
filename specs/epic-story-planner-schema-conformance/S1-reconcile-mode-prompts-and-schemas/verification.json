@@ -1,0 +1,92 @@
+{
+  "story_id": "S1",
+  "authored_by": "story-planner",
+  "authored_at": "2026-05-14T00:00:00Z",
+  "questions": [
+    {
+      "question_id": "VQ-S1-001",
+      "phase": "pre-impl",
+      "category": "QUALITY",
+      "question": "After all edits, does `plugins/base/agents/story-planner.md` contain zero stub markers (TODO, FIXME, placeholder text, or ellipsis literals used as stand-ins for real content)? Does every new sentence added by this story read as production-grade normative prose — no hedging phrases like 'e.g., maybe', no dangling parentheticals, no duplicate Rule 4 paragraphs from a failed find-replace?"
+    },
+    {
+      "question_id": "VQ-S1-002",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Do all changes stay within the declared scope guard — `plugins/base/agents/story-planner.md`, `plugins/base/schemas/stories.schema.json`, and optionally `plugins/base/schemas/verification.schema.json`? Confirm that `feature.md`, `verification-examiner.md`, `integration-architect.md`, and `spec-template/SKILL.md` are untouched by verifying `git diff --name-only` contains none of those paths."
+    },
+    {
+      "question_id": "VQ-S1-003",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Could `story-planner` be deleted and rewritten without modifying any file outside its `dependencies_allowed` list? Specifically: does `story-planner.md` cite `stories.schema.json` and `verification.schema.json` only by relative path (no hard-coded absolute paths or embedding of schema content inline), so that the schema files remain independently replaceable? Do the schema boundary rules from `architecture.md` — schemas are constraints, not implementations; no direct imports — remain fully intact after the edits?"
+    },
+    {
+      "question_id": "VQ-S1-004",
+      "phase": "pre-impl",
+      "category": "TEST",
+      "question": "Do all five shell verification commands from the ACs pass against the modified files? Run each command in sequence and confirm exit codes and output match expectations: (1) `grep -n 'within the AC file' plugins/base/agents/story-planner.md` returns empty; (2) `grep -n 'within its tag' plugins/base/agents/story-planner.md` returns at least one match; (3) `grep -Fc '\"^S[0-9]+$\"' plugins/base/schemas/stories.schema.json` returns at least 2; (4) `grep -Fc '\"^[0-9]{2}$\"' plugins/base/schemas/stories.schema.json` returns 0; (5) `python3 -m json.tool plugins/base/schemas/stories.schema.json > /dev/null` returns exit code 0."
+    },
+    {
+      "question_id": "VQ-S1-005",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "question": "Does the overall intent of S1 hold — that the three Mode 1/2/3 discrepancies identified in the epic spec are all resolved by the edits, with no new discrepancies introduced? Specifically: Rule 4 uniqueness scope is corrected; story ID patterns in stories.schema.json match the S-prefix convention used by every existing on-disk stories.json; the `category` vs `type` field name ambiguity in Mode 3 is eliminated; and the Validation Checks section now names both schemas as authoritative contracts."
+    },
+    {
+      "question_id": "VQ-S1-006",
+      "phase": "pre-impl",
+      "category": "BEST_PRACTICES",
+      "question": "Does the new or modified content in `plugins/base/agents/story-planner.md` follow the existing prose conventions of that file — imperative normative language (MUST / MUST NOT), consistent heading level for new subsections, no lines longer than the surrounding paragraphs, and no accidental reflow of adjacent unrelated paragraphs? Does `verification.schema.json`, if created, use JSON Schema Draft 2020-12 consistently with the `$schema` declaration present, and does it avoid `additionalProperties: true` or other overly permissive defaults that would allow malformed question records to pass validation?"
+    },
+    {
+      "question_id": "VQ-S1-007",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-STRUCT-1",
+      "question": "AC-STRUCT-1 requires that `plugins/base/agents/story-planner.md` Rule 4 states `<N>` is unique **within its tag** and that the phrase 'within the AC file' MUST NOT appear in Rule 4. Does the production edit to `story-planner.md` satisfy both conditions? Show the exact lines of the edited Rule 4, confirm `grep -n 'within the AC file' plugins/base/agents/story-planner.md` returns empty, and confirm `grep -n 'within its tag' plugins/base/agents/story-planner.md` returns at least one match — and that this match falls inside the Rule 4 block, not elsewhere in the file."
+    },
+    {
+      "question_id": "VQ-S1-008",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-STRUCT-2",
+      "question": "AC-STRUCT-2 requires that `plugins/base/schemas/stories.schema.json` `story.id.pattern` is `^S[0-9]+$` and MUST NOT be `^[0-9]{2}$`. Does the production edit to `stories.schema.json` satisfy both conditions? Show the exact JSON fragment for the `story.id` field, and confirm `grep -Fc '\"^S[0-9]+$\"' plugins/base/schemas/stories.schema.json` returns at least 1 while `grep -Fc '\"^[0-9]{2}$\"' plugins/base/schemas/stories.schema.json` returns 0."
+    },
+    {
+      "question_id": "VQ-S1-009",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-STRUCT-3",
+      "question": "AC-STRUCT-3 requires that `plugins/base/schemas/stories.schema.json` `story_order` array item pattern is also `^S[0-9]+$`. Does the production edit update both the `story.id` pattern and the `story_order` item pattern? Confirm `grep -Fc '\"^S[0-9]+$\"' plugins/base/schemas/stories.schema.json` returns at least 2 (one per pattern occurrence), and `grep -Fc '\"^[0-9]{2}$\"' plugins/base/schemas/stories.schema.json` returns 0, meaning no legacy two-digit pattern survives in either location."
+    },
+    {
+      "question_id": "VQ-S1-010",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-STRUCT-4",
+      "question": "AC-STRUCT-4 requires that `plugins/base/agents/story-planner.md` Mode 3 'Question record shape' section contains a normative note stating the field is named `\"category\"` (not `\"type\"`), and that the note MUST NOT appear before the Mode 3 section. Does the production edit place this note at the correct location? Show the line number of `### Mode 3` and the line number(s) of the note matching `not.*\"type\"`, and confirm the note's line number is greater than the Mode 3 heading line number."
+    },
+    {
+      "question_id": "VQ-S1-011",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-STRUCT-5",
+      "question": "AC-STRUCT-5 requires that `plugins/base/agents/story-planner.md` Validation Checks section contains a 'Schema conformance' item citing `plugins/base/schemas/stories.schema.json` by path, placed after the `## Validation Checks` heading. Does the production edit add this item? Show the line number of `## Validation Checks` and the line number of the `stories.schema.json` citation, and confirm the citation line number is greater than the heading line number."
+    },
+    {
+      "question_id": "VQ-S1-012",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-STRUCT-6",
+      "question": "AC-STRUCT-6 requires that `plugins/base/schemas/stories.schema.json` remains valid JSON after all edits. Does running `python3 -m json.tool plugins/base/schemas/stories.schema.json > /dev/null` return exit code 0? Confirm this command succeeds and that no JSON parse errors appear in stderr — meaning the pattern substitutions did not introduce any unescaped characters, missing commas, or malformed string literals."
+    },
+    {
+      "question_id": "VQ-S1-013",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-STRUCT-7",
+      "question": "AC-STRUCT-7 requires that `plugins/base/schemas/verification.schema.json`, if created, is valid JSON, requires fields `question_id`, `phase`, `category`, and `question` on each question record, and MUST NOT require `ac_id`. Does the production file satisfy all three conditions? Confirm: (a) `python3 -m json.tool plugins/base/schemas/verification.schema.json > /dev/null` returns exit code 0; (b) the `$defs.question.required` array contains `question_id`, `phase`, `category`, and `question`; (c) `python3 -c \"import json; s=json.load(open('plugins/base/schemas/verification.schema.json')); q=s['\\$defs']['question']; assert 'ac_id' not in q['required']\"` returns exit code 0. These tests must be run against the actual file, not mocked."
+    }
+  ]
+}

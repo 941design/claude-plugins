@@ -1,0 +1,37 @@
+{
+  "story_id": "S1",
+  "status": "done",
+  "final_outcome": "accepted",
+  "completed_at": "2026-05-14T19:00:51Z",
+  "remediation_rounds": 0,
+  "files_created": [
+    "plugins/base/schemas/verification.schema.json",
+    "specs/epic-story-planner-schema-conformance/S1-reconcile-mode-prompts-and-schemas/architecture.json",
+    "specs/epic-story-planner-schema-conformance/S1-reconcile-mode-prompts-and-schemas/baseline.json",
+    "specs/epic-story-planner-schema-conformance/S1-reconcile-mode-prompts-and-schemas/result.json"
+  ],
+  "files_modified": [
+    "plugins/base/agents/story-planner.md",
+    "plugins/base/schemas/stories.schema.json"
+  ],
+  "implementation_summary": "Three targeted edits to story-planner.md (Rule 4 uniqueness wording, Mode 3 category-field note, Validation Checks schema-conformance bullet), two pattern replacements in stories.schema.json (story.id and story_order item from ^[0-9]{2}$ to ^S[0-9]+$), and creation of verification.schema.json as a JSON Schema Draft 2020-12 contract for verification.json question records.",
+  "tests": {
+    "baseline_count": 0,
+    "final_count": 7,
+    "note": "No automated test suite; all 7 ACs verified via shell commands per acceptance-criteria.md",
+    "ac_results": {
+      "AC-STRUCT-1": "PASS — 'within the AC file' absent; 'within its tag' at line 161",
+      "AC-STRUCT-2": "PASS — grep -Fc '\"^S[0-9]+$\"' returns 2 (>=1 required)",
+      "AC-STRUCT-3": "PASS — grep -Fc '\"^S[0-9]+$\"' returns 2 (>=2 required); legacy pattern count 0",
+      "AC-STRUCT-4": "PASS — 'not.*\"type\"' at line 127, Mode 3 heading at line 82",
+      "AC-STRUCT-5": "PASS — 'stories.schema.json' at line 199, Validation Checks at line 187",
+      "AC-STRUCT-6": "PASS — python3 -m json.tool exits 0",
+      "AC-STRUCT-7": "PASS — valid JSON, required=[question_id,phase,category,question], ac_id not in required"
+    }
+  },
+  "mocks_introduced": [],
+  "retrospective": {
+    "skipped": true,
+    "reason": "clean_run"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "module_name": "story-planner",
+  "purpose": "Agent prompt that derives ACs, splits stories, and authors pre-impl verification commitments; governed by JSON Schema contracts in plugins/base/schemas/",
+  "public_api": [
+    {
+      "name": "story-planner.md",
+      "signature": "Markdown agent prompt consumed by base:story-planner skill",
+      "description": "Normative rules for Modes 1, 2, 3 including AC precision rules, Validation Checks, and schema citations"
+    },
+    {
+      "name": "stories.schema.json",
+      "signature": "JSON Schema Draft 2020-12 object",
+      "description": "Enforces structure of stories.json; story.id and story_order items MUST match ^S[0-9]+$"
+    },
+    {
+      "name": "verification.schema.json",
+      "signature": "JSON Schema Draft 2020-12 object (new)",
+      "description": "Enforces structure of verification.json question records; requires question_id, phase, category, question; ac_id MUST NOT be required"
+    }
+  ],
+  "private_files": [],
+  "owned_data": [
+    "plugins/base/agents/story-planner.md",
+    "plugins/base/schemas/stories.schema.json",
+    "plugins/base/schemas/verification.schema.json"
+  ],
+  "dependencies_allowed": [
+    "plugins/base/skills/spec-template/SKILL.md"
+  ],
+  "dependencies_forbidden": [
+    "plugins/base/agents/feature.md",
+    "plugins/base/agents/verification-examiner.md",
+    "plugins/base/agents/integration-architect.md"
+  ],
+  "external_ports": [],
+  "events_emitted": [],
+  "events_consumed": [],
+  "test_targets": [
+    "AC-STRUCT-1: grep -n 'within the AC file' plugins/base/agents/story-planner.md returns empty",
+    "AC-STRUCT-2: grep -Fc '\"^S[0-9]+$\"' plugins/base/schemas/stories.schema.json returns >=1",
+    "AC-STRUCT-3: grep -Fc '\"^S[0-9]+$\"' plugins/base/schemas/stories.schema.json returns >=2",
+    "AC-STRUCT-4: grep -n 'not.*\"type\"' plugins/base/agents/story-planner.md returns >=1 after Mode 3 heading",
+    "AC-STRUCT-5: grep -n 'stories.schema.json' plugins/base/agents/story-planner.md returns >=1 after Validation Checks",
+    "AC-STRUCT-6: python3 -m json.tool plugins/base/schemas/stories.schema.json exits 0",
+    "AC-STRUCT-7: python3 -m json.tool plugins/base/schemas/verification.schema.json exits 0 and ac_id not in required"
+  ]
+}

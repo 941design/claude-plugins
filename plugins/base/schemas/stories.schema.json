@@ -36,9 +36,9 @@
       "type": "array",
       "items": {
         "type": "string",
-        "pattern": "^[0-9]{2}$"
+        "pattern": "^S[0-9]+$"
       },
-      "description": "Ordered list of story IDs for implementation sequence"
+      "description": "Ordered list of story IDs for implementation sequence (form: S<N>, e.g. S1, S2)"
     },
     "dependency_notes": {
       "type": "string",
@@ -75,8 +75,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^[0-9]{2}$",
-          "description": "Two-digit story identifier (01, 02, ...)"
+          "pattern": "^S[0-9]+$",
+          "description": "Story identifier with S-prefix (S1, S2, ...)"
         },
         "name": {
           "type": "string",

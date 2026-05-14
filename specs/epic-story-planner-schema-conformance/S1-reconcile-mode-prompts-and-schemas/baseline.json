@@ -1,0 +1,14 @@
+{
+  "captured_at": "2026-05-14T00:00:00Z",
+  "note": "No automated test suite; baseline captured via shell command outputs against target files.",
+  "pre_state": {
+    "AC_STRUCT_1_within_AC_file_count": 1,
+    "AC_STRUCT_1_within_its_tag_count": 0,
+    "AC_STRUCT_2_3_S_prefix_pattern_count": 0,
+    "AC_STRUCT_2_3_legacy_two_digit_pattern_count": 2,
+    "AC_STRUCT_4_not_type_count": 0,
+    "AC_STRUCT_5_stories_schema_citation_after_validation_checks": false,
+    "AC_STRUCT_6_stories_schema_valid_json": true,
+    "AC_STRUCT_7_verification_schema_exists": false
+  }
+}

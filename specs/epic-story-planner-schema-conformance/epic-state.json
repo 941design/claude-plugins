@@ -1,0 +1,21 @@
+{
+  "epic_name": "story-planner-schema-conformance",
+  "status": "done",
+  "phase": "COMPLETE",
+  "created_at": "2026-05-14T19:00:51Z",
+  "updated_at": "2026-05-14T19:00:51Z",
+  "completed_stories": ["S1"],
+  "escalated_stories": [],
+  "phase_history": [
+    {
+      "phase": "SPEC_VALIDATED",
+      "timestamp": "2026-05-14T19:00:51Z",
+      "trigger": "validation_passed"
+    },
+    {
+      "phase": "COMPLETE",
+      "timestamp": "2026-05-14T19:00:51Z",
+      "trigger": "all_stories_accepted"
+    }
+  ]
+}

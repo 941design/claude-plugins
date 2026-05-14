@@ -1,0 +1,51 @@
+{
+  "$schema": "../../plugins/base/schemas/stories.schema.json",
+  "epic_name": "story-planner-schema-conformance",
+  "created_at": "2026-05-14T00:00:00Z",
+  "total_stories": 1,
+  "story_order": ["S1"],
+  "dependency_notes": "Single-story epic; no cross-story dependencies.",
+  "seams": [],
+  "stories": [
+    {
+      "id": "S1",
+      "name": "reconcile-mode-prompts-and-schemas",
+      "title": "Reconcile Mode Prompts and Schemas",
+      "description": "Fix the three Mode 1/2/3 discrepancies in story-planner.md and stories.schema.json: update Rule 4 uniqueness wording to per-tag, update story ID patterns in stories.schema.json to ^S[0-9]+$, add a normative category-field note in Mode 3, add a Schema conformance item to Validation Checks, and ship verification.schema.json to lock the verification.json shape.",
+      "acceptance_criteria": [
+        "AC-STRUCT-1",
+        "AC-STRUCT-2",
+        "AC-STRUCT-3",
+        "AC-STRUCT-4",
+        "AC-STRUCT-5",
+        "AC-STRUCT-6",
+        "AC-STRUCT-7"
+      ],
+      "scope": {
+        "includes": [
+          "Edit plugins/base/agents/story-planner.md: fix Rule 4 uniqueness wording from 'within the AC file' to 'within its tag'",
+          "Edit plugins/base/agents/story-planner.md: add normative note in Mode 3 Question record shape that 'category' (not 'type') is the correct field name",
+          "Edit plugins/base/agents/story-planner.md: add Schema conformance subsection to Validation Checks citing stories.schema.json and verification.schema.json by path",
+          "Edit plugins/base/schemas/stories.schema.json: update story.id pattern from ^[0-9]{2}$ to ^S[0-9]+$ and update its description",
+          "Edit plugins/base/schemas/stories.schema.json: update story_order array item pattern from ^[0-9]{2}$ to ^S[0-9]+$ and update its description",
+          "Create plugins/base/schemas/verification.schema.json: JSON Schema Draft 2020-12 enforcing verification.json shape; ac_id MUST NOT be required"
+        ],
+        "excludes": [
+          "Renaming or renumbering existing on-disk stories.json or verification.json files",
+          "Changes to feature.md, verification-examiner.md, or integration-architect.md",
+          "Runtime schema validation inside base:feature or base:story-planner",
+          "Changes to any other agent prompts or workflow commands"
+        ]
+      },
+      "complexity": "low",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "done",
+      "owning_module": "story-planner",
+      "creates_seam": false,
+      "lighter_path": false,
+      "consumes_seams": [],
+      "notes": "lighter_path=false because verification.schema.json does not yet exist on disk (new_file predicate is true). All other lighter_path conditions hold: all file targets are markdown-class extensions (.md, .json), and all ACs are fully specified with MUST/MUST NOT normative language and grep-verifiable commands."
+    }
+  ]
+}

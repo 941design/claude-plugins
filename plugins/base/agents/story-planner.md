@@ -124,8 +124,8 @@ Question record shape:
 }
 ```
 
-`ac_id` is set only on SPEC questions derived from an AC; omit it
-otherwise.
+Field `"category"` (not `"type"`) is normative for the question category.
+Omit `"ac_id"` on non-SPEC questions.
 
 **File shape.** `{story_dir}/verification.json`:
 ```json
@@ -158,10 +158,10 @@ For data moving source→destination, create one AC per hop. Ask: "What is the s
 **Rule 4: AC ID form**
 Each AC uses the form `AC-<TAG>-<N>` where `<TAG>` is a short uppercase
 category token (`STRUCT`, `DEP`, `ERR`, `PERF`, `SEC`, `OBS`, `UX`, …) and
-`<N>` is a 1-based integer unique within the AC file. IDs are stable
-references — do not renumber when an AC is removed. Full conventions are
-documented in `base:spec-template`; the schema enforces the regex
-`^AC-[A-Z]+-[0-9]+$`.
+`<N>` is a 1-based integer **unique within its tag** (counter resets per TAG;
+IDs are unique within a tag, not globally across the file). See `base:spec-template`
+for the authoritative description. IDs are stable references — do not renumber
+when an AC is removed. The schema enforces the regex `^AC-[A-Z]+-[0-9]+$`.
 
 ## Story Design Principles
 
@@ -196,6 +196,7 @@ Before output, verify:
 - Module ownership: every story has `owning_module` set to a non-empty string
 - Seam contracts: every entry in the top-level `seams` array has a `contract` with at minimum a `type_name`
 - No two stories claim the same `owning_module` unless the spec explicitly allows shared module ownership
+- **Schema conformance.** Mode 2 output MUST conform to `plugins/base/schemas/stories.schema.json`. Mode 3 output MUST conform to `plugins/base/schemas/verification.schema.json` (when the file is present).
 
 ## Language Detection
 
