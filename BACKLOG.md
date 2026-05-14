@@ -7,13 +7,15 @@
 - specs/epic-pipeline-autonomous-retros/ — DONE — completed 2026-05-12
 - specs/epic-next-modes/ — DONE — completed 2026-05-12
 - specs/epic-fast-track-routing/ — DONE — completed 2026-05-13
+- specs/epic-next-auto-backlog-audit/ — IN_PROGRESS — created 2026-05-14
 
 ---
 
 ## Findings
 
+- specs/epic-proposed-supersedes-composability/spec.md — Is spec for epic-proposed-supersedes-composability ready? Auto-dispatch aborted: `## Solution` and `acceptance-criteria.md` are entirely un-authored stubs requiring human input. Finish specifying then remove this finding. (2026-05-13)
 - `specs/epic-proposed-supersedes-composability/spec.md` — Is spec for epic-proposed-supersedes-composability ready? Auto-dispatch aborted: `## Solution` section is empty — the spec stub was promoted from the backlog finding but not yet authored. Finish specifying then remove this finding. (2026-05-13)
-- `plugins/base/skills/adr/SKILL.md:65-69` — `proposed+supersedes` composability is undocumented: when both flags are passed together, it is unspecified whether the superseded ADR's `Superseded by:` line should be updated immediately (when the new ADR is still Status: Proposed) or deferred until the user accepts the ADR — surfaced as VQ-S4-009 PARTIAL, pipeline-autonomous-retros S4 (2026-05-12)
+- `plugins/base/skills/adr/SKILL.md:65-69` — [INSUFFICIENT: spec stub `## Solution` and acceptance-criteria.md un-authored] `proposed+supersedes` composability is undocumented: when both flags are passed together, it is unspecified whether the superseded ADR's `Superseded by:` line should be updated immediately (when the new ADR is still Status: Proposed) or deferred until the user accepts the ADR — surfaced as VQ-S4-009 PARTIAL, pipeline-autonomous-retros S4 (2026-05-12)
 - `plugins/base/skills/spec-template/SKILL.md:244` — AC-ID uniqueness rule in spec-template says `<N>` is unique within the AC file (so AC-STRUCT-7 and AC-DEP-7 cannot coexist), but every existing AC file uses per-tag resetting (AC-NEXT-1, AC-BUG-1, AC-ORIENT-1 coexist in epic-base-next); the de facto convention disagrees with the format authority — surfaced during epic-next-modes planning (2026-05-12)
 - `-` — No `skills/languages/markdown.md` exists; the verification-examiner's AC-derived SPEC protocol requires "(b) tests at file:line" and "(c) confirmation tests are not pure mock-spy proxies", written for executable code — epics whose stories edit only Markdown files have no matching language skill, causing examiners to improvise — surfaced during epic-next-modes (2026-05-12)
 - `plugins/base/schemas/stories.schema.json:39` — `story_order` array items and story `id` fields require pattern `^[0-9]{2}$` (e.g. "01", "02"), but spec prose and `spec.md ## Stories` sections universally use prose IDs `S1`/`S2`/`S3`; the mismatch is invisible until schema validation runs — surfaced during epic-next-modes planning (2026-05-12)
@@ -25,6 +27,7 @@
 - `plugins/base/agents/story-planner.md` — Mode-3 VQ literal-string grep lint is missing: VQ-S3-007 in epic-pipeline-autonomous-retros asked for "zero AskUserQuestion occurrences" but the architect rephrased frontmatter to "Fully non-interactive" to avoid a false-positive on "No AskUserQuestion" — the check passed correctly but only by architect awareness; add a Mode-3 lint: when `check_method` contains `grep`, require the question prose to state the exact literal token being searched rather than a semantic paraphrase or negation — surfaced during epic-pipeline-autonomous-retros verification (2026-05-12)
 
 - `plugins/base/skills/e2e-testing/SKILL.md:20-21` — SKIP condition "one-off interactive debugging where sequential execution adds no value" is too easy to misapply: repeated single-file targeted runs (e.g. `npx playwright test e2e/46-...`) get reclassified as debugging when they are in fact repeated suite invocations; practical consequence was 11 tests running in parallel against a shared relay each time, full output flooding main context, and no fail-fast discipline; tighten the SKIP condition to require *truly* one-off (≤1 run, non-suite) or add a heuristic: if the same test file is invoked more than once in a session, escalate to the skill — surfaced in a nostr-skills session (2026-05-13)
+- `plugins/base/commands/bug.md` — `/base:bug` leaves working tree dirty after ACCEPTED: when a run terminates ACCEPTED with no escalation, no rejection, and no open remediation rounds, the natural terminal state is "committed to branch" not "staged for review"; Step 4 should auto-commit exactly the files in the contract's `allowed_changes.files` plus bug-reports artifacts and BACKLOG.md, using the bug slug + root_cause for the commit message; skip auto-commit on any non-ACCEPTED terminal state (ESCALATED, REJECTED, ABORT:UNDERSPECIFIED); surfaced by user after shophop/waitForTimeout-has-no-durable-fallback run (2026-05-13)
 
 ---
 
