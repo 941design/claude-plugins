@@ -135,6 +135,35 @@ Eligibility:
   this dedup — both deferred-state stamps mark the bullet as deferred,
   and a deferred bullet should not suppress a fresh actionable finding
   on the same topic.
+- **Plugin-bound filter (consumer-mode only).** When the spawn prompt
+  does NOT declare `Mode: plugin-dev` (mode is inferred from the spawn
+  prompt, not from cwd — the lead passes `Mode: plugin-dev` explicitly
+  from `/base:retros-derive`; consumer-mode invocations from
+  `/base:feature` Step 6 and `/base:bug` Step 4 omit it), REJECT any
+  `append_finding` whose `anchor` begins with `plugins/base/`
+  (case-sensitive prefix match on the decision's `anchor` field only,
+  after stripping optional surrounding backticks). Free-text mentions
+  of `base:<cmd>` or `/base:<cmd>` in `text` are NOT sufficient —
+  bullet text frequently references base commands as context for
+  consumer work (e.g. `anchor: "src/foo.ts:42", text: "fails when
+  invoked from /base:bug"` is a consumer-side bug, not plugin work).
+  Bare-anchor findings (`anchor: "-"`) are not classified plugin-bound
+  by this rule and pass through normal eligibility — cross-cutting
+  findings are rare. Plugin-anchored findings belong in the retro's
+  `## Plugin-bound findings (route to plugin BACKLOG)` section for
+  `/base:retros-derive` plugin-dev-mode to harvest into
+  `claude-plugins/BACKLOG.md`. Filing them in the consumer's
+  `BACKLOG.md` makes them un-dispatchable from this repo and traps
+  them where `/base:next` cannot route them. Sibling rule:
+  `/base:next` Step 3's `plugin-bound` bucket uses the same anchor
+  prefix match — keep them aligned. The retro-synthesizer's Hard
+  Rule 5 achieves the same intent by matching the regex
+  `\b(plugins/base/|base:[a-z-]+|/base:[a-z-]+)\b` against the
+  structured `**Suggested change:**` field; the asymmetry is
+  deliberate because retros have a target field that BACKLOG bullets
+  lack. Drop the decision silently; the retro-synthesizer's
+  pre-routing has already placed the friction observation in the
+  right retro section.
 
 ### `action: append_rejection`
 
@@ -155,6 +184,28 @@ Eligibility:
   outcome, decider verdict). Speculation does not become a rejection.
 - Cosmetic / mechanical reversals (e.g. "tried camelCase, switched to
   snake_case") are not rejections — drop them.
+- **Plugin-bound filter (consumer-mode only).** When the spawn prompt
+  does NOT declare `Mode: plugin-dev` (mode is inferred from the spawn
+  prompt, not from cwd), REJECT any `append_rejection` whose `text`
+  contains the substring `plugins/base/` (case-sensitive). The
+  `append_rejection` action has no `anchor` field, so the filter must
+  match on `text`; the substring is restricted to `plugins/base/`
+  only — the broader `base:<cmd>` / `/base:<cmd>` alternatives are
+  intentionally NOT included here because rejection prose frequently
+  describes consumer approaches that mention base commands as context
+  (e.g. "rejected: route through `/base:bug` because the lighter path
+  works"), and matching those would suppress legitimate consumer-side
+  rejections. A plugin-bound rejection is just as wrong in the
+  consumer's `## Archive` as a plugin-bound finding is in
+  `## Findings`: it pins durable "no" knowledge about the base plugin
+  into a repo that has no authority over plugin design. Such
+  rejections belong in the retro's `## Plugin-bound findings (route to
+  plugin BACKLOG)` section for plugin-dev-mode harvesting. Drop the
+  decision silently. (Asymmetry with `append_finding` above is
+  deliberate: `append_finding` has a structured `anchor` field so the
+  filter targets that; `append_rejection` has only `text`, so the
+  filter uses the narrowest substring that reliably indicates plugin-
+  source targeting.)
 
 ### `action: amend_spec`
 
@@ -424,15 +475,24 @@ line.
 - **Plugin-bound section skip (consumer-mode invocations).** When invoked by
   `base:feature` Step 6 or `base:bug` Step 4 in a consumer project, **ignore
   every finding under the `## Plugin-bound findings (route to plugin BACKLOG)`
-  section entirely** — those findings were pre-routed by the retro-synthesizer
-  using the plugin-bound classifier, and they are not destined for the
-  consumer's `BACKLOG.md`. They sit un-annotated in the retro file until the
-  base plugin's own `/base:retros-derive` (plugin-dev mode) harvests them
-  across consumers into `claude-plugins/BACKLOG.md`. Do NOT annotate them with
-  any disposition — leaving them un-annotated is what lets plugin-dev mode
-  pick them up via its dedup convention. Process the other partitions
-  (`## Meta-level findings (raise to user)`, `## Project-specific findings`)
-  normally.
+  section entirely** — and additionally subject the curator's own
+  `append_finding` and `append_rejection` decisions to the plugin-bound
+  filters documented in their respective Eligibility paragraphs above
+  (each filter is narrowed to its own structured field:
+  `append_finding` matches the `anchor` prefix `plugins/base/`,
+  `append_rejection` matches the `text` substring `plugins/base/`) so a
+  curator-originated plugin-bound entry cannot leak into the consumer's
+  `BACKLOG.md` via a path the retro-reading skip does not cover. Those
+  findings were pre-routed by the retro-synthesizer using the plugin-bound
+  classifier (which matches a broader regex against the retro's structured
+  `**Suggested change:**` field — see Hard Rule 5), and they are not
+  destined for the consumer's `BACKLOG.md`. They sit un-annotated in the
+  retro file until the base plugin's own `/base:retros-derive` (plugin-dev
+  mode) harvests them across consumers into `claude-plugins/BACKLOG.md`.
+  Do NOT annotate them with any disposition — leaving them un-annotated is
+  what lets plugin-dev mode pick them up via its dedup convention. Process
+  the other partitions (`## Meta-level findings (raise to user)`,
+  `## Project-specific findings`) normally.
 - **Plugin-dev-mode dispatch (only when invoked by `/base:retros-derive`).**
   When the spawn prompt explicitly declares `Mode: plugin-dev`, the curator's
   scope is the inverse of the above: process findings under

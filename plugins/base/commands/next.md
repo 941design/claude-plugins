@@ -100,10 +100,35 @@ If the section is absent, empty, or contains only the placeholder `- _no finding
 Two paths: **hint short-circuit** (when `hint != None` from Step 0) or the
 default **document-order walk**.
 
+### Plugin-dev-cwd detection
+
+Before classification, determine whether the cwd is the base plugin's own
+source repository. This gates the `plugin-bound` bucket below: a bullet
+that anchors at plugin source is dispatchable from the plugin source repo
+(work IS local there), but is NOT dispatchable from a consumer project
+(plugin source files do not exist in the consumer tree).
+
+```bash
+if [ -f "$(git rev-parse --show-toplevel)/plugins/base/commands/retros-derive.md" ]; then
+  is_plugin_dev_cwd=true
+else
+  is_plugin_dev_cwd=false
+fi
+```
+
+This is the canonical "am I in the plugin source repo?" check; the source
+of truth is `/base:retros-derive` Step 1, which uses the same signal to
+toggle consumer-mode vs. plugin-dev-mode. Keep the two in sync — when one
+changes, the other follows.
+
 ### Per-bullet classification
 
 For every finding bullet, read its prose (anchor + text) and classify it
-into exactly one of four buckets:
+into exactly one of five buckets. **Precedence order: `deferred` first,
+then `plugin-bound` (only when `is_plugin_dev_cwd == false`), then the
+kind buckets `bug` / `question` / `feature-work`.** A bullet classified
+as `plugin-bound` does NOT also get a kind/scale classification — the
+bucket is terminal for routing purposes (it is skipped like `deferred`).
 
 - **`deferred`** — the bullet's `<text>` (everything between ` — ` and
   ` (YYYY-MM-DD)`) matches **any** of:
@@ -129,6 +154,32 @@ into exactly one of four buckets:
   walk treats them as not-present. The two stamps differ only in
   semantics (gap to fill vs. fix already present) and resolution path;
   the dispatcher treats them identically.
+- **`plugin-bound`** — the bullet's **anchor** (the path before ` — `,
+  after stripping optional surrounding backticks) begins with
+  `plugins/base/`. Case-sensitive prefix match on the parsed anchor
+  only — free-text mentions of `base:<cmd>` or `/base:<cmd>` in `<text>`
+  are NOT classified plugin-bound, because bullet text frequently
+  references base commands as context for consumer work (e.g.
+  `- src/foo.ts:42 — fails when invoked from /base:bug` is consumer
+  work anchored at consumer code, not plugin work). The retro-
+  synthesizer's Hard Rule 5 classifier
+  (`plugins/base/agents/retro-synthesizer.md`) achieves the same intent
+  by matching the regex `\b(plugins/base/|base:[a-z-]+|/base:[a-z-]+)\b`
+  against the structured `**Suggested change:**` field, which is the
+  proposed-action target. BACKLOG bullets have no equivalent structured
+  field; the anchor (the location-of-work field) is the closest analog.
+  Bare-anchor (`-`) findings are not classified plugin-bound by this
+  rule and flow through normal classification — cross-cutting findings
+  are rare and `format.md` already flags them as borderline; if one
+  slips through, fix manually. **Evaluated ONLY when
+  `is_plugin_dev_cwd == false`** — in plugin-dev cwd, the check is
+  short-circuited and the bullet flows through the normal kind/scale
+  classification (plugin-bound work IS dispatchable from
+  `claude-plugins/`). Precedence: evaluated AFTER `deferred` (an
+  already-stamped bullet stays in the `deferred` bucket; both buckets
+  share the skip behavior in the document-order walk) and BEFORE the
+  kind buckets. A `plugin-bound` bullet does NOT receive a scale
+  classification — it is not dispatched.
 - **`bug`** — describes a defect: something is broken, fails, errors, regresses,
   or behaves incorrectly. Verbs like "fails", "crashes", "returns wrong", "leaks",
   "silently drops" signal this.
@@ -158,9 +209,9 @@ notice grammar) lives at
 restatement the dispatcher executes.
 
 For each bullet whose `kind ∈ {bug, feature-work}`, classify scale.
-Bullets whose `kind ∈ {question, deferred}` SKIP the scale
-classification entirely (they are not dispatched; scale is not
-meaningful).
+Bullets classified as `question`, `deferred`, or `plugin-bound` SKIP
+the scale classification entirely (they are not dispatched; scale is
+not meaningful).
 
 **Precedence: `mechanical` is evaluated first; only when it does NOT
 match is `amendment` evaluated.** This means a "rename typo in
@@ -208,13 +259,16 @@ rendering) and Step 6 (dispatch).
 ### Default path: document-order walk (when `hint == None`)
 
 Walk findings in **document order** — do not reorder by age or any other
-heuristic. **Skip every bullet classified as `deferred`** as if it were
-not in the file (do not surface, do not count toward question-halt or
-the top-3 list).
+heuristic. **Skip every bullet classified as `deferred` or `plugin-bound`**
+as if it were not in the file (do not surface, do not count toward
+question-halt or the top-3 list). Maintain a counter
+`plugin_bound_skipped` of the number of `plugin-bound` bullets skipped
+during the walk; it is reported by the end-of-walk tally below.
 
 **Question halt** — if any finding classified as `question` appears
-**before** the first non-question, non-deferred finding in document
-order, surface the bullet verbatim and exit without dispatching:
+**before** the first non-question, non-deferred, non-plugin-bound
+finding in document order, surface the bullet verbatim and exit without
+dispatching:
 
 > **Blocked by an open question:**
 > `<full bullet text>`
@@ -225,8 +279,22 @@ order, surface the bullet verbatim and exit without dispatching:
 > - `/base:backlog resolve <marker> rejected` — close without action
 
 **Candidate selection** — the first finding classified as `bug` or
-`feature-work` (skipping `deferred` bullets, halting on a leading
-`question`) is the candidate.
+`feature-work` (skipping `deferred` and `plugin-bound` bullets, halting
+on a leading `question`) is the candidate.
+
+**End-of-walk plugin-bound tally.** After the walk completes (whether a
+candidate was found or not), if `plugin_bound_skipped > 0`, emit
+exactly one line BEFORE Step 4 rendering. Visible in both detail-mode
+and auto-mode:
+
+```
+Skipped <N> plugin-bound finding(s) — anchored at plugin source; not dispatchable from this consumer project. Move/prune them, or dispatch from the base plugin source repo.
+```
+
+Use `finding` (singular) when `N == 1` and `findings` (plural)
+otherwise. The tally fires once per `/base:next` invocation and only in
+consumer cwd (in plugin-dev cwd the bucket is never assigned, so
+`plugin_bound_skipped == 0` and the line is suppressed).
 
 ### Hint path: content-overlap match (when `hint != None`)
 
@@ -241,7 +309,10 @@ bullet whose content best matches the hint:
    discriminate.
 
 2. For each bullet in `## Findings` (**excluding** `deferred` bullets
-   in this first pass; step 4 revisits them as an escape hatch):
+   in this first pass; step 4 revisits them as an escape hatch.
+   `plugin-bound` bullets ARE included in scoring here — the user's
+   hint is explicit, and a hint that names a plugin-bound bullet needs
+   a dedicated exit branch, not silent omission):
      - Tokenize the bullet's full content (anchor + text + date) the
        same way to get `bullet_tokens`.
      - Score = count of `hint_tokens` that appear in `bullet_tokens`
@@ -252,10 +323,32 @@ bullet whose content best matches the hint:
      - Top score exceeds the second-best score by ≥ 1 token.
 
    On a unique winner, the bullet becomes the candidate. Classify it
-   (per the four buckets above). If its classification is `question`,
-   the question-halt above still applies — surface and exit. Otherwise
-   proceed to Step 4 with this single candidate; the candidate list
-   has size 1 and Step 4 still renders synthesis in detail mode.
+   (per the five buckets above).
+
+   **Plugin-bound short-circuit (consumer cwd only).** If the
+   classification is `plugin-bound` (this can only happen when
+   `is_plugin_dev_cwd == false`; in plugin-dev cwd the bucket is never
+   assigned), surface a dedicated notice and exit WITHOUT dispatching
+   and WITHOUT un-stamping (there is no stamp to strip — the
+   classification is anchor-driven, not stamp-driven):
+
+   ```
+   Hint matched a plugin-bound finding: <anchor>
+   These cannot be dispatched from a consumer project — they target plugin source files that don't exist here.
+   To act on this finding: cd into the base plugin source repo (`claude-plugins/`) and re-run, or remove the entry from this consumer's BACKLOG.md.
+   ```
+
+   This is the third terminal-exit branch in the hint path, alongside
+   the question-halt exit and the no-unique-match exit (step 5
+   below). It follows the same surface-and-exit shape: print the
+   notice, do not proceed to Step 4, do not invoke Skill. The
+   `deferred` escape hatch (step 4) does NOT apply — `plugin-bound`
+   bullets carry no stamp to strip.
+
+   If the classification is `question`, the question-halt above still
+   applies — surface and exit. Otherwise proceed to Step 4 with this
+   single candidate; the candidate list has size 1 and Step 4 still
+   renders synthesis in detail mode.
 
 4. **`deferred` escape hatch.** If step 3 produced no unique winner
    from non-deferred bullets, re-run step 3 *including*
@@ -311,11 +404,16 @@ bullet whose content best matches the hint:
 
         Exit without dispatching. The user can resolve manually.
 
-     c. Classify the un-stamped bullet (per the four buckets
+     c. Classify the un-stamped bullet (per the five buckets
         above; it is now no longer `deferred`). If the
-        classification is `question`, the question-halt applies —
-        surface and exit. Otherwise proceed to Step 4 with this
-        single candidate.
+        classification is `plugin-bound` (consumer cwd only), apply
+        the plugin-bound short-circuit from step 3: surface the
+        dedicated notice and exit without dispatching (the un-stamp
+        write in step b is preserved on disk — that is an acceptable
+        side effect of explicit user intent; the user can re-run from
+        the plugin source repo). If the classification is `question`,
+        the question-halt applies — surface and exit. Otherwise
+        proceed to Step 4 with this single candidate.
 
    This honors explicit user intent — a hint that points squarely at a
    stamped bullet overrides the default skip semantics, and the
@@ -337,7 +435,9 @@ bullet whose content best matches the hint:
    ```
 
    List up to 5 candidates ranked by score (include `deferred`
-   bullets here, prefixed `[deferred]` so the user sees them).
+   bullets here, prefixed `[deferred]` so the user sees them; include
+   `plugin-bound` bullets here too, prefixed `[plugin-bound]` so the
+   user sees that an anchor-driven skip happened even on near-miss).
 
 ---
 
@@ -366,6 +466,22 @@ Branch first on **`hint`** (set by Step 0), then on `mode`:
 Select the candidate using the following rule: **the first actionable finding
 in document order** from `## Findings` — the same position-1 candidate that
 Step 3 identified. No re-scanning is needed; Step 3 already produced this.
+
+**All-plugin-bound exit (consumer cwd only).** If Step 3's document-order
+walk produced zero actionable candidates (every non-deferred bullet was
+classified `plugin-bound`) and `plugin_bound_skipped > 0`, exit cleanly
+without dispatching. The end-of-walk tally has already printed above;
+follow it with:
+
+```
+No dispatchable findings. <N> finding(s) are plugin-bound (anchored at plugin source) — see tally above.
+```
+
+This is analogous to the existing "No findings to dispatch" exit but
+more informative — the user knows their backlog has entries, just that
+none are actionable from this cwd. The end-of-walk tally already names
+the remedy (move/prune, or dispatch from the plugin source repo); this
+exit line just confirms the dispatcher is stopping.
 
 **Pre-notice resolution.** Before printing the notice line, perform the
 following preparatory steps so the notice template renders the correct
