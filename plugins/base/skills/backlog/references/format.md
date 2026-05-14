@@ -62,174 +62,162 @@ Empty placeholder when no epics exist: `- _no epics yet_`.
 
 ---
 
-## `## Findings` — bullet grammar
+## `## Findings` — bullet grammar (v2)
 
 The working set of open items that don't (yet) justify their own epic. Soft
 cap **~15 entries** — beyond that, `/base:orient` Rule 5 nags to prune,
 resolve, or promote.
 
 ```
-- <anchor> — <text> (YYYY-MM-DD)
+- <slug> [scope:<X>] — `<anchor>` — [DEFERRED:<reason>:<detail>] <text> (YYYY-MM-DD)
 ```
 
-- `<anchor>` is `path[:line]` when applicable, or `-` only when no specific
-  file location exists. A finding without an anchor and without a defensible
-  reason for omitting one is half a thought — resolve it or delete it.
-- `<text>` is one line, present-tense, specific. No trailing period required.
-  The prose must be self-explanatory enough that a reader can tell whether
-  this is a bug, a chore, an observation, or an open question without a tag.
-  `/base:next` reads the prose to route — write it accordingly.
-- `YYYY-MM-DD` is the date the finding was added.
+Three ` — ` separators, four positions:
+
+- **Position 1**: `<slug>` followed by `[scope:<X>]`. Identity + scope.
+- **Position 2**: `` `<anchor>` `` (backticked path with optional `:line`
+  or `:N-M`), or the literal `-` for cross-cutting findings.
+- **Position 3**: optional `[DEFERRED:<reason>:<detail>]` prefix, then
+  `<text>`, then the trailing ` (YYYY-MM-DD)`.
+
+### Field reference
+
+- `<slug>` — **required**. Kebab-case identifier coined at write time. The
+  canonical dispatch marker (`backlog:<slug>` in Skill args), the
+  resolution marker (`/base:backlog resolve <slug>`), and the stable
+  identity across stamps, retros, and project-curator decisions. See
+  `### Slug derivation` below.
+- `[scope:<X>]` — **required** (default `any`). Declares which project the
+  finding belongs to. See `## Scope axis`.
+- `` `<anchor>` `` — **required**. File path with optional `:line` or
+  `:N-M` line-range; always backticked. Use the bare `-` (no backticks)
+  only when no specific file location applies. A finding without an
+  anchor and without a defensible reason for omitting one is half a
+  thought — resolve it or delete it.
+- `[DEFERRED:<reason>:<detail>]` — **optional**. Present iff the finding
+  is deferred. See `### Deferred-state stamp` below.
+- `<text>` — **required**. One line, present-tense, specific. No trailing
+  period required. The prose must be self-explanatory enough that a
+  reader can tell whether this is a bug, a chore, an observation, or an
+  open question without a tag. `/base:next` reads the prose to route —
+  write it accordingly.
+- `(YYYY-MM-DD)` — **required**. The date the finding was added.
 
 There is no `[type]` prefix. Earlier versions of this format required one
 (`bug | chore | question | observation`); writers and readers MUST treat any
 residual leading `[label]` token on a bullet as part of the prose — ignored
-for routing, not a malformation. The reasoning: forcing a controlled
-vocabulary added friction for hand-edited todos and pushed the burden of
-classification onto the writer rather than letting prose speak. Routing is
-now prose-based; classification falls out of comprehension.
+for routing, not a malformation.
 
-### Deferred-state text prefixes (`[INSUFFICIENT:]` and `[ALREADY-RESOLVED:]`)
+### Slug derivation
 
-`<text>` MAY be preceded by one of two mutually-exclusive deferred-state
-prefixes, written when an auto-dispatched worker (`/base:bug` or
-`/base:feature`) decides not to proceed and emits a matching abort signal
-on stdout. Both prefixes mark the bullet as **deferred** in `/base:next`
-Step 3's classification (skipped by the document-order walk, surfaced
-only via the hint escape hatch, never counted against backlog pressure).
-The two prefixes differ in *why* the worker stopped and how the user
-typically unblocks the finding.
+Coined at write time:
 
-#### `[INSUFFICIENT: <gap>]` — spec is incomplete
+1. Tokenise the finding's `<text>` on whitespace and punctuation; lowercase;
+   drop stopwords (`the / a / an / is / are / and / or / to / of / in / on /
+   for / this / that / it / be / do`).
+2. Take the first **4–6 meaningful words**. Join with hyphens. Lowercase
+   ASCII only; strip any non-ASCII.
+3. Max length **50 characters**. Truncate at a word boundary if needed.
+4. **Uniqueness**: grep `## Findings` for the candidate slug at position
+   1. On collision, append `-2`. If `-2` exists, append `-3`. Etc.
+5. The slug is **stable** for the finding's lifetime. Resolution events
+   remove the finding from `## Findings`; the slug is not reused for a
+   new finding. Mutating a slug after creation breaks every consumer that
+   recorded it.
 
-Written when an auto-dispatched worker cannot proceed without human
-input and emits `ABORT:UNDERSPECIFIED`. Full shape:
+If `<text>` is too short or too generic to yield 4 meaningful words, the
+writer MUST refuse to create the finding and ask for a rephrase. There is
+no fallback ID scheme — the slug-as-identity invariant is load-bearing
+for every downstream consumer (`/base:next` dispatch, worker stamp,
+curator decisions, retro proposals).
 
-```
-- <anchor> — [INSUFFICIENT: <gap>] <original text> (YYYY-MM-DD)
-```
+### Deferred-state stamp (`[DEFERRED:<reason>:<detail>]`)
 
-- `<gap>` is the abort reason copied from the worker's
-  `ABORT:UNDERSPECIFIED:<reason>` output, truncated to ≤80 characters
-  with a trailing `…` when longer. The one-line tonality rule still
-  applies; truncation is non-optional.
-- The stamp means **the spec lacks information** — a missing clarification,
-  an unresolved decision, an arch-debate gate, an escalated decider
-  verdict. The path to resolution is: fill the gap in the referenced
-  anchor (spec edit, ADR, decision capture), then either un-stamp via
-  `/base:next <hint>` re-dispatch (Step 3 escape hatch) or resolve via
-  `/base:backlog resolve <marker> done→spec:<path>` if the gap was
-  closed by an existing spec change.
+A finding's `<text>` MAY be preceded by exactly one
+`[DEFERRED:<reason>:<detail>]` prefix when an auto-dispatched worker
+(`/base:bug` or `/base:feature`) decided not to proceed and emitted a
+matching `ABORT:DEFERRED:<reason>:<detail>` signal on stdout. The stamp
+marks the bullet as **deferred** in `/base:next` Step 3's classification:
+skipped by the document-order walk, surfaced only via the hint escape
+hatch, never counted against backlog pressure.
 
-#### `[ALREADY-RESOLVED: <evidence>]` — fix appears already present
-
-Written when the worker's BACKLOG_PROMOTE working-tree probe (defined
-canonically in `plugins/base/commands/bug.md` ### BACKLOG_PROMOTE mode
-Step 3a; `plugins/base/commands/feature.md` refers to that section)
-detects uncommitted changes touching the finding's anchored location
-before doing any other work, and emits `ABORT:ALREADY-RESOLVED`. Full
-shape:
+Full shape:
 
 ```
-- <anchor> — [ALREADY-RESOLVED: <evidence>] <original text> (YYYY-MM-DD)
+- <slug> [scope:<X>] — `<anchor>` — [DEFERRED:<reason>:<detail>] <original text> (YYYY-MM-DD)
 ```
 
-- **Detection is anchor-line precise.** When the anchor carries a
-  `:line` or `:N-M` line suffix, the probe parses
-  `git diff HEAD -- <anchor-path>` and only aborts when at least one
-  hunk's HEAD-side range overlaps the anchored line range. Hunks
-  outside the range — including unrelated edits elsewhere in the same
-  file — do NOT trigger an abort. When the anchor has no line suffix
-  (path-only or `-` form), the probe falls back to file-level
-  detection via `git status --porcelain -- <anchor-path>`. Earlier
-  versions of the heuristic aborted on any uncommitted change to the
-  anchored file regardless of line component; on dirty branches that
-  produced frequent false deferrals (a finding anchored at
-  `file.md:42` stamped because unrelated edits sat at `file.md:200`).
-- `<evidence>` is composed by the worker. For the file-level
-  fallback it is the first line of `git status --porcelain --
-  <anchor-path>` (the porcelain status code plus the path, e.g.
-  `M plugins/base/commands/next.md`). For the line-precise branch it
-  describes the overlapping hunk (suggested form: `lines <H_start>-
-  <H_end> in <path>: <first chars of the hunk's first context/added/
-  removed line>`). In both cases it is trimmed and truncated to ≤80
-  characters total in the framed form
-  (`[ALREADY-RESOLVED: ` + evidence + `]`) with a trailing `…` when
-  longer. The truncation rule is the same as `[INSUFFICIENT:]`'s.
-- The stamp means **the working tree may already address this finding**
-  — a conservative heuristic, not proof. Uncommitted hunks overlapping
-  the anchored line range (or, for path-only anchors, any uncommitted
-  change to the anchored file) are suggestive but the user must judge
-  whether the changes actually resolve the finding. The path to
-  resolution is one of:
-    - Review the diff at the anchored path; if it does address the
-      finding, commit the change and either close the finding via
-      `/base:backlog resolve <marker> done-mechanical` (no spec
-      change) or `/base:backlog resolve <marker> done→spec:<path>`
-      (spec change accompanied the fix).
-    - If the changes turn out unrelated to the finding, un-stamp via
-      `/base:next <hint>` re-dispatch (Step 3 escape hatch); the
-      probe will re-check on the next auto-dispatch and may stamp
-      again if the working tree still has uncommitted touches on
-      the anchored path.
-- The heuristic is **gated** to BACKLOG_PROMOTE + `non_interactive =
-  true`. Interactive runs do not probe (the user can see the working
-  tree themselves), and modes other than BACKLOG_PROMOTE have no
-  marker in scope to stamp against.
+#### `<reason>` — closed enum
 
-#### Shared invariants (both variants)
+| Value | Semantics | Path to resolution |
+|---|---|---|
+| `spec-gap` | Worker cannot proceed without human spec input (missing clarification, unresolved decision). | Edit the referenced anchor (spec, ADR, decision capture). Re-dispatch via `/base:next <slug>` to un-stamp, or close via `/base:backlog resolve <slug> done→spec:<path>` if an existing spec change closed the gap. |
+| `already-resolved` | The `BACKLOG_PROMOTE` working-tree probe found uncommitted hunks overlapping the anchored location. The fix may already be present. | Review `git diff -- <anchor-path>`. If it addresses the finding, commit and close via `/base:backlog resolve <slug> done-mechanical` (or `done→spec:<path>` if a spec change accompanied). If unrelated, re-dispatch via `/base:next <slug>` to un-stamp. |
+| `escalated` | The Decider escalated; the run cannot proceed without human adjudication. | Resolve the escalation (typically by amending the spec or recording an ADR). Re-dispatch via `/base:next <slug>`. |
+| `arch-debate-required` | The spec has `arch_debate: true`, which requires human deliberation and is not auto-dispatchable. | Run `/base:arch-debate <spec-path>` interactively. Re-dispatch via `/base:next <slug>` after the debate lands an ADR. |
+| `legacy-orphan` | A pre-v2 bullet whose original abort signal is unrecoverable from the bullet text alone (migrated from the pre-2026-05-13 `Auto-dispatch aborted:` orphan shape, or from text that lacks fresh signal). | Close via `/base:backlog resolve <slug> rejected:legacy-orphan` — the original framing cannot be re-dispatched safely. |
 
-- **Sole signal — written by the worker, with a dispatcher fallback.**
-  Each variant's stamp is the canonical and only bookkeeping artifact
-  for its abort. The **worker** (`/base:bug` or `/base:feature`) writes
-  it: when `non_interactive = true` AND the worker was invoked with a
-  `backlog:<marker>` argument, the worker performs the stamp `Edit`
-  on `BACKLOG.md` *before* emitting the matching `ABORT:UNDERSPECIFIED`
-  or `ABORT:ALREADY-RESOLVED` signal on stdout. Co-locating the write
-  with the actor that holds the marker and the relevant context makes
-  the bookkeeping survive prompt-context locality — the worker's abort
-  signal does not have to round-trip through a dispatcher's catch step
-  to land on disk. `/base:next` Step 6a is a **post-return sanity
-  check / fallback**: it inspects the bullet on return, and writes
-  the matching stamp itself only when the worker skipped the write
-  (direct invocation without a backlog marker, the worker's `Edit`
-  failed, etc.). The loop-break invariant — that a re-dispatch of
-  the same finding is suppressed by `/base:next` Step 3's `deferred`
-  classification — holds under both paths and for both variants.
-- **Retired duplicate writes.** Earlier versions of this contract had
-  the auto-aborting worker also append a separate question finding
-  capturing the gap; that produced duplicate writes (the stamp said
-  "skip in walk" while the question said "halt the pipeline") and the
-  question would later orphan when the original was resolved. The
-  append was retired 2026-05-13. Existing pre-retire orphans (question
-  findings whose `<text>` contains the literal substring
-  `Auto-dispatch aborted:`) are folded into the same `deferred`
-  bucket by `/base:next` Step 3 — they no longer block the pipeline;
-  they're awaiting manual resolve.
-- **Validity.** Stamped bullets (either variant) are NOT a
-  malformation. `/base:orient` Rule 0 (format-integrity check) treats
-  both `[INSUFFICIENT: <gap>]` and `[ALREADY-RESOLVED: <evidence>]`
-  prefixes as valid grammar — this reference is the authority Rule 0
-  cites. The anchor and `(YYYY-MM-DD)` trailer are unchanged from the
-  un-stamped form, so substring-marker lookups (curator
-  `finding_marker`, `/base:next` Step 5 derivation) continue to work.
-  Operations that intentionally target a stamped bullet — resolve,
-  reject, hand-edit, or `/base:next <hint>` re-dispatch — remain
-  fully functional and MUST NOT be filtered out.
+Any other `<reason>` value is a **malformation**. `/base:orient` Rule 0
+flags it.
+
+#### `<detail>`
+
+A short, truncated description of why the stamp landed. For `spec-gap`,
+the worker's abort-reason text. For `already-resolved`, the line-precise
+hunk evidence (suggested form: `lines <H_start>-<H_end> in <path>: <first
+chars of the hunk's first context/added/removed line>`) or the first line
+of `git status --porcelain -- <anchor-path>` for path-only anchors. For
+`escalated` and `arch-debate-required`, the gate/escalation reason. For
+`legacy-orphan`, the original bullet text (truncated).
+
+Truncate the entire stamp framing (`[DEFERRED:<reason>:<detail>]`) to
+≤80 characters with a trailing `…` when longer. The one-line-per-bullet
+tonality rule is non-optional.
+
+#### `already-resolved` probe (line-precise)
+
+When the anchor carries a `:line` or `:N-M` line suffix, the worker's
+BACKLOG_PROMOTE probe parses `git diff HEAD -- <anchor-path>` and only
+aborts when at least one hunk's HEAD-side range overlaps the anchored
+line range. Hunks outside the range — including unrelated edits
+elsewhere in the same file — do NOT trigger an abort. When the anchor
+has no line suffix (path-only or `-` form), the probe falls back to
+file-level detection via `git status --porcelain -- <anchor-path>`.
+
+The probe is gated to `BACKLOG_PROMOTE` mode + `non_interactive = true`.
+Interactive runs do not probe (the user can see the working tree
+themselves).
+
+#### Stamp invariants
+
+- **Sole signal — worker writes.** When `non_interactive = true` AND
+  the worker was invoked with `backlog:<slug>`, the worker performs the
+  stamp `Edit` on `BACKLOG.md` *before* emitting the matching
+  `ABORT:DEFERRED:<reason>:<detail>` signal on stdout. Co-locating the
+  write with the actor that holds the slug and the relevant context
+  makes the bookkeeping survive prompt-context locality.
+- **No dispatcher fallback.** `/base:next` does NOT fallback-write the
+  stamp. If the worker skipped the write (no slug in scope, `Edit`
+  failure, direct invocation without a `backlog:<slug>` argument), the
+  dispatcher surfaces a single WARNING line and exits. The user
+  resolves manually via `/base:backlog resolve`. This is a deliberate
+  simplification from the v1 dual-writer model — the prior
+  `stamp_status ∈ {worker, fallback, failed}` tri-state is retired.
+- **Validity.** `[DEFERRED:<reason>:<detail>]`-stamped bullets are NOT
+  malformations. `/base:orient` Rule 0 treats them as valid grammar.
+  The slug, scope token, anchor, and `(YYYY-MM-DD)` trailer are
+  unchanged from the un-stamped form, so slug-based lookups continue
+  to work.
 - **Dispatch classification.** `/base:next` Step 3 classifies bullets
-  beginning with either prefix into the same `deferred` bucket: not a
-  candidate in the document-order walk, not surfaced in the
-  detail-mode top-3 render, and not subject to question-halt. The
-  hint short-circuit's first pass also excludes them; only the
-  explicit "escape hatch" second pass can reach a stamped bullet, and
-  that path un-stamps before dispatching (see below).
+  with the `[DEFERRED:…]` prefix into the `deferred` bucket: not a
+  candidate in the document-order walk, not surfaced in detail-mode
+  top-3, not subject to question-halt. The hint short-circuit's first
+  pass excludes them; only the explicit "escape hatch" second pass can
+  reach a stamped bullet, and that path un-stamps before dispatching.
 - **Workload-signal exclusion.** Scanners that surface `## Findings`
   as workload-pressure or activity signal MUST exclude bullets stamped
-  with either deferred-state prefix — they're deferred work, not
-  active pressure, and counting them against the cap or oldest-N
-  lists creates phantom load. The specific exclusion points (other
-  scanner sites NOT listed here continue to see stamped bullets
-  normally):
+  `[DEFERRED:…]` (any reason). The specific exclusion points (other
+  scanner sites continue to see stamped bullets normally):
     - `/base:orient` Rule 5 (cap pressure count + oldest-5 listing),
       Rule 6 (oscillation vs `## Archive`), Rule 8 (ready-to-promote
       age clock).
@@ -239,24 +227,102 @@ shape:
       recurrence must not be absorbed into a stamped bullet that
       `/base:next` will never pick).
 - **Manual un-stamping.** A user may un-stamp a finding by hand
-  (delete the `[INSUFFICIENT: …] ` or `[ALREADY-RESOLVED: …] `
-  prefix) once the gap / evidence referenced in the stamp text has
-  been addressed and the original is actionable again.
-  `/base:backlog resolve` does not currently provide an automated
+  (delete the `[DEFERRED:…] ` prefix from position 3) once the
+  gap/evidence has been addressed and the original is actionable
+  again. `/base:backlog resolve` does not provide an automated
   un-stamp op.
-- **Automatic un-stamping on hint re-dispatch.** `/base:next <hint>`
-  automatically un-stamps a finding when its hint uniquely targets a
-  stamped bullet (the escape-hatch path), regardless of which prefix
-  is in place. The bullet is rewritten in place to drop the prefix
-  *before* dispatch so downstream consumers
-  (`/base:feature backlog:<marker>` slug + spec stub derivation,
-  `/base:bug backlog:<marker>` slug + report-text derivation) read
-  the original prose and not the defer-marker. If the downstream
-  skill aborts again with either `ABORT:UNDERSPECIFIED` or
-  `ABORT:ALREADY-RESOLVED`, the bullet gets re-stamped with the new
-  reason/evidence.
+- **Automatic un-stamping on hint re-dispatch.** `/base:next <slug>`
+  automatically un-stamps a finding when the hint uniquely targets a
+  stamped bullet (the escape-hatch path). The bullet is rewritten in
+  place to drop the prefix *before* dispatch so downstream consumers
+  (`/base:feature backlog:<slug>` and `/base:bug backlog:<slug>`)
+  read the original prose and not the defer-marker. If the downstream
+  skill aborts again with `ABORT:DEFERRED:<reason>:<detail>`, the
+  bullet gets re-stamped with the new reason/detail.
 
-Empty placeholder when no findings exist: `- _no findings yet_`.
+### Empty placeholder
+
+`- _no findings yet_` when the section is empty.
+
+### Migration from v1 grammar
+
+Pre-v2 bullets (no slug at position 1; anchor in position 1; old
+`[INSUFFICIENT:]`/`[ALREADY-RESOLVED:]`/`Auto-dispatch aborted:` shapes)
+are NOT supported by v2 readers. The migration coins slugs, moves
+anchors into backticks, infers scopes, and unifies the deferred-state
+prefixes into `[DEFERRED:<reason>:<detail>]`.
+
+**Auto-migration on detection.** `/base:next` and `/base:orient` detect
+v1 bullets at startup and auto-invoke `/base:backlog migrate-v2` before
+proceeding — the user sees one notice line, and the migrated
+`BACKLOG.md` lands as a single unstaged change for review on the next
+`git diff`. Direct worker invocations (`/base:bug backlog:<slug>`,
+`/base:feature backlog:<slug>` typed by hand without a dispatcher)
+do NOT auto-migrate; they refuse and surface the recommended command
+so the user is aware.
+
+The migration is **idempotent** — re-running on already-v2 bullets is
+a no-op. Detection key: any bullet whose position 1 (the token before
+the first ` — `) starts with a backtick, the literal `-`, or contains
+the legacy `[INSUFFICIENT:`/`[ALREADY-RESOLVED:` token in position 3
+is v1; bullets whose position 1 is a bare kebab-case word are v2.
+
+---
+
+## Scope axis
+
+Every `## Findings` bullet declares a `[scope:<X>]` token at position 1.
+The token is recorded at write time and consumed by `/base:next` as a
+cwd-driven filter (replacing the legacy plugin-bound classifier).
+
+### Scope values
+
+- `base-plugin` — work targeting `plugins/base/...`.
+- `<plugin-name>` — work targeting `plugins/<name>/...` (e.g.
+  `nostr-skills`, `agent-skills`, `pwa-react-skills`).
+- `<consumer-project>` — set by the writer in a consumer cwd, named
+  after the consumer's project root.
+- `any` — cross-cutting work that applies regardless of cwd. Default
+  when no other scope applies.
+
+### Inference at write/migrate time
+
+- Anchor starts with `plugins/base/` → `base-plugin`
+- Anchor starts with `plugins/<name>/` → `<name>`
+- Anchor is `-`, or path doesn't match the above → `any`
+
+### `/base:next` cwd matching
+
+`/base:next` resolves the **active scope** at startup:
+
+- If the cwd's git root contains `plugins/base/commands/retros-derive.md`
+  (the canary file for the claude-plugins source repo), active scope is
+  `plugin-source`: bullets with `scope:base-plugin`,
+  `scope:<plugin-name>`, or `scope:any` are visible.
+- Otherwise, active scope is `consumer`: bullets with
+  `scope:<this-consumer>` or `scope:any` are visible. The
+  `<this-consumer>` value is the basename of the git root.
+- Bullets whose scope does not match are silently filtered out — not
+  classified, not counted, not surfaced. They remain in `BACKLOG.md`
+  but are inert to `/base:next` from this cwd.
+
+The scope filter runs FIRST in `/base:next` Step 3, before kind
+classification. This consolidates today's plugin-bound classifier, cwd
+detection, tally line, all-plugin-bound exit, and hint-mode plugin-bound
+short-circuit into a single filter step.
+
+### Why a scope axis
+
+The pre-v2 design used a plugin-bound classifier with cwd detection
+to distinguish work targeting plugin source from consumer work. The
+anchor-prefix heuristic and per-invocation cwd detection produced edge
+cases (false positives, escape hatches, dedicated audit branches).
+Per-bullet scope declarations replace the heuristic with an explicit
+field; the cwd check becomes a single filter step at classifier entry,
+not a multi-bucket axis.
+
+This section is the authority. Consumers MUST cite this section rather
+than restating the rules.
 
 ---
 
@@ -492,7 +558,7 @@ reason. **Never expires.**
 
 Finding became a full epic. The new `specs/epic-*/` directory appears
 under `## Epics`; **no archive entry is written**. Use
-`/base:feature backlog:<finding-marker>` to promote — that flow scaffolds
+`/base:feature backlog:<slug>` to promote — that flow scaffolds
 the spec and removes the finding atomically.
 
 If a finding cannot honestly be tagged with one of the four paths, it stays
@@ -506,6 +572,10 @@ in `## Findings` and ages visibly.
 - Present tense, specific. "Login fails when email contains `+`" not
   "Sometimes login is broken."
 - Anchor to a path when one applies. The reader should know where to look.
+- Coin a slug that names the finding's *substance*, not its anchor. A
+  reader who sees `bug-login-rejects-plus-in-email` immediately knows
+  what the finding is about; `bug-login-md-42` is illegible and
+  becomes stale when line numbers shift.
 - No first-person ("I noticed", "we should"). The bullet describes the
   state of the world, not the writer's reaction to it.
 - No filler ("just", "really", "actually").

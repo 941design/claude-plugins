@@ -117,11 +117,29 @@ unresolved question that has a concrete file anchor.
 }
 ```
 
-The application path writes the bullet as
-`- <anchor> — <text> (YYYY-MM-DD)`. There is no `[type]` prefix —
-`/base:next` classifies by reading the prose, so the `text` must be
-self-explanatory enough that a reader can tell whether it's a bug, a
-chore, an observation, or an open question without a tag.
+The application path coins a slug + scope at write time per
+`plugins/base/skills/backlog/references/format.md ### Slug derivation`
+and `## Scope axis ### Inference at write/migrate time`, then writes
+the bullet as
+`- <slug> [scope:<X>] — \`<anchor>\` — <text> (YYYY-MM-DD)`.
+
+Slug derivation rule (also enforced by the application path):
+1. From `text`, take 4–6 meaningful kebab-case words (drop stopwords
+   per format.md).
+2. Grep `## Findings` for the candidate slug at position 1; on
+   collision, append `-2`, `-3`, … until unique.
+3. If `text` is too short/generic to yield 4 meaningful words, the
+   write refuses and surfaces the curator decision for rephrasing.
+
+Scope inference (per format.md):
+- `anchor` starts with `plugins/base/` → `scope:base-plugin`
+- `anchor` starts with `plugins/<name>/` → `scope:<name>`
+- `anchor` is `-` or doesn't match → `scope:any`
+
+There is no `[type]` prefix — `/base:next` classifies by reading the
+prose, so the `text` must be self-explanatory enough that a reader can
+tell whether it's a bug, a chore, an observation, or an open question
+without a tag.
 
 Eligibility:
 - `anchor` SHOULD be `path:line` whenever the finding refers to a
@@ -130,11 +148,10 @@ Eligibility:
   yourself whether the finding is too vague to be useful and drop it.
 - Reject findings that are already addressed by the current spec, an
   open finding, or a recent commit. **Exclude bullets stamped
-  `[INSUFFICIENT:` or `[ALREADY-RESOLVED:`** (see the stamp grammar in
-  `plugins/base/skills/backlog/references/format.md`) when checking
-  this dedup — both deferred-state stamps mark the bullet as deferred,
-  and a deferred bullet should not suppress a fresh actionable finding
-  on the same topic.
+  `[DEFERRED:`** (see the stamp grammar in
+  `plugins/base/skills/backlog/references/format.md ### Deferred-state stamp`)
+  when checking this dedup — a deferred bullet should not suppress a
+  fresh actionable finding on the same topic.
 - **Plugin-bound filter (consumer-mode only).** When the spawn prompt
   does NOT declare `Mode: plugin-dev` (mode is inferred from the spawn
   prompt, not from cwd — the lead passes `Mode: plugin-dev` explicitly
@@ -251,7 +268,7 @@ transaction: applies the AC patch, appends an `## Amendments` entry,
 ```json
 {
   "action": "resolve_finding_via_spec",
-  "finding_marker": "<substring that uniquely identifies one ## Findings bullet>",
+  "finding_slug": "<exact position-1 slug of one ## Findings bullet>",
   "spec_path": "specs/epic-<slug>/acceptance-criteria.md",
   "ac_id": "<existing AC ID to tighten>  OR  null for a new AC",
   "patch": "<exact AC text to add or replace>",
@@ -260,9 +277,9 @@ transaction: applies the AC patch, appends an `## Amendments` entry,
 ```
 
 Eligibility:
-- The `finding_marker` MUST match exactly one bullet in `## Findings`. If
-  zero or more than one match, drop the decision — it cannot be
-  applied deterministically.
+- The `finding_slug` MUST match exactly one bullet's position-1 slug in
+  `## Findings` (slug uniqueness is enforced at write time). If zero
+  matches, drop the decision — it cannot be applied deterministically.
 - Use whenever a finding's anchor or text is materially addressed by an
   AC patch this run produced. This is the primary mechanism by which
   `## Findings` shrinks.
@@ -278,7 +295,7 @@ work.
 ```json
 {
   "action": "resolve_finding_mechanical",
-  "finding_marker": "<substring identifying one ## Findings bullet>",
+  "finding_slug": "<exact position-1 slug of one ## Findings bullet>",
   "evidence_commit": "<git sha or commit subject from this run that contains the fix>",
   "reason": "<why this is mechanical (which test passes confirm zero behavior change), why no spec change is needed>"
 }
@@ -305,7 +322,7 @@ records an in-run abandoned approach with no prior backlog entry.
 ```json
 {
   "action": "move_finding_to_archive",
-  "finding_marker": "<substring identifying one ## Findings bullet>",
+  "finding_slug": "<exact position-1 slug of one ## Findings bullet>",
   "rejection_reason": "<why we said no, with evidence — file, test, or decider note>",
   "reason": "<why this finding crossed the threshold from open to rejected during this run>"
 }
@@ -415,7 +432,7 @@ the file becomes a durable, searchable record of curatorial decisions.
   "action": "annotate_retro",
   "retro_path": "<absolute path to the retro markdown file>",
   "finding_anchor": "<verbatim first line of the finding's header or **Suggested change**: line — enough to uniquely locate the block>",
-  "disposition": "<one of: BACKLOG#<marker> | DUPLICATE of finding-<marker> (recurrence ×N) | ADR-NNN | ARCHIVE | NO_ACTION <reason>>",
+  "disposition": "<one of: BACKLOG#<slug> | DUPLICATE of finding-<slug> (recurrence ×N) | ADR-NNN | ARCHIVE | NO_ACTION <reason>>",
   "reason": "<why this disposition was chosen>"
 }
 ```
@@ -509,16 +526,15 @@ line.
   `BACKLOG.md` (match by the primary subject noun or anchor path),
   instead: (a) append a recurrence line to the existing bullet, e.g.
   `recurred ×N (YYYY-MM-DD)`; (b) annotate the retro finding with
-  disposition `DUPLICATE of finding-<marker> (recurrence ×N)`. Do not
+  disposition `DUPLICATE of finding-<slug> (recurrence ×N)`. Do not
   create a new bullet. This keeps the backlog from accumulating duplicate
-  entries across runs. **Exclude bullets stamped `[INSUFFICIENT:` or
-  `[ALREADY-RESOLVED:` from this matching pass** (see
-  `plugins/base/skills/backlog/references/format.md`) — both
-  deferred-state stamps mark the bullet as deferred, `/base:next` will
-  not pick them, and absorbing a fresh recurrence into one would
-  suppress real signal. Treat a topic that matches only a stamped
-  bullet (of either variant) as if no existing bullet matched and
-  create the new finding normally.
+  entries across runs. **Exclude bullets stamped `[DEFERRED:` from this
+  matching pass** (see
+  `plugins/base/skills/backlog/references/format.md ### Deferred-state stamp`)
+  — a deferred bullet will not be picked by `/base:next`, and absorbing
+  a fresh recurrence into one would suppress real signal. Treat a topic
+  that matches only a deferred bullet as if no existing bullet matched
+  and create the new finding normally.
 
 ## Why a separate subagent
 

@@ -39,96 +39,89 @@ ELSE:
 When `non_interactive = true`, every `AskUserQuestion` call site in this document
 has a paired abort branch — see Step 1 (no-argument gather, BACKLOG_PROMOTE slug
 conflict and ambiguity) and Step 3 (ESCALATE). At each such site, instead of
-invoking `AskUserQuestion`, run the **Stamp-write procedure** below with
-`variant = INSUFFICIENT` (so the deferred-state bookkeeping lands on disk
-while the marker is still in scope), then output
-`ABORT:UNDERSPECIFIED: <reason>` on stdout and exit. A second deferred-state
-variant — `ALREADY-RESOLVED` — is emitted by the BACKLOG_PROMOTE working-tree
-probe below (Step 1 ### BACKLOG_PROMOTE mode) when the worker detects
-uncommitted changes touching the dispatched finding's anchor path; it uses the
-same Stamp-write procedure with `variant = ALREADY-RESOLVED` and the matching
-`ABORT:ALREADY-RESOLVED: <evidence>` signal.
+invoking `AskUserQuestion`, run the **Stamp-write procedure** below with the
+appropriate `<reason>` from the closed enum (so the deferred-state bookkeeping
+lands on disk while the slug is still in scope), then output
+`ABORT:DEFERRED:<reason>:<detail>` on stdout and exit. The
+`already-resolved` reason is emitted by the BACKLOG_PROMOTE working-tree probe
+below (Step 1 ### BACKLOG_PROMOTE mode) when the worker detects uncommitted
+changes touching the dispatched finding's anchor path; the `escalated` reason
+is emitted by the Decider escalation path (Step 3); the `spec-gap` reason
+covers every other abort site (missing argument, ambiguity, etc.).
 
-**The worker is the primary writer of the deferred-state stamp.** When this
-skill is dispatched in auto mode from `/base:next` with a `backlog:<marker>`
-argument, the marker and the gap/evidence both live here, in the worker's
-context. Co-locating the stamp write with the actor that holds the data makes
-the bookkeeping survive prompt-context locality: the abort signal does not
-need to round-trip through a dispatcher catch step in order to land on
-`BACKLOG.md`. `/base:next` Step 6a is now a **post-return sanity check /
-fallback** that re-stamps only when the worker skipped the write (direct
-invocation without a marker, `Edit` failure mid-write, etc.) — the loop-break
-invariant holds under both paths and for both variants. See
-`plugins/base/skills/backlog/references/format.md` "Sole signal" subsection.
+**The worker is the sole writer of the `[DEFERRED:<reason>:<detail>]` stamp.**
+When this skill is dispatched in auto mode from `/base:next` with a
+`backlog:<slug>` argument, the slug and the gap/evidence both live here, in
+the worker's context. The worker writes the stamp BEFORE emitting the matching
+`ABORT:DEFERRED:<reason>:<detail>` signal on stdout. `/base:next` Step 6a does
+NOT fallback-write: if the worker skipped the stamp (direct invocation without
+a `backlog:<slug>` argument, `Edit` failure), the dispatcher surfaces a WARNING
+and exits. See `plugins/base/skills/backlog/references/format.md ### Deferred-state stamp`
+("Sole signal — worker writes" + "No dispatcher fallback").
 
 Earlier versions of this contract had `/base:bug` also append a separate
 question finding capturing the gap; that produced duplicate writes and orphan
 accumulation when the original was later resolved. The append has been
 retired (and stays retired here). Direct invocations (no dispatcher in front
-and therefore no `backlog:<marker>` argument) still emit the abort signal on
-stdout for the human watching, but skip the stamp write — there is no marker
+and therefore no `backlog:<slug>` argument) still emit the abort signal on
+stdout for the human watching, but skip the stamp write — there is no slug
 in scope to stamp against.
 
 #### Stamp-write procedure (worker-side)
 
 Run before emitting an abort signal on stdout, at every abort site referenced
-from this section. Parameterised by a `variant` argument:
+from this section. Parameterised by a `<reason>` argument drawn from the
+closed enum in `plugins/base/skills/backlog/references/format.md ### Deferred-state stamp`:
 
-- `variant = INSUFFICIENT` → emitted stamp framing is `[INSUFFICIENT: <text>]`;
-  caller follows with `ABORT:UNDERSPECIFIED: <text>` on stdout. Used at every
-  `AskUserQuestion` / ESCALATE abort site (spec gap, decider escalation, etc.).
-- `variant = ALREADY-RESOLVED` → emitted stamp framing is
-  `[ALREADY-RESOLVED: <text>]`; caller follows with
-  `ABORT:ALREADY-RESOLVED: <text>` on stdout. Used by the BACKLOG_PROMOTE
-  working-tree probe below.
+- `spec-gap` — worker cannot proceed without human spec input. Default for
+  `AskUserQuestion` abort sites (no-argument gather, BACKLOG_PROMOTE
+  ambiguity, spec validation gap).
+- `already-resolved` — BACKLOG_PROMOTE working-tree probe found uncommitted
+  hunks overlapping the anchor.
+- `escalated` — Decider escalated (Step 3 ESCALATE branch).
+- `arch-debate-required` — spec has `arch_debate: true` (used by `feature.md`;
+  rare in `bug.md`).
+- `legacy-orphan` — pre-v2 bullet with insufficient signal to re-classify.
 
-The grammar, transform, and failure handling are otherwise identical across
-variants — only the literal token in the injected prefix differs.
+The caller follows the stamp write with `ABORT:DEFERRED:<reason>:<detail>`
+on stdout.
 
 ```
 Preconditions: non_interactive = true AND the worker was invoked with
-argument `backlog:<marker>` (so <marker> is in scope from Step 1's
-BACKLOG_PROMOTE mode lookup). If either fails, skip the stamp; the
-dispatcher's sanity check (`/base:next` Step 6a) will fall back.
+argument `backlog:<slug>` (so <slug> is in scope from Step 1's
+BACKLOG_PROMOTE mode lookup). If either fails, skip the stamp and exit
+with a WARNING — there is no dispatcher fallback (per format.md "No
+dispatcher fallback").
 
-1. Compute stamp_text from the abort reason / evidence being
-   constructed. Truncate to ≤80 chars; if longer, replace the trailing
-   portion with a single `…` so the total stamp framing
-   (`[<variant>: ` + stamp_text + `]`) fits the one-line tonality rule
-   in `plugins/base/skills/backlog/references/format.md`.
+1. Compute <detail> from the abort reason / evidence being constructed.
+   Truncate so the total stamp framing
+   (`[DEFERRED:` + <reason> + `:` + <detail> + `]`) is ≤80 chars; if
+   longer, replace the trailing portion of <detail> with a single `…`
+   per the one-line tonality rule in
+   `plugins/base/skills/backlog/references/format.md`.
 
 2. Read `BACKLOG.md` at the repo root. If missing, skip the stamp.
 
-3. Locate the bullet under `## Findings` whose anchor or text matches
-   <marker> — by construction this is unique (the worker already used
-   the same marker to look up the finding when entering BACKLOG_PROMOTE
-   mode in Step 1). If the lookup is now ambiguous (file was hand-edited
-   between dispatch and abort), skip the stamp.
+3. Locate the bullet under `## Findings` whose position-1 slug matches
+   <slug> exactly (slug uniqueness is enforced at write time per
+   `format.md ### Slug derivation`). If the lookup fails (file was
+   hand-edited between dispatch and abort), skip the stamp.
 
-4. Use the `Edit` tool to inject `[<variant>: <stamp_text>] ` (with a
-   trailing space) immediately after the ` — ` separator between
-   <anchor> and <text>. The anchor, the original <text>, and the
-   ` (YYYY-MM-DD)` trailer are unchanged. Example transforms:
+4. Use the `Edit` tool to inject `[DEFERRED:<reason>:<detail>] ` (with a
+   trailing space) immediately after the second ` — ` separator (between
+   `` `<anchor>` `` and <text>). The slug, scope token, anchor, original
+   <text>, and the ` (YYYY-MM-DD)` trailer are unchanged. Example:
 
-       INSUFFICIENT variant:
-       before: - `path/to/spec.md` — Original prose. (2026-05-13)
-       after:  - `path/to/spec.md` — [INSUFFICIENT: gap reason] Original prose. (2026-05-13)
+       before: - my-slug [scope:base-plugin] — `path/to/spec.md` — Original prose. (2026-05-13)
+       after:  - my-slug [scope:base-plugin] — `path/to/spec.md` — [DEFERRED:spec-gap:gap reason] Original prose. (2026-05-13)
 
-       ALREADY-RESOLVED variant:
-       before: - `path/to/spec.md` — Original prose. (2026-05-13)
-       after:  - `path/to/spec.md` — [ALREADY-RESOLVED: M path/to/spec.md] Original prose. (2026-05-13)
-
-5. If the `Edit` fails for any reason (file gone, marker no longer
-   unique, race condition), proceed to emit the abort signal anyway;
-   the dispatcher's sanity check (`/base:next` Step 6a) is the
-   fallback writer.
+5. If the `Edit` fails (file gone, slug no longer unique, race
+   condition), proceed to emit the abort signal anyway — the dispatcher's
+   sanity check will WARN and exit. There is no fallback writer.
 ```
 
-After the stamp attempt (success, no-op, or fail-silently), continue to
-emit the matching abort signal on stdout
-(`ABORT:UNDERSPECIFIED: <reason>` for `variant = INSUFFICIENT`,
-`ABORT:ALREADY-RESOLVED: <evidence>` for `variant = ALREADY-RESOLVED`) and
-exit, exactly as before.
+After the stamp attempt (success or fail-silently), continue to emit
+`ABORT:DEFERRED:<reason>:<detail>` on stdout and exit.
 
 **Propagation to subagents and teammates.** The `non_interactive` flag does not
 stop at the lead. Subagents (`base:code-explorer`, `base:verification-examiner`)
@@ -141,7 +134,7 @@ or defines a teammate role MUST append the following instruction to the briefing
 > invoke `AskUserQuestion` under any circumstances. If you reach a decision point
 > that requires human judgment to resolve — a design choice, an ambiguous spec, a
 > conflict you cannot settle from available context — output the single line
-> `ABORT:UNDERSPECIFIED: <concise description of what needs specifying>` as the
+> `ABORT:DEFERRED:spec-gap:<concise description of what needs specifying>` as the
 > first line of your response and stop immediately. Do not guess, do not default
 > silently, do not proceed with incomplete information.
 
@@ -149,10 +142,10 @@ And after every Agent spawn return or teammate message receive, when
 `non_interactive = true`, apply this catch:
 
 ```
-IF the return/message contains the literal string "ABORT:UNDERSPECIFIED":
-    Extract the gap text: everything after the first "ABORT:UNDERSPECIFIED:" on that line, trimmed.
-    Run the Stamp-write procedure above with variant = INSUFFICIENT and stamp_text = <gap text>.
-    Output: "ABORT:UNDERSPECIFIED: {gap text}" on stdout and exit the current skill.
+IF the return/message contains the literal string "ABORT:DEFERRED:":
+    Parse the signal: <reason> and <detail> from "ABORT:DEFERRED:<reason>:<detail>".
+    Run the Stamp-write procedure above with the parsed <reason> and <detail>.
+    Output: "ABORT:DEFERRED:<reason>:<detail>" on stdout and exit the current skill.
 ```
 
 Subagents that are pure data processors with no human-judgment decision
@@ -185,26 +178,38 @@ ELSE:
     Write bug report to bug-reports/{slug}-report.md
 
     When `non_interactive = true`, do NOT use `AskUserQuestion`. This path is
-    reached without a `backlog:<marker>` argument (the worker was invoked
+    reached without a `backlog:<slug>` argument (the worker was invoked
     on a bare prompt with `auto`), so the Stamp-write procedure's
-    precondition fails and the stamp is skipped — the dispatcher's
-    sanity check (`/base:next` Step 6a) is the writer of last resort if a
-    dispatcher is upstream. Output
-    `ABORT:UNDERSPECIFIED: auto mode requires a backlog marker or bug report file
-    path; cannot gather bug details interactively.` and exit.
+    precondition fails and the stamp is skipped — there is no dispatcher
+    fallback. Output
+    `ABORT:DEFERRED:spec-gap:auto mode requires a backlog slug or bug report file path; cannot gather bug details interactively.` and exit.
 ```
 
 ### BACKLOG_PROMOTE mode
 
-Argument form: `backlog:<finding-marker>` where `<finding-marker>` is a substring that
-uniquely identifies one entry in `BACKLOG.md ## Findings`.
+Argument form: `backlog:<slug>` where `<slug>` is the position-1 slug
+of an entry in `BACKLOG.md ## Findings` (unique by construction per
+`plugins/base/skills/backlog/references/format.md ### Slug derivation`).
 
 ```
 1. Read BACKLOG.md. If missing, abort with:
    "no BACKLOG.md — run /base:backlog init first."
 
-2. Locate the matching finding bullet under ## Findings. If zero or >1 bullets contain
-   the marker (case-sensitive substring match), abort with the candidates listed.
+   **v1 refusal.** If `## Findings` contains any v1 bullets (position 1
+   starts with backtick `` ` ``, the literal `-`, or position 3 contains
+   `[INSUFFICIENT:` / `[ALREADY-RESOLVED:` / `Auto-dispatch aborted:`),
+   refuse to proceed and surface the migration command:
+
+   > BACKLOG.md contains v1 bullets; run `/base:backlog migrate-v2` first.
+   > Direct worker invocations do not auto-migrate — only `/base:next` and `/base:orient` do.
+
+   See `plugins/base/skills/backlog/references/format.md ### Migration from v1 grammar`.
+
+2. Locate the matching finding bullet under ## Findings by exact
+   position-1 slug match (`grep -F "<slug>"` against the position-1
+   token). If zero matches, abort with the candidate list. Slug
+   uniqueness is enforced at write time, so >1 matches indicates a
+   malformed BACKLOG.md.
 
 3. Read the matched finding's prose (anchor + text) and decide whether it
    describes a defect: something that fails, crashes, errors, regresses, or
@@ -212,7 +217,7 @@ uniquely identifies one entry in `BACKLOG.md ## Findings`.
    classification is by reading, the same call `/base:next` makes when it
    dispatches. If the finding clearly describes feature work, a chore, or an
    observation rather than a defect, abort with:
-   "marker matched a non-bug finding; use /base:feature backlog:<marker> instead."
+   "slug matched a non-bug finding; use /base:feature backlog:<slug> instead."
    Do NOT process non-defect findings under the bug workflow. When the
    classification is genuinely ambiguous, proceed — the bug workflow's own
    reproduction step will surface the mismatch.
@@ -221,9 +226,9 @@ uniquely identifies one entry in `BACKLOG.md ## Findings`.
     before doing any other work for this finding, check whether the working
     tree already has uncommitted changes touching the finding's anchored
     location — a conservative heuristic that the finding *might* already be
-    addressed. If so, stamp the bullet `[ALREADY-RESOLVED: <evidence>]` and
-    abort. The user decides what to do next (commit and re-dispatch, or
-    close via `/base:backlog resolve <marker> done-mechanical`). Skip this
+    addressed. If so, stamp the bullet `[DEFERRED:already-resolved:<evidence>]`
+    and abort. The user decides what to do next (commit and re-dispatch, or
+    close via `/base:backlog resolve <slug> done-mechanical`). Skip this
     probe entirely when `non_interactive = false` (the user can see the
     working tree themselves).
 
@@ -237,8 +242,8 @@ uniquely identifies one entry in `BACKLOG.md ## Findings`.
 
     ```
     Preconditions: non_interactive = true AND the worker was invoked with
-    argument `backlog:<marker>`. (Step 2 above already established the
-    marker; this probe only runs once the bullet is in hand.)
+    argument `backlog:<slug>`. (Step 2 above already established the
+    slug; this probe only runs once the bullet is in hand.)
 
     1. Parse the bullet's anchor field (the first token before ` — ` in
        the bullet grammar; see
@@ -277,16 +282,16 @@ uniquely identifies one entry in `BACKLOG.md ## Findings`.
          - Take the first line of the `git status --porcelain` output.
          - Strip leading/trailing whitespace.
          - Truncate so the full stamp framing
-           `[ALREADY-RESOLVED: ` + evidence + `]` is ≤80 chars total
-           (per the one-line tonality rule in
+           `[DEFERRED:already-resolved:` + evidence + `]` is ≤80 chars
+           total (per the one-line tonality rule in
            `plugins/base/skills/backlog/references/format.md`).
          - If truncation is needed, replace the trailing portion of
            `evidence` with a single `…`.
 
        Then run the **Stamp-write procedure** (above) with
-       `variant = ALREADY-RESOLVED` and `stamp_text = <evidence>`, emit
-       `ABORT:ALREADY-RESOLVED: <evidence>` on stdout (exactly), and
-       exit the worker. Do not scaffold the bug report, do not invoke
+       `<reason> = already-resolved` and `<detail> = <evidence>`, emit
+       `ABORT:DEFERRED:already-resolved:<evidence>` on stdout (exactly),
+       and exit the worker. Do not scaffold the bug report, do not invoke
        any subagent, do not write a state file.
 
        **Line-anchored (line_range = (L_start, L_end)):**
@@ -318,15 +323,15 @@ uniquely identifies one entry in `BACKLOG.md ## Findings`.
        **If any hunk overlaps:** the working tree may already address
        this finding. Compose `evidence` describing the first
        overlapping hunk. Suggested form (truncate so the full stamp
-       framing `[ALREADY-RESOLVED: ` + evidence + `]` is ≤80 chars
-       total, replacing the trailing portion with a single `…` when
-       needed):
+       framing `[DEFERRED:already-resolved:` + evidence + `]` is ≤80
+       chars total, replacing the trailing portion with a single `…`
+       when needed):
            lines <H_start>-<H_end> in <path>: <first 40 chars of the
            hunk's first context/added/removed line>
        Then run the **Stamp-write procedure** (above) with
-       `variant = ALREADY-RESOLVED` and `stamp_text = <evidence>`, emit
-       `ABORT:ALREADY-RESOLVED: <evidence>` on stdout (exactly), and
-       exit the worker. Do not scaffold the bug report, do not invoke
+       `<reason> = already-resolved` and `<detail> = <evidence>`, emit
+       `ABORT:DEFERRED:already-resolved:<evidence>` on stdout (exactly),
+       and exit the worker. Do not scaffold the bug report, do not invoke
        any subagent, do not write a state file.
 
        **If no hunk overlaps:** the file has uncommitted changes but
@@ -354,9 +359,9 @@ uniquely identifies one entry in `BACKLOG.md ## Findings`.
     *might* already be addressed, not proof. The audit trail simply
     distinguishes "we deferred because the working tree may already
     fix this" from "we deferred because the spec is incomplete."
-    `/base:next` Step 3 classifies an `[ALREADY-RESOLVED:]`-stamped
-    bullet under the same `deferred` bucket as `[INSUFFICIENT:]`, so
-    the loop-break invariant is shared.
+    `/base:next` Step 3 classifies any `[DEFERRED:<reason>:<detail>]`
+    bullet under the `deferred` bucket regardless of `<reason>`, so
+    the loop-break invariant holds across all deferred-state values.
 
     This is the **canonical source** of the working-tree probe
     algorithm. `/base:feature`'s BACKLOG_PROMOTE mode performs the
@@ -364,14 +369,14 @@ uniquely identifies one entry in `BACKLOG.md ## Findings`.
     "scaffold the bug report" in the abort exits) and refers to this
     section rather than duplicating the prose.
 
-4. Derive a kebab-case slug from the finding's text (≤40 chars).
-   Confirm via AskUserQuestion if ambiguous.
-   **When `non_interactive = true`, skip `AskUserQuestion` and derive the slug
-   deterministically from the first 8 words of the finding text, kebab-cased.**
-   If bug-reports/{slug}-report.md already exists, confirm via AskUserQuestion with a
-   numbered-suffix suggestion (e.g. {slug}-2) — do NOT silently overwrite.
-   **When `non_interactive = true`, skip `AskUserQuestion` and automatically append
-   `-2` (or the next available suffix) to the slug without confirmation.**
+4. The bug-report slug is the finding's `<slug>` (position 1 of the
+   bullet, already in scope from step 2). Coined per
+   `plugins/base/skills/backlog/references/format.md ### Slug derivation`.
+   If `bug-reports/{slug}-report.md` already exists, confirm via
+   AskUserQuestion with a numbered-suffix suggestion (e.g. `{slug}-2`)
+   — do NOT silently overwrite. **When `non_interactive = true`, skip
+   `AskUserQuestion` and automatically append `-2` (or the next
+   available suffix) to the report filename without confirmation.**
 
 5. Write bug-reports/{slug}-report.md with:
    - The finding's text in the description section.
@@ -379,7 +384,7 @@ uniquely identifies one entry in `BACKLOG.md ## Findings`.
      starting reference.
    - A "Source: BACKLOG.md finding promoted YYYY-MM-DD" line.
 
-6. Capture in-session: pending_finding_removal = <marker>
+6. Capture in-session: pending_finding_removal = <slug>
    Do NOT remove the source bullet from BACKLOG.md yet.
 
 7. Set the bug report path to bug-reports/{slug}-report.md and fall through to the
@@ -399,7 +404,7 @@ When `non_interactive = true`, append the non-interactive mode instruction (see 
 
 Read 5-10 key files to understand the affected area.
 
-When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to each explorer return before merging.
+When `non_interactive = true`, apply the ABORT:DEFERRED catch (see Non-Interactive Mode Detection block above) to each explorer return before merging.
 
 For each explorer return that contains a `RETROSPECTIVE:` block with `skipped: false`,
 append it to `retro_bundle.exploration`.
@@ -523,7 +528,7 @@ When `non_interactive = true`, append the non-interactive mode instruction (see 
 >
 > You do not spawn subagents. You do not manage state files. You do not write files.
 
-When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Decider's role definition. Additionally, because the Decider's `ESCALATE` response routes back to `AskUserQuestion` in the lead, append: "When `non_interactive = true`, if you would respond `ESCALATE`, respond `ABORT:UNDERSPECIFIED: <reason>` instead — the lead will catch this, stamp the original finding `[INSUFFICIENT]` via the worker-side Stamp-write procedure, and emit `ABORT:UNDERSPECIFIED` on stdout rather than asking the user."
+When `non_interactive = true`, append the non-interactive mode instruction (see Non-Interactive Mode Detection block above) to the Decider's role definition. Additionally, because the Decider's `ESCALATE` response routes back to `AskUserQuestion` in the lead, append: "When `non_interactive = true`, if you would respond `ESCALATE`, respond `ABORT:DEFERRED:escalated:<reason>` instead — the lead will catch this, stamp the original finding `[DEFERRED:escalated:<reason>]` via the worker-side Stamp-write procedure, and emit `ABORT:DEFERRED:escalated:<reason>` on stdout rather than asking the user."
 
 ---
 
@@ -545,11 +550,11 @@ rules, and state transitions.
    - bug-reports/{slug}-contract.json
    - bug-reports/{slug}-result.json
    Update state file phase to FIX_READY.
-   When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the fixer's message before proceeding.
+   When `non_interactive = true`, apply the ABORT:DEFERRED catch (see Non-Interactive Mode Detection block above) to the fixer's message before proceeding.
 
 3. Read bug-reports/{slug}-result.json.
    Spawn Agent(subagent_type: base:verification-examiner) for each verification question, or each batch of related questions. Independent batches MUST be sent in parallel — single message, multiple Agent tool calls. When `non_interactive = true`, include the non-interactive mode instruction (see Non-Interactive Mode Detection block above) in each examiner's spawn prompt.
-   Collect all results. When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch to each examiner return before tallying. For each examiner return that contains a `RETROSPECTIVE:` block with `skipped: false`, append `{question_id, flag}` to `retro_bundle.examiners`.
+   Collect all results. When `non_interactive = true`, apply the ABORT:DEFERRED catch to each examiner return before tallying. For each examiner return that contains a `RETROSPECTIVE:` block with `skipped: false`, append `{question_id, flag}` to `retro_bundle.examiners`.
 
 4. Message the reviewer with:
    - bug report path
@@ -557,7 +562,7 @@ rules, and state transitions.
    - result path
    - examiner results
    - remediation history so far
-   When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the reviewer's verdict message before acting on it.
+   When `non_interactive = true`, apply the ABORT:DEFERRED catch (see Non-Interactive Mode Detection block above) to the reviewer's verdict message before acting on it.
    If the reviewer returns a `RETROSPECTIVE:` block with `skipped: false`, store it in `retro_bundle.reviewer`.
 
 5. Apply decision rules:
@@ -596,14 +601,14 @@ rules, and state transitions.
        - reviewer and examiner evidence materially disagree
        - bug fix has hit max remediation rounds (3)
      → SendMessage(Decider) with: bug name, bug report summary, fix contract, fixer result, examiner results, reviewer verdict, remediation history, and a specific question.
-     → When `non_interactive = true`, apply the ABORT:UNDERSPECIFIED catch (see Non-Interactive Mode Detection block above) to the Decider's message before acting on it. If the message contains `ABORT:UNDERSPECIFIED`, run the Stamp-write procedure with `variant = INSUFFICIENT` and `stamp_text = <extracted gap text>`, then emit `ABORT:UNDERSPECIFIED: <gap>` on stdout and exit — do not also fall through to the ESCALATE branch.
+     → When `non_interactive = true`, apply the ABORT:DEFERRED catch (see Non-Interactive Mode Detection block above) to the Decider's message before acting on it. If the message contains `ABORT:DEFERRED:`, run the Stamp-write procedure with the parsed `<reason>` (typically `escalated`) and `<detail>`, then emit `ABORT:DEFERRED:<reason>:<detail>` on stdout and exit — do not also fall through to the ESCALATE branch.
      → Execute the Decider's response:
          RETRY    → increment remediation_round; update state file phase to REMEDIATING; message the fixer with the Decider's remediation prompt; re-run steps 2-4.
          ESCALATE → update state file as escalated; surface to the user via AskUserQuestion.
          ACCEPT   → record the caveats in bug-reports/{slug}-result.json; proceed to Step 4.
          REJECT   → treat as a remediation round; message the fixer with the Decider's failure list; re-run steps 2-4.
 
-   **Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion`. Run the Stamp-write procedure (see Non-Interactive Mode Detection block above) with `variant = INSUFFICIENT` and `stamp_text = "bug fix for {slug} escalated — {reason}"`, then output `ABORT:UNDERSPECIFIED: bug fix for {slug} escalated — {reason}` on stdout and exit. `/base:next` Step 6a is the fallback writer if the stamp Edit fails.
+   **Non-interactive abort.** When `non_interactive = true`, do NOT invoke `AskUserQuestion`. Run the Stamp-write procedure (see Non-Interactive Mode Detection block above) with `<reason> = escalated` and `<detail> = "bug fix for {slug} — {reason-detail}"`, then output `ABORT:DEFERRED:escalated:bug fix for {slug} — {reason-detail}` on stdout and exit. There is no dispatcher fallback; if the stamp Edit fails the dispatcher surfaces a WARNING.
 
 6. Retrospective discrepancy check:
    - If bug-reports/{slug}-result.json has `retrospective.skipped: true` AND remediation_round > 0, append a discrepancy note to `retro_bundle.discrepancies`.
@@ -619,9 +624,9 @@ rules, and state transitions.
    **Consume `pending_finding_removal` (BACKLOG_PROMOTE mode only).** After the state
    file write succeeds and only if `pending_finding_removal` is set, perform a single
    read-modify-write on `BACKLOG.md`: read the file, remove the source bullet from
-   `## Findings` whose text contains the marker (case-sensitive), write back. Skip
-   silently if `BACKLOG.md` does not exist. If this bug run aborted before reaching
-   Step 4, the source bullet remains intact — the half-scaffolded
+   `## Findings` whose position-1 slug matches `pending_finding_removal` exactly,
+   write back. Skip silently if `BACKLOG.md` does not exist. If this bug run aborted
+   before reaching Step 4, the source bullet remains intact — the half-scaffolded
    `bug-reports/{slug}-report.md` is left for `/base:orient` to surface as drift.
 
 2. **Synthesize the retrospective AND curate project-state proposals in parallel.** Spawn both in a single message (one Agent call each):

@@ -61,7 +61,25 @@ inputs the lead gives you and emit either a markdown retrospective body or the
    output. The doer-side prompt is supposed to skip these; if the architect populated
    anyway, treat the entry as if it were skipped. Note the demotion in
    `## Discrepancies` ("S<N> populated retro with no discernible friction").
-9. **Strict NO_RETRO floor.** You return `STATUS: NO_RETRO` if AND ONLY IF every condition
+9. **Proposed-finding shape (slug + scope).** Whenever a finding entry in your output
+   warrants a BACKLOG `append_finding` (typically via the `**Suggested change:**` field
+   on a per-story, per-phase, or theme block), include a proposed `<slug>` and
+   `<scope>` alongside the existing `anchor`/`text`/`date` fields. Format inline within
+   the Suggested change line or as a structured trailer:
+
+   > **Suggested change**: <prose>. *Proposed BACKLOG entry: slug=`<slug>`, scope=`<X>`, anchor=`<anchor>`*
+
+   Slug derivation: same algorithm as
+   `plugins/base/skills/backlog/references/format.md ### Slug derivation` — kebab-case,
+   4–6 meaningful words from `text`, max 50 chars, lowercase ASCII. Scope inference:
+   anchor prefix per `## Scope axis ### Inference at write/migrate time` (`plugins/base/`
+   → `base-plugin`; `plugins/<name>/` → `<name>`; else `any`).
+
+   **Discriminator suffix (`-2`, `-3`, …) on slug collision is the curator's
+   responsibility on apply** — you do not need to grep the live `BACKLOG.md` for
+   collisions. Propose the natural slug; the curator dedups when it writes.
+
+10. **Strict NO_RETRO floor.** You return `STATUS: NO_RETRO` if AND ONLY IF every condition
    below holds:
    - Every architect retro in `result.json` files has `skipped: true`.
    - Every flag in the lead's `retro_bundle` (spec_validation, exploration, planning,

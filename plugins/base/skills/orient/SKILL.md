@@ -4,13 +4,15 @@ description: >-
   Read-only project orientation. Reads `BACKLOG.md`, every `specs/epic-*/epic-state.json`,
   `docs/adr/`, recent git activity, and proposes a 3-line "you are here" plus ranked
   next moves. Detects oscillation (live findings that match archived rejections),
-  stale epics, missing reconciliation cache, and ADR-promotion candidates. Never
-  writes. Use on a fresh session, when resuming a repo after idle time, when
-  `/base:feature` is invoked with no arguments, or when the user asks "what should
-  I work on?" / "where are we?" / "what's the state of this repo?".
+  stale epics, missing reconciliation cache, and ADR-promotion candidates. Reads
+  only (the single exception is auto-invoking `/base:backlog migrate-v2` when
+  v1 BACKLOG.md grammar is detected at startup — see Rule 0). Use on a fresh
+  session, when resuming a repo after idle time, when `/base:feature` is invoked
+  with no arguments, or when the user asks "what should I work on?" /
+  "where are we?" / "what's the state of this repo?".
 user-invocable: true
 argument-hint: "(no arguments)"
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: Read, Grep, Glob, Bash, Skill
 ---
 
 ## Purpose
@@ -54,16 +56,33 @@ rules emit higher-priority moves.
 
 ### Rule 0 — BACKLOG.md format integrity
 
-If `BACKLOG.md` exists but is malformed (missing one of the three required
-top-level sections `## Epics`, `## Findings`, `## Archive`; or contains
-duplicate section headers; or has a `## Findings` entry without the
-documented `<anchor> — <text> (date)` shape; or has a `## Archive`
-entry not in `YYYY-MM-DD — text — reason` shape) → emit a single
-high-priority surfacing in "Worth your attention" with the specific
-malformations and a one-line fix suggestion. **Do not stop**; downstream
-rules continue with best-effort parsing. The format is documented in
-`plugins/base/skills/backlog/references/format.md`; cite it in the
-surfacing.
+The canonical v2 grammar (per
+`plugins/base/skills/backlog/references/format.md ## Findings — bullet grammar (v2)`)
+is `- <slug> [scope:<X>] — \`<anchor>\` — [DEFERRED:<reason>:<detail>] <text> (YYYY-MM-DD)`.
+
+**Auto-migration on detection.** If `BACKLOG.md` contains any v1 bullet
+(position 1 starts with backtick `` ` ``, the literal `-`, or position 3
+contains the legacy `[INSUFFICIENT:` / `[ALREADY-RESOLVED:` /
+`Auto-dispatch aborted:` tokens), print exactly one notice line:
+
+> Detected v1 BACKLOG.md grammar; invoking `/base:backlog migrate-v2` before continuing.
+
+Then invoke `Skill("base:backlog", args: "migrate-v2")` and re-read
+`BACKLOG.md` after it returns. If migration fails or v1 bullets remain,
+surface a high-priority warning in "Worth your attention" and continue
+the remaining rules with best-effort parsing. If migration succeeds,
+continue the remaining rules against the migrated file.
+
+**Other malformations** (best-effort, no auto-fix): missing one of the
+three required top-level sections `## Epics`, `## Findings`, `## Archive`;
+duplicate section headers; `## Findings` entries that don't conform to
+v2 grammar even after migration; `## Archive` entries not in
+`YYYY-MM-DD — text — reason` shape; `[DEFERRED:<reason>:…]` stamps
+whose `<reason>` is outside the closed enum (`spec-gap`,
+`already-resolved`, `escalated`, `arch-debate-required`,
+`legacy-orphan`). Emit a single surfacing in "Worth your attention"
+with the specific malformations and a one-line fix suggestion. Cite
+`plugins/base/skills/backlog/references/format.md`.
 
 A leading `[label]` token on a `## Findings` entry is legacy and explicitly
 NOT a malformation — earlier format versions required `[bug | chore |
@@ -124,20 +143,20 @@ trigger a RECONCILE phase; budget for it."
 
 ### Rule 5 — Backlog cap pressure
 
-Count entries in `## Findings`, **excluding bullets whose `<text>` begins
-with the literal `[INSUFFICIENT:` or `[ALREADY-RESOLVED:` token** — those
-are deferred (see the stamp grammar in
-`plugins/base/skills/backlog/references/format.md`) and do not contribute
-to working-set pressure. If the live count > 15 → emit a "prune or
-promote" move listing the oldest 5 (also live, not stamped). Stale
-findings (no date, or date > 90 days old) lead the list.
+Count entries in `## Findings`, **excluding bullets whose position 3
+begins with the literal `[DEFERRED:` token** — those are deferred (see
+the stamp grammar in
+`plugins/base/skills/backlog/references/format.md ### Deferred-state stamp`)
+and do not contribute to working-set pressure. If the live count > 15 →
+emit a "prune or promote" move listing the oldest 5 (also live, not
+stamped). Stale findings (no date, or date > 90 days old) lead the list.
 
 ### Rule 6 — Oscillation
 
-For each entry in `## Findings` **excluding bullets stamped
-`[INSUFFICIENT:` or `[ALREADY-RESOLVED:`** (stamped bullets are deferred
-work, not active concerns; comparing them to the archive double-counts
-against the live oscillation signal), compare against `## Archive`:
+For each entry in `## Findings` **excluding bullets whose position 3
+begins with `[DEFERRED:`** (stamped bullets are deferred work, not
+active concerns; comparing them to the archive double-counts against
+the live oscillation signal), compare against `## Archive`:
 - **Hard match**: identical anchor (path or path:line) appears in archive →
   surface verbatim, "previously rejected YYYY-MM-DD because <reason>."
 - **Soft match**: anchor's path component matches AND the prose is
@@ -158,14 +177,14 @@ candidate for promotion to an epic (`/base:feature backlog:<slug>`) or for a
 `/base:bug` run — read its prose to decide which workflow applies, or just
 let `/base:next` classify and dispatch. Findings that have been resolved in
 the user's head but never closed in BACKLOG should get
-`/base:backlog resolve <marker>` as the suggested next move.
+`/base:backlog resolve <slug>` as the suggested next move.
 
-**Skip bullets stamped `[INSUFFICIENT:` or `[ALREADY-RESOLVED:`** in
-this rule. They are deferred until the user un-stamps or resolves them,
-and their age clock applies to the *un-stamped* lifetime — surfacing
-them as "ready to promote" would re-invite the same auto-abort loop
-(for `[INSUFFICIENT:]`, against the same spec gap; for
-`[ALREADY-RESOLVED:]`, against the same uncommitted diff).
+**Skip bullets whose position 3 begins with `[DEFERRED:`** in this
+rule. They are deferred until the user un-stamps or resolves them, and
+their age clock applies to the *un-stamped* lifetime — surfacing them
+as "ready to promote" would re-invite the same auto-abort loop (for
+`spec-gap`, against the same spec gap; for `already-resolved`, against
+the same uncommitted diff; etc.).
 
 ### Rule 9 — ADRs awaiting acceptance
 
@@ -214,8 +233,11 @@ no stale epics") say so plainly in two sentences and stop.
 ## What this skill never does
 
 - **No writes.** Not to `BACKLOG.md`, not to spec dirs, not to `CLAUDE.md`,
-  not anywhere. If a move requires a write (most do), the move's `Run:`
-  line is the user's explicit invocation.
+  not anywhere. The single exception is the Rule 0 auto-invocation of
+  `Skill("base:backlog", args: "migrate-v2")` when v1 BACKLOG.md grammar is
+  detected — the write itself happens inside the `backlog` skill, gated to
+  the user-visible notice line. If a move requires a write (most do), the
+  move's `Run:` line is the user's explicit invocation.
 - **No autonomous follow-through.** Surfacing a finding is not the same as
   acting on it. The user picks from the ranked menu.
 - **No spec content reading by default.** Spec files are large; reading
