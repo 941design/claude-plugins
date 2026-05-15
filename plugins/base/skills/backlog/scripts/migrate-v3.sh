@@ -291,9 +291,20 @@ if [[ "$dry_run" == "yes" ]]; then
   exit 0
 fi
 
-# ---- write JSON and validate ---------------------------------------------
-printf '%s\n' "$json_out" | jq --indent 2 . | atomic_write "$JSON_PATH"
-validate_backlog "$JSON_PATH"
+# ---- validate proposed JSON BEFORE writing -------------------------------
+# Validate the migrated content against the schema in a scratch file so a
+# malformed input (or a parser bug) cannot leave a corrupted BACKLOG.json
+# on disk.
+scratch="$(mktemp)"
+trap 'rm -f "$scratch"' EXIT
+printf '%s\n' "$json_out" | jq --indent 2 . > "$scratch"
+if ! validate_backlog "$scratch"; then
+  echo "Error: migration produced schema-invalid JSON. $JSON_PATH was not modified." >&2
+  exit 1
+fi
+
+# ---- write JSON ----------------------------------------------------------
+cat "$scratch" | atomic_write "$JSON_PATH"
 
 n_epics="$(jq '.epics | length' "$JSON_PATH")"
 n_findings="$(jq '.findings | length' "$JSON_PATH")"
@@ -301,11 +312,16 @@ n_deferred="$(jq '.findings | map(select(.deferred != null)) | length' "$JSON_PA
 n_archive="$(jq '.archive | length' "$JSON_PATH")"
 
 # ---- remove BACKLOG.md ---------------------------------------------------
+# Use repo-relative pathspecs for git so older git versions (which
+# reject absolute paths in pathspec) behave consistently with newer
+# ones. Strip the repo-root prefix; if md_path was already relative,
+# the substitution is a no-op.
 if [[ "$keep_md" != "yes" ]]; then
-  if git -C "$ROOT" ls-files --error-unmatch "$md_path" >/dev/null 2>&1; then
+  md_rel="${md_path#$ROOT/}"
+  if git -C "$ROOT" ls-files --error-unmatch "$md_rel" >/dev/null 2>&1; then
     # -f to allow removal even when the file has staged or unstaged
     # mods — its content is fully captured in BACKLOG.json now.
-    git -C "$ROOT" rm -qf "$md_path"
+    git -C "$ROOT" rm -qf "$md_rel"
   else
     rm -f "$md_path"
   fi

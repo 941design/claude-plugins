@@ -68,43 +68,73 @@ atomic_write() {
 }
 
 # validate_backlog <path>
-# Returns 0 if the file passes structural checks. Prints first error to stderr.
-# Checks: top-level shape (version, epics, findings, archive), slug
-# uniqueness in findings[], required fields, enum constraints.
+# Returns 0 if the file passes structural checks. Prints errors to stderr.
+# Enforces every invariant the schema declares: top-level shape, slug
+# uniqueness, required fields, slug/scope/date patterns, enum
+# constraints, anchor mutual-exclusion. Update both this function and
+# plugins/base/schemas/backlog.schema.json when adding fields.
 validate_backlog() {
   local path="$1"
+  # First: is the file even valid JSON?
+  if ! jq empty "$path" >/dev/null 2>&1; then
+    echo "Schema validation failed for $path: not valid JSON" >&2
+    return 1
+  fi
   local errors
   errors="$(jq -r '
-    def errors:
-      [
-        (if .version != 3 then "version must be 3, got: \(.version)" else empty end),
-        (if (.epics | type) != "array" then "epics must be an array" else empty end),
-        (if (.findings | type) != "array" then "findings must be an array" else empty end),
-        (if (.archive | type) != "array" then "archive must be an array" else empty end),
-        (.findings | group_by(.slug) | map(select(length > 1) | "duplicate finding slug: \(.[0].slug)") | .[]),
-        (.findings[]? | select(.slug == null or .slug == "") | "finding missing slug"),
-        (.findings[]? | select(.scope == null or .scope == "") | "finding \(.slug // "?") missing scope"),
-        (.findings[]? | select(.text == null or .text == "") | "finding \(.slug // "?") missing text"),
-        (.findings[]? | select(.created_at == null or (.created_at | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$") | not)) | "finding \(.slug // "?") created_at must be YYYY-MM-DD"),
-        (.findings[]? | select(.deferred != null) | select(.deferred.reason | IN("spec-gap","already-resolved","escalated","arch-debate-required","legacy-orphan") | not) | "finding \(.slug) has invalid deferred.reason: \(.deferred.reason)"),
-        (.findings[]? | select(.anchor != null) | select((.anchor.line != null) and (.anchor.range != null)) | "finding \(.slug) anchor cannot have both line and range"),
-        (.epics[]? | select((.path // "") | test("^specs/epic-[a-z0-9-]+/$") | not) | "epic path malformed: \(.path)"),
-        (.epics[]? | select(.status | IN("PLANNED","IN_PROGRESS","DONE","ESCALATED","UNKNOWN") | not) | "epic \(.path) has invalid status: \(.status)"),
-        (.archive[]? | select(.date == null or (.date | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$") | not)) | "archive entry date must be YYYY-MM-DD: \(.text // "?")")
-      ];
-    errors | .[]
+    def kebab: test("^[a-z0-9][a-z0-9-]*$");
+    def ymd:   test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+    def deferred_reasons: ["spec-gap","already-resolved","escalated","arch-debate-required","legacy-orphan"];
+    def epic_statuses:    ["PLANNED","IN_PROGRESS","DONE","ESCALATED","UNKNOWN"];
+
+    [
+      (if .version != 3 then "version must be 3, got: \(.version)" else empty end),
+      (if (.epics // null) | type != "array" then "epics must be an array" else empty end),
+      (if (.findings // null) | type != "array" then "findings must be an array" else empty end),
+      (if (.archive // null) | type != "array" then "archive must be an array" else empty end),
+
+      (.findings | group_by(.slug) | map(select(length > 1) | "duplicate finding slug: \(.[0].slug)") | .[]),
+
+      (.findings[]? | select((.slug // "") == "" or ((.slug // "") | kebab | not)) | "finding slug invalid: \(.slug // "<null>")"),
+      (.findings[]? | select((.slug // "") | length > 53) | "finding slug exceeds 53 chars (50 base + up to -99 suffix): \(.slug)"),
+      (.findings[]? | select((.scope // "") == "" or ((.scope // "") | kebab | not)) | "finding \(.slug // "?") scope invalid: \(.scope // "<null>")"),
+      (.findings[]? | select((.text // "") == "") | "finding \(.slug // "?") missing text"),
+      (.findings[]? | select((.created_at // "") | ymd | not) | "finding \(.slug // "?") created_at must be YYYY-MM-DD"),
+
+      (.findings[]? | select(.deferred != null) | select((.deferred.reason // "") | IN(deferred_reasons[]) | not) | "finding \(.slug) has invalid deferred.reason: \(.deferred.reason // "<null>")"),
+      (.findings[]? | select(.deferred != null) | select((.deferred.detail // "") == "") | "finding \(.slug) deferred.detail missing"),
+      (.findings[]? | select(.deferred != null) | select((.deferred.stamped_at // "") | ymd | not) | "finding \(.slug) deferred.stamped_at must be YYYY-MM-DD"),
+
+      (.findings[]? | select(.anchor != null) | select((.anchor.path // "") == "") | "finding \(.slug) anchor missing path"),
+      (.findings[]? | select(.anchor != null) | select((.anchor.line != null) and (.anchor.range != null)) | "finding \(.slug) anchor cannot have both line and range"),
+      (.findings[]? | select(.anchor != null and .anchor.range != null) | select((.anchor.range | type) != "array" or (.anchor.range | length) != 2) | "finding \(.slug) anchor.range must be [start, end]"),
+
+      (.epics[]? | select((.path // "") | test("^specs/epic-[a-z0-9-]+/$") | not) | "epic path malformed: \(.path // "<null>")"),
+      (.epics[]? | select((.status // "") | IN(epic_statuses[]) | not) | "epic \(.path) has invalid status: \(.status // "<null>")"),
+
+      (.archive[]? | select((.date // "") | ymd | not) | "archive entry date must be YYYY-MM-DD: \(.text // "?")"),
+      (.archive[]? | select((.text // "") == "") | "archive entry missing text"),
+      (.archive[]? | select((.reason // "") == "") | "archive entry missing reason: \(.text)"),
+      (.archive[]? | select(.adr != null) | select((.adr // "") | test("^ADR-[0-9]+$") | not) | "archive entry has invalid adr: \(.adr)")
+    ] | .[]
   ' "$path" 2>&1 || true)"
 
   if [[ -n "$errors" ]]; then
     echo "Schema validation failed for $path:" >&2
-    printf '  %s\n' $errors >&2 2>/dev/null || printf '%s\n' "$errors" >&2
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      printf '  %s\n' "$line" >&2
+    done <<< "$errors"
     return 1
   fi
 }
 
 # mutate_backlog <jq-program> [<jq-args...>]
 # Reads the current BACKLOG.json, applies the jq program, stamps
-# updated_at, validates, atomically writes back.
+# updated_at, validates the proposed content against the schema, then
+# atomically writes back ONLY if validation passes. If validation fails,
+# the on-disk file is untouched and the script exits non-zero — this is
+# the safety guarantee every writer relies on.
 mutate_backlog() {
   local path
   path="$(require_backlog)"
@@ -112,8 +142,21 @@ mutate_backlog() {
   shift
   local out
   out="$(jq --indent 2 "$@" --arg now "$(now_iso)" "$program | .updated_at = \$now" "$path")"
+  # Validate the proposed content via a scratch file BEFORE replacing the
+  # canonical target. The scratch file is under $TMPDIR, not next to the
+  # target, so a validation failure cannot leave a half-written sibling
+  # next to BACKLOG.json.
+  local scratch
+  scratch="$(mktemp)"
+  # shellcheck disable=SC2064
+  trap "rm -f '$scratch'" RETURN
+  printf '%s\n' "$out" > "$scratch"
+  if ! validate_backlog "$scratch"; then
+    echo "Error: refusing to write — mutation produced schema-invalid JSON. $path was not modified." >&2
+    return 1
+  fi
+  # Validation passed; commit atomically.
   printf '%s\n' "$out" | atomic_write "$path"
-  validate_backlog "$path"
 }
 
 # slug_exists <slug>

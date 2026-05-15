@@ -63,8 +63,8 @@
         "slug": {
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9-]*$",
-          "maxLength": 50,
-          "description": "Kebab-case identifier coined at write time from the finding's text. Stable for the finding's lifetime; unique across findings[]."
+          "maxLength": 53,
+          "description": "Kebab-case identifier coined at write time from the finding's text. The base slug is capped at 50 chars; a collision-disambiguator suffix (`-2` ... `-99`) may extend the total to 53 chars. Stable for the finding's lifetime; unique across findings[]."
         },
         "scope": {
           "type": "string",

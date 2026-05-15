@@ -46,28 +46,23 @@ fi
 # Pass markers as a JSON array
 markers_json="$(printf '%s\n' "${markers[@]}" | jq -R . | jq -s .)"
 
+# Reduce over markers, mutating .archive[$idx].adr for the first matching
+# entry per marker. The matching predicate is:
+#   (text contains marker) AND (entry has no adr yet)
+# Already-tagged entries are skipped, so two markers cannot point at the
+# same archive entry; subsequent markers find subsequent entries.
 mutate_backlog '
-  . as $root
-  | .archive = (
-      reduce ($markers | to_entries[]) as $m (
-        {arr: $root.archive, used: {}};
-        # find first archive entry that contains this marker, not already used
-        (.arr | to_entries | map(select(.value.text | contains($m.value))) | map(select(.key as $k | (.|tojson) as $_ | (.used // {})[$k|tostring] | not)))
-        | . as $candidates
-        | if ($candidates | length) > 0
-          then
-            (.arr | to_entries | map(select(.value.text | contains($m.value))) | .[0].key) as $idx
-            | if ($idx == null) then .
-              elif (.arr[$idx].adr // null) == $adr then .
-              elif (.arr[$idx].adr // null) != null then
-                # warn via stderr would be nice but jq cannot; just skip
-                .
-              else .arr[$idx].adr = $adr | .used[$idx|tostring] = true end
-          else .
-          end
-      )
-      | .arr
-    )
+  reduce $markers[] as $m (
+    .;
+    . as $doc
+    | first(
+        range(0; $doc.archive | length) as $i
+        | select(($doc.archive[$i].text // "") | contains($m))
+        | select(($doc.archive[$i].adr // null) == null)
+        | $i
+      ) as $idx
+    | if $idx == null then . else .archive[$idx].adr = $adr end
+  )
 ' --argjson markers "$markers_json" --arg adr "$adr"
 
 # Report

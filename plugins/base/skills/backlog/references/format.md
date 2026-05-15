@@ -43,10 +43,13 @@ by `scripts/derive-slug.sh`:
    on / for / this / that / it / be / do`).
 2. Take the first **4–6 meaningful words**. Join with hyphens. Lowercase
    ASCII only; strip any non-ASCII.
-3. Max length **50 characters**. Truncate at a word boundary if needed.
+3. Base slug max length **50 characters**. Truncate at a word boundary if
+   needed.
 4. **Uniqueness**: at write time, the script checks `findings[]` for the
    candidate slug. On collision, append `-2`. If `-2` exists, append
-   `-3`. Etc.
+   `-3`. Etc. The collision suffix may extend the total slug length by
+   up to 3 chars (e.g. `-99`), so the full on-disk maximum is **53
+   characters** — the schema (`backlog.schema.json`) enforces this.
 5. The slug is **stable** for the finding's lifetime. Resolution events
    remove the finding from `findings[]`; the slug is not reused for a
    new finding. Mutating a slug after creation breaks every consumer
