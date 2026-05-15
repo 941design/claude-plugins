@@ -76,7 +76,7 @@ inputs the lead gives you and emit either a markdown retrospective body or the
    → `base-plugin`; `plugins/<name>/` → `<name>`; else `any`).
 
    **Discriminator suffix (`-2`, `-3`, …) on slug collision is the curator's
-   responsibility on apply** — you do not need to grep the live `BACKLOG.md` for
+   responsibility on apply** — you do not need to grep the live `BACKLOG.json` for
    collisions. Propose the natural slug; the curator dedups when it writes.
 
 10. **Strict NO_RETRO floor.** You return `STATUS: NO_RETRO` if AND ONLY IF every condition
@@ -161,7 +161,7 @@ commands, agents, skills, schemas, or curator rules. Identified mechanically by 
 plugin-bound classifier (Hard Rule 5). Every entry under this header MUST include a
 concrete `Suggested change` — that's the whole basis for the classification. This
 section is harvested across consumers by `/base:retros-derive` in plugin-dev mode and
-promoted into `claude-plugins/BACKLOG.md`. Same per-phase sub-section structure as Meta.)
+promoted into `claude-plugins/BACKLOG.json`. Same per-phase sub-section structure as Meta.)
 
 ### Per-story
 #### S<N> — <story-name>

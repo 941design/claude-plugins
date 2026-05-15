@@ -2,10 +2,10 @@
 name: retros-derive
 description: >-
   Aggregates plugin-bound findings from workflow retros + meta-retros under
-  ${CLAUDE_PLUGIN_DATA} and lands them in the base plugin's own BACKLOG.md.
+  ${CLAUDE_PLUGIN_DATA} and lands them in the base plugin's own BACKLOG.json.
   Two modes: consumer-mode (no-op for plugin-bound findings — they sit until
   plugin-dev-mode harvests) and plugin-dev-mode (cross-consumer harvest into
-  the plugin source repo's BACKLOG.md). Mode is auto-detected from the cwd.
+  the plugin source repo's BACKLOG.json). Mode is auto-detected from the cwd.
   Invokes base:project-curator autonomously. Fully non-interactive.
 argument-hint: (no arguments)
 allowed-tools: Read, Glob, Bash, Agent, Write, Edit
@@ -30,7 +30,7 @@ You are the **lead**. This command is executed directly by you; no outer-loop su
 Two modes are supported:
 
 - **consumer-mode** — the cwd is some non-plugin-dev consumer project (e.g. `shophop`, `daydreamer`). Plugin-bound findings are LEFT IN PLACE for plugin-dev-mode to harvest later; this command's curator dispatch in consumer-mode is currently a no-op (reserved for a future expansion). User-facing and project-memory findings are emitted by `/base:feature` / `/base:bug` directly; consumer-mode `/base:retros-derive` doesn't re-process them.
-- **plugin-dev-mode** — the cwd is the base plugin's source repository (`claude-plugins`). Walks `${CLAUDE_PLUGIN_DATA}/retros/*/*.md` and `${CLAUDE_PLUGIN_DATA}/meta-retros/*/*.md` across every consumer subdir, harvests **only** the plugin-bound sections, and lands findings in `claude-plugins/BACKLOG.md`.
+- **plugin-dev-mode** — the cwd is the base plugin's source repository (`claude-plugins`). Walks `${CLAUDE_PLUGIN_DATA}/retros/*/*.md` and `${CLAUDE_PLUGIN_DATA}/meta-retros/*/*.md` across every consumer subdir, harvests **only** the plugin-bound sections, and lands findings in `claude-plugins/BACKLOG.json`.
 
 **Detect mode** by checking whether the cwd contains a `plugins/base/` directory with a `commands/retros-derive.md` file — the canonical signal that this is the base plugin's own repo:
 
@@ -139,15 +139,15 @@ Pass in the spawn prompt:
 
 - **Mode**: `plugin-dev` (explicit — the curator's disposition vocabulary depends on this).
 - **Project context**: this repository (the base plugin's source repo), git root at `$(git rev-parse --show-toplevel)`.
-- **BACKLOG.md path**: `${REPO_ROOT}/BACKLOG.md` (absolute path).
+- **BACKLOG.json path**: `${REPO_ROOT}/BACKLOG.json` (absolute path).
 - **Findings bundle**: aggregated un-annotated findings, inline in the prompt. For each finding: source file path (absolute), finding anchor text, full finding block content.
 - **Processing order**: oldest-first (bundle is already sorted).
 - **Disposition vocabulary** (explicit — the curator MUST use one of these per finding; no others are allowed). The shape matches the curator's documented annotation vocabulary in `plugins/base/agents/project-curator.md`:
-  - `BACKLOG#plugins/base/<path>` — append a new entry to BACKLOG.md under `## Findings` and annotate the source retro with this disposition. The `<path>` should be the most specific base plugin file the suggested change targets.
-  - `DUPLICATE of finding-<slug>` — the finding restates an existing BACKLOG.md entry. Annotate only; do not append. Use `DUPLICATE of finding-<slug> (recurrence ×N)` instead when the curator increments a recurrence counter on the existing BACKLOG entry (see the curator's Recurrence rule).
+  - `BACKLOG#plugins/base/<path>` — call `plugins/base/skills/backlog/scripts/add-finding.sh` to append a new finding to BACKLOG.json, then annotate the source retro with this disposition. The `<path>` should be the most specific base plugin file the suggested change targets.
+  - `DUPLICATE of finding-<slug>` — the finding restates an existing BACKLOG.json entry. Annotate only; do not call `add-finding.sh`. Use `DUPLICATE of finding-<slug> (recurrence ×N)` instead when the curator counts a recurrence (see the curator's Recurrence rule).
   - `NO_ACTION <one-line reason>` — the finding was misclassified as plugin-bound but is actually consumer-specific (rare in plugin-dev-mode because the classifier already filtered), or is too vague to be actionable. Annotate only.
 - **Forbidden disposition**: `DEFERRED to /base:retros-derive`. There is no downstream handler; this command IS the handler. If the curator's instinct is to defer, it must pick `BACKLOG#`, `DUPLICATE`, or `NO_ACTION` instead.
-- **Instruction**: the curator writes BACKLOG.md updates directly and uses its `annotate_retro` action to mark each processed finding in the source file. Hard Rules apply as documented in the agent definition.
+- **Instruction**: the curator applies BACKLOG.json mutations by shelling out to `plugins/base/skills/backlog/scripts/*.sh` (per `base:project-curator`'s per-action contracts) and uses its `annotate_retro` action to mark each processed finding in the source file. Hard Rules apply as documented in the agent definition.
 
 The curator's `decisions` output field describes what was applied. Wait for the curator to complete before proceeding.
 
@@ -157,7 +157,7 @@ The curator's `decisions` output field describes what was applied. Wait for the 
 
 After the curator completes, check its report for errors:
 
-- BACKLOG.md write failures (I/O error, file not found) → record in the running tally and continue.
+- BACKLOG.json write failures (I/O error, file not found) → record in the running tally and continue.
 - `annotate_retro` failures (unreadable file, anchor not located) → record per file in the running tally and continue.
 - Curator-reported anomalies (decisions count mismatch, dispositions outside the allowed vocabulary) → record and surface in Step 7.
 
@@ -167,7 +167,7 @@ Do NOT halt the entire command on a per-file failure. Process all findings and s
 
 ## Step 7: Emit a meta-retro (when non-trivial)
 
-`/base:retros-derive` is itself a non-trivial workflow. Surface its own friction as a durable artifact: a meta-retro file at `${CLAUDE_PLUGIN_DATA}/meta-retros/<consumer-slug>/`. Meta-retros are now a **real input source** for future plugin-dev-mode runs (Step 2 globs them too), so any finding written here will eventually flow into `claude-plugins/BACKLOG.md` on the next plugin-dev-mode invocation. There is no separate meta-retro processor; meta-retros are workflow retros with one heading-variant difference.
+`/base:retros-derive` is itself a non-trivial workflow. Surface its own friction as a durable artifact: a meta-retro file at `${CLAUDE_PLUGIN_DATA}/meta-retros/<consumer-slug>/`. Meta-retros are now a **real input source** for future plugin-dev-mode runs (Step 2 globs them too), so any finding written here will eventually flow into `claude-plugins/BACKLOG.json` on the next plugin-dev-mode invocation. There is no separate meta-retro processor; meta-retros are workflow retros with one heading-variant difference.
 
 **7a. Strict skip floor.** Write **no** meta-retro file when ALL of the following hold:
 

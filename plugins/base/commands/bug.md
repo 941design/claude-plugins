@@ -94,30 +94,26 @@ with a WARNING — there is no dispatcher fallback (per format.md "No
 dispatcher fallback").
 
 1. Compute <detail> from the abort reason / evidence being constructed.
-   Truncate so the total stamp framing
-   (`[DEFERRED:` + <reason> + `:` + <detail> + `]`) is ≤80 chars; if
-   longer, replace the trailing portion of <detail> with a single `…`
-   per the one-line tonality rule in
+   Truncate so `<detail>` is ≤80 chars; if longer, replace the trailing
+   portion with a single `…` per the one-line tonality rule in
    `plugins/base/skills/backlog/references/format.md`.
 
-2. Read `BACKLOG.md` at the repo root. If missing, skip the stamp.
+2. Run:
+   ```
+   plugins/base/skills/backlog/scripts/defer-stamp.sh <slug> \
+     --reason <reason> --detail "<detail>"
+   ```
+   The script atomically updates `findings[i].deferred` and validates
+   against the schema. If BACKLOG.json is missing, the script aborts
+   non-zero — that's fine, skip the stamp and proceed to emit the abort
+   signal (the dispatcher's sanity check will WARN). If the script
+   aborts because the slug is not found (file was hand-edited between
+   dispatch and abort), skip the stamp and proceed.
 
-3. Locate the bullet under `## Findings` whose position-1 slug matches
-   <slug> exactly (slug uniqueness is enforced at write time per
-   `format.md ### Slug derivation`). If the lookup fails (file was
-   hand-edited between dispatch and abort), skip the stamp.
-
-4. Use the `Edit` tool to inject `[DEFERRED:<reason>:<detail>] ` (with a
-   trailing space) immediately after the second ` — ` separator (between
-   `` `<anchor>` `` and <text>). The slug, scope token, anchor, original
-   <text>, and the ` (YYYY-MM-DD)` trailer are unchanged. Example:
-
-       before: - my-slug [scope:base-plugin] — `path/to/spec.md` — Original prose. (2026-05-13)
-       after:  - my-slug [scope:base-plugin] — `path/to/spec.md` — [DEFERRED:spec-gap:gap reason] Original prose. (2026-05-13)
-
-5. If the `Edit` fails (file gone, slug no longer unique, race
-   condition), proceed to emit the abort signal anyway — the dispatcher's
-   sanity check will WARN and exit. There is no fallback writer.
+3. If the script fails for any other reason (validation error, jq not
+   installed, etc.), proceed to emit the abort signal anyway — the
+   dispatcher's sanity check will WARN and exit. There is no fallback
+   writer.
 ```
 
 After the stamp attempt (success or fail-silently), continue to emit
@@ -187,40 +183,37 @@ ELSE:
 
 ### BACKLOG_PROMOTE mode
 
-Argument form: `backlog:<slug>` where `<slug>` is the position-1 slug
-of an entry in `BACKLOG.md ## Findings` (unique by construction per
-`plugins/base/skills/backlog/references/format.md ### Slug derivation`).
+Argument form: `backlog:<slug>` where `<slug>` is the `slug` of one
+finding in `BACKLOG.json#findings` (unique by schema).
 
 ```
-1. Read BACKLOG.md. If missing, abort with:
-   "no BACKLOG.md — run /base:backlog init first."
+1. Confirm BACKLOG.json exists. If a legacy BACKLOG.md exists and no
+   BACKLOG.json, refuse and surface the migration command:
 
-   **v1 refusal.** If `## Findings` contains any v1 bullets (position 1
-   starts with backtick `` ` ``, the literal `-`, or position 3 contains
-   `[INSUFFICIENT:` / `[ALREADY-RESOLVED:` / `Auto-dispatch aborted:`),
-   refuse to proceed and surface the migration command:
-
-   > BACKLOG.md contains v1 bullets; run `/base:backlog migrate-v2` first.
+   > BACKLOG.md (v2) detected; run `/base:backlog migrate-v3` first.
    > Direct worker invocations do not auto-migrate — only `/base:next` and `/base:orient` do.
 
-   See `plugins/base/skills/backlog/references/format.md ### Migration from v1 grammar`.
+   If neither file exists, abort with:
+   "no BACKLOG.json — run /base:backlog init first."
 
-2. Locate the matching finding bullet under ## Findings by exact
-   position-1 slug match (`grep -F "<slug>"` against the position-1
-   token). If zero matches, abort with the candidate list. Slug
-   uniqueness is enforced at write time, so >1 matches indicates a
-   malformed BACKLOG.md.
+2. Locate the matching finding by running:
+   ```
+   plugins/base/skills/backlog/scripts/get.sh <slug>
+   ```
+   If the script exits non-zero, abort with the candidate list (run
+   `scripts/list.sh --format compact` to list slugs the user can pick
+   from). Slug uniqueness is schema-enforced.
 
-3. Read the matched finding's prose (anchor + text) and decide whether it
-   describes a defect: something that fails, crashes, errors, regresses, or
-   behaves incorrectly. The format no longer carries a type prefix — this
-   classification is by reading, the same call `/base:next` makes when it
-   dispatches. If the finding clearly describes feature work, a chore, or an
-   observation rather than a defect, abort with:
+3. Read the matched finding's prose (anchor + text from the returned
+   JSON) and decide whether it describes a defect: something that
+   fails, crashes, errors, regresses, or behaves incorrectly. This
+   classification is by reading, the same call `/base:next` makes when
+   it dispatches. If the finding clearly describes feature work, a
+   chore, or an observation rather than a defect, abort with:
    "slug matched a non-bug finding; use /base:feature backlog:<slug> instead."
    Do NOT process non-defect findings under the bug workflow. When the
-   classification is genuinely ambiguous, proceed — the bug workflow's own
-   reproduction step will surface the mismatch.
+   classification is genuinely ambiguous, proceed — the bug workflow's
+   own reproduction step will surface the mismatch.
 
 3a. **Working-tree probe (auto mode only).** When `non_interactive = true`,
     before doing any other work for this finding, check whether the working
@@ -243,27 +236,24 @@ of an entry in `BACKLOG.md ## Findings` (unique by construction per
     ```
     Preconditions: non_interactive = true AND the worker was invoked with
     argument `backlog:<slug>`. (Step 2 above already established the
-    slug; this probe only runs once the bullet is in hand.)
+    slug; this probe only runs once the finding is in hand.)
 
-    1. Parse the bullet's anchor field (the first token before ` — ` in
-       the bullet grammar; see
-       `plugins/base/skills/backlog/references/format.md`) into
-       `(path, line_range)`:
+    1. Parse the finding's anchor field from the JSON returned by
+       `scripts/get.sh <slug>` into `(path, line_range)`:
 
-         - Split the anchor on the LAST `:` only. If the remainder
-           matches `^[0-9]+$`, line_range = (N, N). If it matches
-           `^[0-9]+-[0-9]+$`, line_range = (N, M). Otherwise (no
-           colon, or the token after the last colon is not numeric),
-           treat the entire anchor as the path with line_range = None.
-         - Special case: when the anchor token is exactly `-`, the
-           finding is not file-anchored. Skip the probe entirely and
-           proceed to step 4. Nothing to probe.
+         - If `.anchor` is `null`, the finding is not file-anchored.
+           Skip the probe entirely and proceed to step 4. Nothing to
+           probe.
+         - Else `.anchor.path` is the path. line_range is derived from
+           `.anchor.range` (a `[start, end]` array → `(start, end)`),
+           or `.anchor.line` (a single integer → `(N, N)`), or
+           `None` (path-only, neither line nor range set).
 
-       Four anchor forms in total:
-         - `path/to/file.ext`       → path-only,    line_range = None
-         - `path/to/file.ext:42`    → single line,  line_range = (42, 42)
-         - `path/to/file.ext:42-99` → range,        line_range = (42, 99)
-         - `-`                      → no file,      skip probe
+       Four anchor shapes in total:
+         - `{path: "path/to/file.ext"}`            → path-only,    line_range = None
+         - `{path: "...", line: 42}`               → single line,  line_range = (42, 42)
+         - `{path: "...", range: [42, 99]}`        → range,        line_range = (42, 99)
+         - `null`                                  → no file,      skip probe
 
     2. Run, exactly:
            git status --porcelain -- <path>
@@ -359,8 +349,8 @@ of an entry in `BACKLOG.md ## Findings` (unique by construction per
     *might* already be addressed, not proof. The audit trail simply
     distinguishes "we deferred because the working tree may already
     fix this" from "we deferred because the spec is incomplete."
-    `/base:next` Step 3 classifies any `[DEFERRED:<reason>:<detail>]`
-    bullet under the `deferred` bucket regardless of `<reason>`, so
+    `/base:next` Step 3 classifies any finding whose `.deferred` is set
+    under the `deferred` bucket regardless of `.deferred.reason`, so
     the loop-break invariant holds across all deferred-state values.
 
     This is the **canonical source** of the working-tree probe
@@ -369,29 +359,28 @@ of an entry in `BACKLOG.md ## Findings` (unique by construction per
     "scaffold the bug report" in the abort exits) and refers to this
     section rather than duplicating the prose.
 
-4. The bug-report slug is the finding's `<slug>` (position 1 of the
-   bullet, already in scope from step 2). Coined per
-   `plugins/base/skills/backlog/references/format.md ### Slug derivation`.
-   If `bug-reports/{slug}-report.md` already exists, confirm via
-   AskUserQuestion with a numbered-suffix suggestion (e.g. `{slug}-2`)
-   — do NOT silently overwrite. **When `non_interactive = true`, skip
-   `AskUserQuestion` and automatically append `-2` (or the next
-   available suffix) to the report filename without confirmation.**
+4. The bug-report slug is the finding's `slug` (already in scope from
+   step 2). If `bug-reports/{slug}-report.md` already exists, confirm
+   via AskUserQuestion with a numbered-suffix suggestion (e.g.
+   `{slug}-2`) — do NOT silently overwrite. **When
+   `non_interactive = true`, skip `AskUserQuestion` and automatically
+   append `-2` (or the next available suffix) to the report filename
+   without confirmation.**
 
 5. Write bug-reports/{slug}-report.md with:
    - The finding's text in the description section.
-   - The finding's anchor (when non-"-") in the reproduction-steps section as a
-     starting reference.
-   - A "Source: BACKLOG.md finding promoted YYYY-MM-DD" line.
+   - The finding's anchor (when non-null) in the reproduction-steps
+     section as a starting reference.
+   - A "Source: BACKLOG.json finding promoted YYYY-MM-DD" line.
 
 6. Capture in-session: pending_finding_removal = <slug>
-   Do NOT remove the source bullet from BACKLOG.md yet.
+   Do NOT remove the source finding from BACKLOG.json yet.
 
 7. Set the bug report path to bug-reports/{slug}-report.md and fall through to the
    normal flow (the "IF argument is a .md file path" branch reads it naturally).
 ```
 
-The source bullet is removed from `BACKLOG.md ## Findings` only after
+The source finding is removed from `BACKLOG.json#findings` only after
 `bug-reports/{slug}-result.json` is written (see Step 4).
 
 ### Explore the Codebase
@@ -622,12 +611,17 @@ rules, and state transitions.
 1. Update `bug-reports/{slug}-state.json` with final phase, outcome, remediation history, and final test counts.
 
    **Consume `pending_finding_removal` (BACKLOG_PROMOTE mode only).** After the state
-   file write succeeds and only if `pending_finding_removal` is set, perform a single
-   read-modify-write on `BACKLOG.md`: read the file, remove the source bullet from
-   `## Findings` whose position-1 slug matches `pending_finding_removal` exactly,
-   write back. Skip silently if `BACKLOG.md` does not exist. If this bug run aborted
-   before reaching Step 4, the source bullet remains intact — the half-scaffolded
-   `bug-reports/{slug}-report.md` is left for `/base:orient` to surface as drift.
+   file write succeeds and only if `pending_finding_removal` is set, remove the
+   source finding from BACKLOG.json by running:
+   ```
+   plugins/base/skills/backlog/scripts/resolve.sh \
+     <pending_finding_removal> --as done-mechanical
+   ```
+   The script removes the finding atomically and validates the result. Skip
+   silently if the script aborts because BACKLOG.json is missing. If this bug
+   run aborted before reaching Step 4, the source finding remains intact — the
+   half-scaffolded `bug-reports/{slug}-report.md` is left for `/base:orient` to
+   surface as drift.
 
 2. **Synthesize the retrospective AND curate project-state proposals in parallel.** Spawn both in a single message (one Agent call each):
 
@@ -648,7 +642,7 @@ rules, and state transitions.
 
    **2b. `base:project-curator`** — input bundle:
    - the bug report path and `bug-reports/{slug}-result.json`
-   - path to `BACKLOG.md` at the repo root if it exists
+   - path to `BACKLOG.json` at the repo root if it exists
    - `docs/adr/` listing — `ls docs/adr/*.md 2>/dev/null` (titles only)
    - project provenance JSON: `project_slug`, `project_path`, `commit_at_start`, `commit_at_end`
 

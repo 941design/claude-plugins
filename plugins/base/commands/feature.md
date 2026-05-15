@@ -116,24 +116,22 @@ no dispatcher fallback (per format.md "No dispatcher fallback").
    per the one-line tonality rule in
    `plugins/base/skills/backlog/references/format.md`.
 
-2. Read `BACKLOG.md` at the repo root. If missing, skip the stamp.
+2. Run:
+   ```
+   plugins/base/skills/backlog/scripts/defer-stamp.sh <slug> \
+     --reason <reason> --detail "<detail>"
+   ```
+   The script atomically updates `findings[i].deferred` and validates
+   against the schema. If BACKLOG.json is missing, the script aborts
+   non-zero — that's fine, skip the stamp and proceed to emit the abort
+   signal (the dispatcher's sanity check will WARN). If the script
+   aborts because the slug is not found (file was hand-edited between
+   dispatch and abort), skip the stamp and proceed.
 
-3. Locate the bullet under `## Findings` whose position-1 slug matches
-   <slug> exactly (slug uniqueness is enforced at write time per
-   `format.md ### Slug derivation`). If the lookup fails (file was
-   hand-edited between dispatch and abort), skip the stamp.
-
-4. Use the `Edit` tool to inject `[DEFERRED:<reason>:<detail>] ` (with a
-   trailing space) immediately after the second ` — ` separator (between
-   `` `<anchor>` `` and <text>). The slug, scope token, anchor, original
-   <text>, and the ` (YYYY-MM-DD)` trailer are unchanged. Example:
-
-       before: - my-slug [scope:base-plugin] — `path/to/spec.md` — Original prose. (2026-05-13)
-       after:  - my-slug [scope:base-plugin] — `path/to/spec.md` — [DEFERRED:spec-gap:gap reason] Original prose. (2026-05-13)
-
-5. If the `Edit` fails (file gone, slug no longer unique, race
-   condition), proceed to emit the abort signal anyway — the dispatcher's
-   sanity check will WARN and exit. There is no fallback writer.
+3. If the script fails for any other reason (validation error, jq not
+   installed, etc.), proceed to emit the abort signal anyway — the
+   dispatcher's sanity check will WARN and exit. There is no fallback
+   writer.
 ```
 
 After the stamp attempt (success or fail-silently), continue to emit
@@ -177,7 +175,7 @@ the instruction injection and the catch.
 IF argument starts with "specs/epic-":
     mode = RESUME (read epic-state.json, pick up where we left off; runs RECONCILE first — see Step 1.5)
 ELSE IF argument starts with "backlog:":
-    mode = BACKLOG_PROMOTE (read BACKLOG.md, promote the named finding to a stub spec, then NEW)
+    mode = BACKLOG_PROMOTE (read BACKLOG.json, promote the named finding to a stub spec, then NEW)
 ELSE IF argument is a .md file path or starts with @:
     mode = NEW (validate spec, plan stories, then implement)
 ELSE IF no argument:
@@ -186,7 +184,7 @@ ELSE:
     mode = NATURAL_LANGUAGE (gather requirements, generate spec, then NEW)
 ```
 
-If SCAN finds in-progress epics, ask the user which to resume or whether to start fresh. SCAN should also note whether `BACKLOG.md` exists and has open Findings — if so, mention it as one option ("Or run `/base:orient` to see the project-wide picture") without making it the default.
+If SCAN finds in-progress epics, ask the user which to resume or whether to start fresh. SCAN should also note whether `BACKLOG.json` exists and has open findings (check via `plugins/base/skills/backlog/scripts/list.sh --status open --format compact | wc -l`) — if so, mention it as one option ("Or run `/base:orient` to see the project-wide picture") without making it the default.
 
 **Non-interactive abort.** When `non_interactive = true` and mode resolves to SCAN
 (no argument), abort immediately. This path is reached without a
@@ -197,64 +195,59 @@ skipped — there is no dispatcher fallback. Output
 
 ### BACKLOG_PROMOTE mode
 
-Argument form: `backlog:<slug>` where `<slug>` is the position-1 slug
-of an entry in `BACKLOG.md ## Findings` (unique by construction per
-`plugins/base/skills/backlog/references/format.md ### Slug derivation`).
+Argument form: `backlog:<slug>` where `<slug>` is the `slug` of one
+finding in `BACKLOG.json#findings` (unique by schema).
 
 ```
-1. Read BACKLOG.md. If missing, abort with: "no BACKLOG.md — run /base:backlog init first."
+1. Confirm BACKLOG.json exists. If a legacy BACKLOG.md exists and no
+   BACKLOG.json, refuse and surface the migration command:
 
-   **v1 refusal.** If `## Findings` contains any v1 bullets (position 1
-   starts with backtick `` ` ``, the literal `-`, or position 3 contains
-   `[INSUFFICIENT:` / `[ALREADY-RESOLVED:` / `Auto-dispatch aborted:`),
-   refuse to proceed and surface the migration command:
-
-   > BACKLOG.md contains v1 bullets; run `/base:backlog migrate-v2` first.
+   > BACKLOG.md (v2) detected; run `/base:backlog migrate-v3` first.
    > Direct worker invocations do not auto-migrate — only `/base:next` and `/base:orient` do.
 
-   See `plugins/base/skills/backlog/references/format.md ### Migration from v1 grammar`.
-2. Locate the matching finding bullet under ## Findings by exact
-   position-1 slug match (`grep -F "<slug>"` against the position-1
-   token). If zero matches, abort with the candidate list. Slug
-   uniqueness is enforced at write time, so >1 matches indicates a
-   malformed BACKLOG.md.
+   If neither file exists, abort with:
+   "no BACKLOG.json — run /base:backlog init first."
+
+2. Locate the matching finding by running:
+   ```
+   plugins/base/skills/backlog/scripts/get.sh <slug>
+   ```
+   If the script exits non-zero, abort with the candidate list (run
+   `scripts/list.sh --format compact` to list slugs the user can pick
+   from). Slug uniqueness is schema-enforced.
+
 2a. **Working-tree probe (auto mode only).** When `non_interactive = true`,
     before doing any other work for this finding, perform the BACKLOG_PROMOTE
     working-tree probe defined canonically in
     `plugins/base/commands/bug.md` ### BACKLOG_PROMOTE mode (Step 3a). The
-    algorithm is identical here: parse the bullet's anchor into
-    `(path, line_range)`; when the anchor has a `:line` or `:N-M` suffix
-    the probe is line-precise (uses `git diff HEAD -- <path>` and requires
-    a hunk's HEAD-side range to overlap the anchored line range); when
-    the anchor has no line component it falls back to file-level
-    detection via `git status --porcelain -- <path>`; when the anchor is
-    `-` the probe is skipped entirely. See `bug.md` for the full
-    procedure, including edge cases (untracked files with a line_range,
-    empty `git diff` despite non-empty porcelain status, pure-addition
-    `-0,0` hunks) and the truncation rules for `<evidence>`.
+    algorithm is identical here: parse the finding's `.anchor` from the
+    JSON returned by `get.sh` into `(path, line_range)`; when the anchor
+    has `line` or `range` set the probe is line-precise (uses
+    `git diff HEAD -- <path>` and requires a hunk's HEAD-side range to
+    overlap the anchored line range); when the anchor has only `path`
+    set it falls back to file-level detection via
+    `git status --porcelain -- <path>`; when `.anchor` is `null` the
+    probe is skipped entirely. See `bug.md` for the full procedure,
+    including edge cases and the truncation rules for `<evidence>`.
 
     On abort, run the **Stamp-write procedure** (see Non-Interactive Mode
     Detection block above) with `<reason> = already-resolved` and
     `<detail> = <evidence>`, then emit on stdout, exactly:
         ABORT:DEFERRED:already-resolved:<evidence>
     and exit the worker. Do not scaffold the spec stub, do not write
-    `epic-state.json`, do not invoke any subagent. (This is the
-    `/base:feature` substitution for `bug.md`'s "do not scaffold the bug
-    report …" abort exit — the rest of the algorithm is unchanged.)
+    `epic-state.json`, do not invoke any subagent.
 
     Skip this probe entirely when `non_interactive = false` (the user
     can see the working tree themselves).
-3. The epic slug for this promotion is the finding's `<slug>` (position
-   1 of the bullet, already in scope from step 2). Coined per
-   `plugins/base/skills/backlog/references/format.md ### Slug derivation`
-   when the finding was first written. No re-derivation — the slug is
-   the durable identity that links the BACKLOG bullet, the dispatcher
-   args, the epic dir, and every downstream stamp/resolve op.
+3. The epic slug for this promotion is the finding's `slug` (already
+   in scope from step 2). No re-derivation — the slug is the durable
+   identity that links the BACKLOG entry, the dispatcher args, the
+   epic dir, and every downstream stamp/resolve op.
 4. Scaffold the empty stub by invoking Skill("base:spec-template", args: "<slug>") — that skill creates `specs/epic-<slug>/spec.md` and `acceptance-criteria.md` with title-only content (it deliberately does NOT generate project-specific content; see its SKILL.md).
 
    Then the lead authors the spec inline. **Draft depth branches on `non_interactive`:**
 
-   - **`non_interactive == true` (auto dispatch).** No session context to draw on — the dispatcher handed in a finding slug, no design conversation occurred. Edit `specs/epic-<slug>/spec.md` to inject the finding's text into `## Problem` (plus a `Source: BACKLOG.md finding promoted YYYY-MM-DD` line) and the finding's anchor into `## Technical Approach` as a starting reference. Leave the rest as template stubs — Step 2's spec validation catches the gaps and emits `ABORT:DEFERRED:spec-gap:<detail>` per the existing flow. Continue directly to step 5; no pause.
+   - **`non_interactive == true` (auto dispatch).** No session context to draw on — the dispatcher handed in a finding slug, no design conversation occurred. Edit `specs/epic-<slug>/spec.md` to inject the finding's text into `## Problem` (plus a `Source: BACKLOG.json finding promoted YYYY-MM-DD` line) and the finding's anchor into `## Technical Approach` as a starting reference. Leave the rest as template stubs — Step 2's spec validation catches the gaps and emits `ABORT:DEFERRED:spec-gap:<detail>` per the existing flow. Continue directly to step 5; no pause.
 
    - **`non_interactive == false` (interactive dispatch).** The lead is in the same session that produced or refined this finding; draw on that session context plus the finding text. Author every section the session context warrants: `## Problem` (with Source line), `## Solution` at intent level, `## Scope` (In Scope / Out of Scope), `## Design Decisions` with file:line refs where useful, `## Technical Approach` with affected-file subsections and a worked example when helpful, `## Stories` (typically single-story for a backlog promotion — split only when scope genuinely warrants), `## Non-Goals` fencing off rejected directions surfaced in session. Also author `acceptance-criteria.md` with executable AC text — not just section headers.
 
@@ -369,7 +362,7 @@ clarification messages when a section is missing or an AC ID is malformed
 Before validating, gather lightweight context from project meta-state — this catches the "we're about to relitigate a settled question" case at the cheapest possible point:
 
 - **ADRs**. For each `docs/adr/ADR-*.md` read only the frontmatter block — everything from line 1 through the first blank line that precedes `## Context`, which captures `Title`, `Status`, `Date`, `Type`, `Affects:`, `Supersedes:`, and `Superseded by:` (typically lines 1–9 inclusive; use `awk '/^## /{exit} {print}'` to extract precisely the right span without hardcoding a line count). Identify any ADR whose title OR `Affects:` field plausibly governs this spec's domain. If matches exist, read their full bodies and surface them to the user before validation: "this spec proposes X; ADR-007 constrains <related area>. Confirm consistency." `Status: Superseded` ADRs are skipped — only Accepted (or Proposed, surfaced with that caveat) ADRs are constraints.
-- **Rejection archive**. If `BACKLOG.md` exists, read its `## Archive` section. Every entry in this section is a rejection by virtue of where it lives (the canonical bullet shape is `- YYYY-MM-DD — <text> — <reason>`; there is no per-line tag — see `plugins/base/skills/backlog/references/format.md`). For each entry whose text shares a topic word or path component with the proposed spec, surface verbatim: "the spec proposes X; archive entry from YYYY-MM-DD rejected a similar approach because <reason>. Reconcile."
+- **Rejection archive**. If `BACKLOG.json` exists, read its `archive[]` array (e.g. `plugins/base/skills/backlog/scripts/query.sh '.archive'`). Every entry is a rejection by virtue of where it lives (shape: `{date, text, reason, source_slug?, adr?}` — see `plugins/base/schemas/backlog.schema.json`). For each entry whose text shares a topic word or path component with the proposed spec, surface verbatim: "the spec proposes X; archive entry from YYYY-MM-DD rejected a similar approach because <reason>. Reconcile."
 
 Both checks are advisory — the user decides whether the new spec is consistent or needs adjustment. The lead does not block on these surfaces; it raises them once and proceeds based on the user's response.
 
@@ -444,21 +437,48 @@ Write `specs/epic-${epic_name}/epic-state.json`:
 }
 ```
 
-### Update BACKLOG.md (atomic — append-epic + consume-pending-finding)
+### Update BACKLOG.json (append-epic + consume-pending-finding)
 
-These two `BACKLOG.md` mutations both run only after `epic-state.json` has been successfully written above — the new `specs/epic-<slug>/` directory and its state file are the durable replacement record. Perform them as a single read-modify-write on `BACKLOG.md` so they cannot half-apply: read the file once, prepare both edits in memory, write once. If `BACKLOG.md` does not exist, both substeps are skipped silently; the curator at Step 6 will hint to the user that `/base:backlog init` would unlock backlog integration.
+Both mutations run only after `epic-state.json` has been successfully
+written above — the new `specs/epic-<slug>/` directory and its state
+file are the durable replacement record. Each mutation is one atomic
+script call; the calls cannot half-apply individually because the
+scripts use tmp+rename. If `BACKLOG.json` does not exist, both substeps
+are skipped silently (the scripts abort non-zero); the curator at
+Step 6 will hint to the user that `/base:backlog init` would unlock
+backlog integration.
 
-1. **Append the epic bullet to `## Epics`** so the in-progress epic is visible to parallel readers and to `/base:orient` from this point forward (the corresponding end-of-run flip to `DONE`/`ESCALATED` is performed unconditionally by the lead at Step 6.1; the curator is not involved in the bullet's lifecycle for this epic):
+1. **Append the epic to `epics[]`** so the in-progress epic is visible
+   to parallel readers and to `/base:orient` from this point forward:
 
    ```
-   - specs/epic-{epic_name}/ — IN_PROGRESS — created YYYY-MM-DD
+   plugins/base/skills/backlog/scripts/add-epic.sh \
+     --path "specs/epic-{epic_name}/" \
+     --status IN_PROGRESS \
+     --next-action "created YYYY-MM-DD"
    ```
 
-   At Step 6.1, the **lead** unconditionally flips this bullet to `DONE` (or to `ESCALATED` if the run escalated) — outside the curator's cap-5 budget. The curator's `update_epics_section` action is reserved for *other* drift cases the lead's bookkeeping cannot have caught (deleted out-of-band, parallel-session-created, etc.); see `base:project-curator` for the enumerated cases.
+   The corresponding end-of-run flip to `DONE`/`ESCALATED` is performed
+   unconditionally by the lead at Step 6.1 (same script, different
+   `--status`). The curator's `update_epics_section` action is reserved
+   for *other* drift cases the lead's bookkeeping cannot have caught.
 
-2. **Consume `pending_finding_removal`** (BACKLOG_PROMOTE mode only): if the in-session mode is `BACKLOG_PROMOTE` and `pending_finding_removal` is set, remove the source bullet from `## Findings` whose position-1 slug matches the captured `<slug>` exactly.
+2. **Consume `pending_finding_removal`** (BACKLOG_PROMOTE mode only):
+   if the in-session mode is `BACKLOG_PROMOTE` and
+   `pending_finding_removal` is set, remove the source finding by
+   running:
 
-If the combined write fails (permission, I/O), surface the failure rather than silently leaving partial state; the user picks: retry, hand-edit, or accept the no-backlog-update outcome (the spec dir + epic-state.json are already on disk, so re-running `/base:feature specs/epic-<slug>` will resume cleanly with `/base:orient` flagging the missing bullet via Rule 2).
+   ```
+   plugins/base/skills/backlog/scripts/resolve.sh \
+     <pending_finding_removal> --as promoted --target specs/epic-{epic_name}/spec.md
+   ```
+
+If either script fails (permission, I/O, validation), surface the
+failure rather than silently leaving partial state; the user picks:
+retry, edit manually, or accept the no-backlog-update outcome (the
+spec dir + epic-state.json are already on disk, so re-running
+`/base:feature specs/epic-<slug>` will resume cleanly with
+`/base:orient` flagging the missing entry via Rule 2).
 
 ### Codebase Exploration
 
@@ -801,9 +821,23 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
 
 1. Update `specs/epic-{name}/epic-state.json` with final status.
 
-   **Then immediately update `BACKLOG.md ## Epics`** to match: locate the bullet whose path is `specs/epic-{name}/` and rewrite its status field (`IN_PROGRESS` → `DONE` or `ESCALATED`) and its trailing date. This step is **unconditional and lead-driven** — it does NOT go through the curator. The curator's `update_epics_section` action exists for *other* drift (an epic dir was deleted out-of-band, a parallel session created one, the bullet is missing entirely) and is subject to the curator's cap-5 proposal limit; closing the lifecycle of state this workflow itself created in Step 3 must not be best-effort. Skip silently if `BACKLOG.md` does not exist (consistent with Step 3's behavior).
+   **Then immediately update `BACKLOG.json#epics`** to match by running:
+   ```
+   plugins/base/skills/backlog/scripts/add-epic.sh \
+     --path "specs/epic-{name}/" \
+     --status <DONE|ESCALATED> \
+     --next-action "completed YYYY-MM-DD"
+   ```
+   The script updates the existing entry idempotently. This step is
+   **unconditional and lead-driven** — it does NOT go through the
+   curator. The curator's `update_epics_section` action exists for
+   *other* drift (an epic dir was deleted out-of-band, a parallel
+   session created one, the entry is missing entirely); closing the
+   lifecycle of state this workflow itself created in Step 3 must not
+   be best-effort. Skip silently if the script aborts because
+   `BACKLOG.json` does not exist (consistent with Step 3's behavior).
 
-2. **Synthesize the retrospective AND curate project-state proposals in parallel.** Both subagents read the same `retro_bundle` but cover disjoint domains: the synthesizer handles workflow friction; the curator handles project meta-state (`BACKLOG.md`, spec amendments, ADR candidates). Spawn both in a single message (one Agent call each):
+2. **Synthesize the retrospective AND curate project-state proposals in parallel.** Both subagents read the same `retro_bundle` but cover disjoint domains: the synthesizer handles workflow friction; the curator handles project meta-state (`BACKLOG.json`, spec amendments, ADR candidates). Spawn both in a single message (one Agent call each):
 
    **2a. `base:retro-synthesizer`** — input bundle:
      - Paths to all `{story_dir}/result.json` files (architect retros, including absorbed pbt-dev/codex/ollama POV).
@@ -821,24 +855,36 @@ FOR each story in stories.json ordered by story_order WHERE status = pending:
      - The lead's `retro_bundle` (same object the synthesizer gets — for factual signal about abandoned approaches, tightened tests, surprising failures).
      - Paths to all `{story_dir}/result.json` files (for `files_modified`, `files_created`, root-cause descriptions).
      - Paths to `specs/epic-{name}/spec.md` and `acceptance-criteria.md` (the curator may propose `amend_spec`).
-     - Path to `BACKLOG.md` at the repo root if it exists (the curator skips `append_finding`/`append_rejection`/`update_epics_section` proposals when it does not — surface a one-time hint to the user that `/base:backlog init` would unlock those).
+     - Path to `BACKLOG.json` at the repo root if it exists (the curator skips `append_finding`/`append_rejection`/`update_epics_section` proposals when it does not — surface a one-time hint to the user that `/base:backlog init` would unlock those).
      - `docs/adr/` listing — `ls docs/adr/*.md 2>/dev/null` (titles only, not bodies).
      - Project provenance JSON (same fields as 2a).
 
      The curator returns a JSON object inside `---CURATOR_OUTPUT---` / `---END_CURATOR_OUTPUT---` markers (schema in `plugins/base/agents/project-curator.md`). If `decisions` is empty, skip step 3 entirely.
 
-3. **Apply curator decisions.** Read the curator's `decisions` array from the `---CURATOR_OUTPUT---` block. Apply each decision directly in sequence — no AskUserQuestion, no user confirmation. The lead applies each action using the per-action rules below:
+3. **Apply curator decisions.** The curator now applies each decision
+   autonomously (it shells out to `plugins/base/skills/backlog/scripts/*.sh`
+   for every BACKLOG.json mutation and uses `Edit` for spec/retro
+   markdown files). The lead reads the `decisions` array from the
+   `---CURATOR_OUTPUT---` block for reporting purposes only.
 
-     - **`append_finding`** → append the formatted bullet to `BACKLOG.md ## Findings` (use the format documented in `plugins/base/skills/backlog/references/format.md`).
-     - **`append_rejection`** → append the bullet to `BACKLOG.md ## Archive` in the canonical format `- YYYY-MM-DD — <text> — <rejection_reason>` (no `[rejected]` prefix; the section header conveys that). See `plugins/base/skills/backlog/references/format.md`.
-     - **`amend_spec`** → apply the AC patch to `acceptance-criteria.md` AND append an entry to `spec.md ## Amendments` (create the section if it doesn't yet exist; see `base:spec-template`). Both edits are a single logical amendment.
-     - **`resolve_finding_via_spec`** → apply the AC patch + append to `## Amendments` (same as `amend_spec`) AND remove the source bullet from `BACKLOG.md ## Findings` matched by `finding_slug` (exact position-1 slug match). The amendment entry must cite the resolved finding's text. All three edits are one transactional unit; if any fails, surface the failure rather than partially applying.
-     - **`resolve_finding_mechanical`** → remove the source bullet from `BACKLOG.md ## Findings` matched by `finding_slug` (exact position-1 slug match). No spec change, no archive entry. The `evidence_commit` is for audit only — do not write it anywhere; git is the record.
-     - **`move_finding_to_archive`** → remove the source bullet from `BACKLOG.md ## Findings` AND append a bullet to `## Archive` in the canonical format `- YYYY-MM-DD — <text> — <rejection_reason>` (no `[rejected]` prefix). One transactional unit.
-     - **`promote_to_adr`** → invoke `Skill("base:adr", args: "<title> affects:<comma-separated-paths> proposed [supersedes:ADR-NNN]")` using the decision's `affects` list. The `proposed` flag causes the ADR to be scaffolded as `Status: Proposed`. The skill also appends a `## Constrained by ADRs` pointer to each affected spec automatically (see `base:adr` SKILL.md). The lead does NOT fill in ADR content — that's the user's job in a follow-up session.
-     - **`promote_rejections_to_adr`** → invoke `Skill("base:adr", args: "<title> from-archive:<comma-joined-archive_markers>")` passing **all** of the curator's `archive_markers` (the skill matches each marker independently and embeds every matched archive entry verbatim under the new ADR's `## Context` so the cluster's full evidence is preserved). After the ADR is created, append `[→ ADR-NNN]` to each matched archive entry in `BACKLOG.md`.
-     - **`update_epics_section`** → apply the diff to `BACKLOG.md ## Epics`.
-     - **`annotate_retro`** → edit the retro file at `retro_path`, locate the `finding_anchor` text, and append `_Curator: YYYY-MM-DD → <disposition>_` on the line immediately following it. If the annotation is already present (idempotency guard: check for `_Curator:` suffix on a line near the anchor), skip silently.
+   The per-action application contracts the curator follows are
+   documented in `plugins/base/agents/project-curator.md`. Summary:
+
+     - **`append_finding`** → `scripts/add-finding.sh --text ... --anchor ...`
+     - **`append_rejection`** → `scripts/add-archive.sh --text ... --reason ...`
+     - **`amend_spec`** → `Edit` on `acceptance-criteria.md` + `Edit` to append `## Amendments` in `spec.md`
+     - **`resolve_finding_via_spec`** → Edit (AC patch + amendment) + `scripts/resolve.sh <slug> --as done --target <spec-path>`
+     - **`resolve_finding_mechanical`** → `scripts/resolve.sh <slug> --as done-mechanical`
+     - **`move_finding_to_archive`** → `scripts/resolve.sh <slug> --as rejected --reason ...`
+     - **`promote_to_adr`** → `Skill("base:adr", args: "<title> affects:... proposed [supersedes:ADR-NNN]")`
+     - **`promote_rejections_to_adr`** → `Skill("base:adr", args: "<title> from-archive:...")` + `scripts/mark-archive-adr.sh --adr ADR-NNN --marker ...`
+     - **`update_epics_section`** → `scripts/add-epic.sh --path ... --status ... --next-action ...`
+     - **`annotate_retro`** → `Edit` to append `_Curator: YYYY-MM-DD → <disposition>_` line in the retro file
+
+   The curator already enforced the dedup, idempotency, and validation
+   rules before each call. The lead's job in this step is to confirm
+   the curator's summary line landed and to surface it in step 5's
+   user report.
 
 4. Clean up the team.
 
@@ -926,6 +972,6 @@ NO .md, .txt, .bak, .tmp, .log, or any other files. This enables crash recovery.
 | `docs/adr/` | Architecture Decision Records (one per arch_debate run or major revision) |
 | `skills/languages/{language}.md` | Project language conventions |
 | `${CLAUDE_PLUGIN_DATA}/retros/{project-slug}/{epic-name}-{date}.md` | Cross-epic factory retrospective (plugin-scoped, written by Step 6, survives project deletion) |
-| `BACKLOG.md` | Project-level backlog (Epics / Findings / Archive) — read by `/base:orient`, written by lead from `base:project-curator` proposals at Step 6 |
+| `BACKLOG.json` | Project-level backlog (epics / findings / archive) — read by `/base:orient`, mutated by `base:project-curator` via `plugins/base/skills/backlog/scripts/*.sh` at Step 6 |
 | `docs/adr/ADR-NNN-*.md` | Architecture Decision Records — created by `base:arch-debate` (debated) or `/base:adr` (lightweight). Cited by spec `## Constrained by ADRs` sections. |
 | `plugins/base/schemas/result.schema.json` | Authoritative `result.json` schema (includes the `retrospective` field) |

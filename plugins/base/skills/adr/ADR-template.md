@@ -16,7 +16,7 @@ don't. Cite `path:line` for evidence of any claim about the codebase.
 
 What we decided. Specific enough to constrain future implementation —
 "we use X" not "we prefer X-style approaches." If the decision codifies
-a pattern of repeated rejections from `BACKLOG.md ## Archive`, list the
+a pattern of repeated rejections from `BACKLOG.json#archive[]`, list the
 archive entries it absorbs.
 
 ## Alternatives Considered

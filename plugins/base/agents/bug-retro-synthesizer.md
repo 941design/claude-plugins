@@ -88,7 +88,7 @@ remediation_rounds: N
 (Findings whose `Suggested change:` text targets the base plugin's own design — its
 commands, agents, skills, schemas. Identified by the plugin-bound classifier (Hard Rule 4).
 Harvested across consumers by `/base:retros-derive` in plugin-dev mode and promoted into
-`claude-plugins/BACKLOG.md`.)
+`claude-plugins/BACKLOG.json`.)
 
 ### Fix execution
 **Source**: fixer

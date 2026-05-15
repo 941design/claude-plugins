@@ -1,14 +1,14 @@
 ---
 name: next
-description: Pick the next actionable finding from BACKLOG.md and dispatch it to the right workflow (/base:bug or /base:feature). Runs in detail mode by default (renders top candidates with a prose paragraph and asks for confirmation) or auto mode (/base:next auto — silently dispatches the top actionable finding without prompting).
+description: Pick the next actionable finding from BACKLOG.json and dispatch it to the right workflow (/base:bug or /base:feature). Runs in detail mode by default (renders top candidates with a prose paragraph and asks for confirmation) or auto mode (/base:next auto — silently dispatches the top actionable finding without prompting).
 argument-hint: "(no args = detail) | auto | <hint> [auto]"
-allowed-tools: Read, Edit, Bash, AskUserQuestion, Skill, Grep
+allowed-tools: Read, Bash, AskUserQuestion, Skill, Grep
 model: sonnet
 ---
 
 # Backlog Dispatcher
 
-You are a thin dispatcher. Your job is to pick the top actionable finding from `BACKLOG.md` and hand it to the right command. You do one dispatch and exit. You do not loop. You do not modify `BACKLOG.md` — that is the target command's responsibility.
+You are a thin dispatcher. Your job is to pick the top actionable finding from `BACKLOG.json` and hand it to the right command. You do one dispatch and exit. You do not loop. You do not modify `BACKLOG.json` — that is the target command's responsibility (workers call `scripts/defer-stamp.sh` to mark deferred findings; the dispatcher only un-stamps via the escape-hatch path documented below).
 
 ## Input: $ARGUMENTS
 
@@ -68,55 +68,52 @@ zero-match and ambiguous-match cases).
 
 ---
 
-## Step 1: Read BACKLOG.md
+## Step 1: Read BACKLOG.json
 
-Read `BACKLOG.md` at the repo root. If it does not exist, exit with:
+Read `BACKLOG.json` at the repo root by calling
+`plugins/base/skills/backlog/scripts/list.sh --status all --format json`.
+The script returns the findings array; the schema is at
+`plugins/base/schemas/backlog.schema.json`.
 
-> No `BACKLOG.md` found. Run `/base:backlog init` to bootstrap project state.
+If the script fails because the file does not exist, exit with:
 
----
-
-## Step 1.5: Auto-Migrate v1 Bullets (if present)
-
-Scan `## Findings` for v1 bullets. A bullet is v1 if its **position 1**
-(the token before the first ` — `) starts with a backtick `` ` ``, the
-literal `-`, or its position 3 contains any of the legacy stamps
-`[INSUFFICIENT:`, `[ALREADY-RESOLVED:`, or `Auto-dispatch aborted:`.
-Bullets whose position 1 is a bare kebab-case word are v2.
-
-If any v1 bullet is detected, print exactly one line:
-
-> Detected v1 BACKLOG.md grammar; invoking `/base:backlog migrate-v2` before dispatch.
-
-Then invoke `Skill("base:backlog", args: "migrate-v2")` and re-read
-`BACKLOG.md` after it returns. If the Skill call fails or v1 bullets
-remain in the re-read, surface a WARNING and exit:
-
-> WARNING: BACKLOG.md migration failed; cannot dispatch until v2 grammar is in place. Run `/base:backlog migrate-v2` manually.
-
-See `plugins/base/skills/backlog/references/format.md ### Migration from
-v1 grammar`.
+> No `BACKLOG.json` found. Run `/base:backlog init` to bootstrap project state.
 
 ---
 
-## Step 2: Parse ## Findings
+## Step 1.5: Auto-Migrate Legacy BACKLOG.md (if present)
 
-Locate the `## Findings` section. The bullet grammar v2 (per
-`plugins/base/skills/backlog/references/format.md ## ## Findings — bullet grammar (v2)`) is:
+If a legacy `BACKLOG.md` exists at the repo root and `BACKLOG.json` does
+NOT, print exactly one line:
 
-```
-- <slug> [scope:<X>] — `<anchor>` — [DEFERRED:<reason>:<detail>] <text> (YYYY-MM-DD)
-```
+> Detected legacy v2 `BACKLOG.md`; invoking `/base:backlog migrate-v3` before dispatch.
 
-Position 1 carries `<slug>` plus `[scope:<X>]`. Position 2 carries
-`` `<anchor>` ``. Position 3 carries an optional `[DEFERRED:<reason>:<detail>]`
-prefix, the `<text>`, and the trailing ` (YYYY-MM-DD)`.
+Then invoke `Skill("base:backlog", args: "migrate-v3")` and re-read
+`BACKLOG.json` after it returns. If the Skill call fails, surface a
+WARNING and exit:
 
-A residual leading `[label]` token on any bullet (legacy from the
-pre-prose-routing format) is part of the prose; ignore it for routing.
-Do not abort on its presence.
+> WARNING: BACKLOG.md → BACKLOG.json migration failed; cannot dispatch until v3 grammar is in place. Run `/base:backlog migrate-v3` manually.
 
-If the section is absent, empty, or contains only the placeholder `- _no findings yet_`, exit with:
+---
+
+## Step 2: Parse findings[]
+
+Findings are now read as JSON. Each finding is an object with these
+fields (per `plugins/base/schemas/backlog.schema.json`):
+
+- `slug` — kebab-case identifier (unique within `findings[]`)
+- `scope` — scope token (`any`, `base-plugin`, `<plugin-name>`, …)
+- `anchor` — `{path, line?, range?}` or `null`
+- `text` — full finding prose, one line
+- `created_at` — `YYYY-MM-DD`
+- `deferred` — `{reason, detail, stamped_at}` or absent
+
+A finding is **actionable** when `deferred` is absent (or null). A
+finding is **deferred** when `deferred` is set; the deferred-state
+policy is at
+`plugins/base/skills/backlog/references/format.md#deferred-state`.
+
+If `findings[]` is empty, exit with:
 
 > No findings to dispatch. Run `/base:orient` for a project-wide view, or `/base:backlog add-finding` to log one.
 
@@ -130,7 +127,7 @@ default **document-order walk**.
 ### Scope filter
 
 Before classification, resolve the **active scope** from cwd per
-`plugins/base/skills/backlog/references/format.md ## Scope axis ### /base:next cwd matching`:
+`plugins/base/skills/backlog/references/format.md ## Scope axis`:
 
 ```bash
 if [ -f "$(git rev-parse --show-toplevel)/plugins/base/commands/retros-derive.md" ]; then
@@ -143,31 +140,37 @@ else
 fi
 ```
 
-Filter `## Findings` to only bullets whose `[scope:<X>]` token at
-position 1 matches `active_scopes`. Non-matching bullets are silently
-filtered out — not classified, not counted, not surfaced.
+Filter `findings[]` to only entries whose `scope` field matches
+`active_scopes`. Non-matching findings are silently filtered out — not
+classified, not counted, not surfaced. The shell equivalent for a
+plugin-source repo is:
+
+```bash
+plugins/base/skills/backlog/scripts/list.sh --status all --format json \
+  | jq 'map(select(.scope == "base-plugin" or .scope == "any"))'
+```
 
 This single filter replaces the legacy plugin-bound classifier, the
 cwd-detection branch, the tally line, the all-plugin-bound exit, and
 the hint-mode plugin-bound short-circuit. The format authority is the
 section cited above.
 
-### Per-bullet classification
+### Per-finding classification
 
-For every scope-matching finding bullet, read its prose (anchor + text)
-and classify it into exactly one of four buckets. **Precedence order:
+For every scope-matching finding, read its prose (anchor + text) and
+classify it into exactly one of four buckets. **Precedence order:
 `deferred` first, then the kind buckets `bug` / `question` /
 `feature-work`.**
 
-- **`deferred`** — the bullet's position 3 begins with the literal
-  token `[DEFERRED:` followed by `<reason>:<detail>]`. The worker
-  (`/base:bug` or `/base:feature`) writes the stamp before emitting the
-  matching `ABORT:DEFERRED:<reason>:<detail>` signal on stdout; it is
-  the sole writer (no dispatcher fallback). See
-  `plugins/base/skills/backlog/references/format.md ### Deferred-state stamp`
+- **`deferred`** — the finding's `.deferred` field is set (an object
+  with `reason`, `detail`, and `stamped_at`). The worker (`/base:bug`
+  or `/base:feature`) calls `scripts/defer-stamp.sh` before emitting
+  the matching `ABORT:DEFERRED:<reason>:<detail>` signal on stdout; it
+  is the sole writer (no dispatcher fallback). See
+  `plugins/base/skills/backlog/references/format.md ## Deferred state`
   for the closed `<reason>` enum (`spec-gap`, `already-resolved`,
   `escalated`, `arch-debate-required`, `legacy-orphan`). Deferred
-  bullets are skipped by the document-order walk; the hint path's
+  findings are skipped by the document-order walk; the hint path's
   escape hatch (Step 3 step 4) is the only way to reach them.
 - **`bug`** — describes a defect: something is broken, fails, errors, regresses,
   or behaves incorrectly. Verbs like "fails", "crashes", "returns wrong", "leaks",
@@ -255,15 +258,15 @@ that do not match the active scope.
 
 **Question halt** — if any finding classified as `question` appears
 **before** the first non-question, non-deferred finding in document
-order, surface the bullet verbatim and exit without dispatching:
+order, surface the finding's prose verbatim and exit without dispatching:
 
 > **Blocked by an open question:**
-> `<full bullet text>`
+> `<full finding text>`
 >
 > Resolve it before dispatching:
-> - `/base:backlog resolve <slug> done-mechanical` — question answered, no spec change
-> - `/base:backlog resolve <slug> done→spec:<path>` — answer is captured in a spec
-> - `/base:backlog resolve <slug> rejected` — close without action
+> - `/base:backlog resolve <slug> --as done-mechanical` — question answered, no spec change
+> - `/base:backlog resolve <slug> --as done --target <path>` — answer is captured in a spec
+> - `/base:backlog resolve <slug> --as rejected --reason "..."` — close without action
 
 **Candidate selection** — the first finding classified as `bug` or
 `feature-work` (skipping `deferred` bullets, halting on a leading
@@ -271,13 +274,14 @@ order, surface the bullet verbatim and exit without dispatching:
 
 ### Hint path: content-overlap match (when `hint != None`)
 
-Skip the document-order walk. Instead, narrow scope-matching `## Findings`
-bullets to the single bullet whose identity or content best matches the
+Skip the document-order walk. Instead, narrow scope-matching findings
+to the single finding whose identity or content best matches the
 hint:
 
-1. **Exact slug match first.** Run `grep -F "<hint>"` against
-   position-1 slugs of scope-matching bullets. If exactly one slug
-   matches the hint verbatim (after trimming whitespace), that bullet
+1. **Exact slug match first.** Check whether the hint is a literal
+   match for one of the scope-matching findings' `slug` fields (e.g.
+   `scripts/get.sh "<hint>"` returns a finding). If exactly one slug
+   matches the hint verbatim (after trimming whitespace), that finding
    is the candidate — skip directly to step 3's classification step.
    If zero or >1 exact slug matches, fall through to step 2 (fuzzy
    tokenizer).
@@ -307,48 +311,45 @@ hint:
    detail mode.
 
 4. **`deferred` escape hatch.** If step 1 and step 2 produced no unique
-   winner from non-deferred bullets, re-run them *including* `deferred`
-   bullets. If a unique winner now emerges and it is `[DEFERRED:…]`-stamped:
+   winner from non-deferred findings, re-run them *including* `deferred`
+   findings. If a unique winner now emerges and its `.deferred` field
+   is set:
 
      a. Surface a one-line warning:
 
-        > Warning: hint matched a `[DEFERRED:<reason>]`-stamped finding.
-        > Re-dispatching anyway because you named it explicitly; un-stamping in BACKLOG.md before dispatch.
+        > Warning: hint matched a deferred finding (reason: `<reason>`).
+        > Re-dispatching anyway because you named it explicitly; un-stamping in BACKLOG.json before dispatch.
 
-     b. **Un-stamp the bullet on disk.** Perform a single `Edit`
-        read-modify-write on `BACKLOG.md` that strips the leading
-        `[DEFERRED:<reason>:<detail>] ` prefix (including the trailing
-        space) from the matched bullet's position 3. The slug, scope
-        token, anchor, original text, and `(YYYY-MM-DD)` trailer are
-        unchanged. Example transform:
+     b. **Un-stamp the finding.** Invoke
+        `plugins/base/skills/backlog/scripts/defer-stamp.sh <slug> --clear`.
+        This clears the `.deferred` field atomically; the slug, scope,
+        anchor, text, and created_at are unchanged.
 
-        ```
-        before: - my-slug [scope:any] — `path/spec.md` — [DEFERRED:spec-gap:gap reason] Original prose. (2026-05-13)
-        after:  - my-slug [scope:any] — `path/spec.md` — Original prose. (2026-05-13)
-        ```
-
-        Rationale: the bullet text flows downstream into
-        `/base:feature` and `/base:bug` (spec stub, bug-report
-        description). Leaving the `[DEFERRED:…]` prefix in place would
-        poison those derivations. Un-stamping reactivates the
-        finding — the user has explicitly chosen to work on it again.
+        Rationale: the text flows downstream into `/base:feature` and
+        `/base:bug` (spec stub, bug-report description). The `.deferred`
+        field is now structured rather than embedded in prose, so
+        downstream consumers do not need to strip a marker — but
+        clearing it explicitly marks the finding as actionable again so
+        a subsequent `/base:next` invocation won't skip it as deferred.
         If the downstream skill aborts again, the worker re-stamps with
-        the new reason/detail before emitting `ABORT:DEFERRED:…`.
+        the new reason/detail by calling `defer-stamp.sh` again before
+        emitting `ABORT:DEFERRED:…`.
 
-        If the Edit fails (file gone, slug no longer unique, etc.),
-        print a single WARNING line and **do not proceed**:
+        If `defer-stamp.sh --clear` fails (slug no longer unique,
+        BACKLOG.json missing, validation failure), print a single
+        WARNING line and **do not proceed**:
 
-        > WARNING: could not un-stamp finding in BACKLOG.md; aborting hint dispatch to avoid poisoned downstream text.
+        > WARNING: could not un-stamp finding in BACKLOG.json; aborting hint dispatch to avoid stale deferred state.
 
         Exit without dispatching. The user can resolve manually.
 
-     c. Classify the un-stamped bullet (per the four buckets above; it
+     c. Classify the un-stamped finding (per the four buckets above; it
         is now no longer `deferred`). If the classification is
         `question`, the question-halt applies — surface and exit.
         Otherwise proceed to Step 4 with this single candidate.
 
    This honors explicit user intent — a hint that points squarely at a
-   stamped bullet overrides the default skip semantics, and the
+   deferred finding overrides the default skip semantics, and the
    un-stamp action keeps downstream consumers reading clean text.
 
 5. **No unique match** (zero hits, or ambiguous even after the escape
@@ -358,14 +359,14 @@ hint:
    No unique BACKLOG finding matches: "<hint>"
 
    Closest candidates:
-     1. <bullet text, truncated to ~120 chars>
-     2. <bullet text, truncated to ~120 chars>
+     1. <finding text, truncated to ~120 chars>
+     2. <finding text, truncated to ~120 chars>
      ...
 
    Refine the hint or run `/base:next` (no args) to see top findings.
    ```
 
-   List up to 5 candidates ranked by score (include `deferred` bullets
+   List up to 5 candidates ranked by score (include `deferred` findings
    here, prefixed `[deferred]` so the user sees them).
 
 ---
@@ -374,8 +375,8 @@ hint:
 
 **Pre-branch invariant (question-halt):** The question-halt check in Step 3
 already ran before this step. If execution reaches Step 4, no leading
-`question` finding was present (or, in hint mode, the matched bullet is not
-a `question` — a `deferred` bullet may have been accepted via the
+`question` finding was present (or, in hint mode, the matched finding is not
+a `question` — a `deferred` finding may have been accepted via the
 escape hatch). The candidate is `bug` or `feature-work`. Neither `auto`
 mode nor `detail` mode bypasses the question-halt; both modes rely on
 Step 3's check firing before this branch. This satisfies AC-INV-1.
@@ -393,9 +394,10 @@ Branch first on **`hint`** (set by Step 0), then on `mode`:
 ### IF mode == auto AND hint == None
 
 Select the candidate using the following rule: **the first actionable finding
-in document order** from scope-matching `## Findings` — the same
-position-1 candidate that Step 3 identified. No re-scanning is needed;
-Step 3 already produced this.
+in document order** from scope-matching findings — the same
+position-1 candidate that Step 3 identified (document order is the
+order in which findings appear in the `findings[]` array). No
+re-scanning is needed; Step 3 already produced this.
 
 **Pre-notice resolution.** Before printing the notice line, perform the
 following preparatory steps so the notice template renders the correct
@@ -456,14 +458,16 @@ emit the abort signals it watches for.
 The Skill dispatch in Step 6 will append ` auto` to the args when `mode == auto`,
 signaling non-interactive mode to the downstream skill (`/base:feature` or `/base:bug`).
 If the downstream skill cannot proceed, it stamps the original finding in
-`BACKLOG.md` with `[DEFERRED:<reason>:<detail>]` (the worker holds the
-slug and the relevant context, so it writes the canonical bookkeeping
-signal itself — there is no dispatcher fallback) and then returns the
-matching literal `ABORT:DEFERRED:<reason>:<detail>` signal on stdout.
-See `plugins/base/skills/backlog/references/format.md ### Deferred-state stamp`
-for the closed `<reason>` enum and the worker-as-sole-writer invariant.
+`BACKLOG.json` by calling
+`plugins/base/skills/backlog/scripts/defer-stamp.sh <slug> --reason <r> --detail <d>`
+(the worker holds the slug and the relevant context, so it writes the
+canonical bookkeeping signal itself — there is no dispatcher fallback)
+and then returns the matching literal `ABORT:DEFERRED:<reason>:<detail>`
+signal on stdout. See
+`plugins/base/skills/backlog/references/format.md ## Deferred state` for
+the closed `<reason>` enum and the worker-as-sole-writer invariant.
 
-Step 6a below is a post-return sanity check: it confirms the bullet
+Step 6a below is a post-return sanity check: it confirms the finding
 was stamped and surfaces a WARNING + exits if it was not (the
 dispatcher does NOT write the stamp).
 
@@ -632,27 +636,25 @@ still understand what dispatching this finding would do.
 
 ## Step 5: Slug as Marker
 
-The slug at position 1 of the selected finding's bullet IS the dispatch marker —
-unique within `## Findings` by construction (coined at write time per
-`plugins/base/skills/backlog/references/format.md ### Slug derivation`).
+The `slug` field of the selected finding IS the dispatch marker —
+unique within `findings[]` by schema (enforced at write time per
+`plugins/base/skills/backlog/references/format.md ## Findings - policy`,
+slug subsection).
 
-No derivation is needed. The slug parsed during Step 3 classification is used
-directly as the `backlog:<slug>` argument to Skill invocations in Step 6.
-Bullets that lack a slug at position 1 are v1 and were already auto-migrated
-in Step 1.5 before reaching this step.
+No derivation is needed. The slug read during Step 2 is used directly
+as the `backlog:<slug>` argument to Skill invocations in Step 6.
 
 ---
 
 ## Step 6: Dispatch via Skill
 
 Route by the selected finding's `(kind, scale)` tuple from Step 3.
-The full routing matrix (where `<slug>` is the position-1 slug from
-the bullet):
+The full routing matrix (where `<slug>` is the finding's `slug` field):
 
 | kind | scale=full | scale=amendment | scale=mechanical |
 |---|---|---|---|
-| `bug` | `Skill("base:bug", args: "backlog:<slug>")` | `Skill("base:bug", args: "backlog:<slug>")` | `Skill("base:backlog", args: "resolve <slug> done-mechanical")` |
-| `feature-work` | `Skill("base:feature", args: "backlog:<slug>")` | `Skill("base:backlog", args: "resolve <slug> done→spec:<inferred-path>")` | `Skill("base:backlog", args: "resolve <slug> done-mechanical")` |
+| `bug` | `Skill("base:bug", args: "backlog:<slug>")` | `Skill("base:bug", args: "backlog:<slug>")` | `Skill("base:backlog", args: "resolve <slug> --as done-mechanical")` |
+| `feature-work` | `Skill("base:feature", args: "backlog:<slug>")` | `Skill("base:backlog", args: "resolve <slug> --as done --target <inferred-path>")` | `Skill("base:backlog", args: "resolve <slug> --as done-mechanical")` |
 
 Per AC-NEXT-4, the `(bug, amendment)` cell routes to `/base:bug`
 unchanged from today's behavior — bugs with amendment-shape framing
@@ -660,21 +662,22 @@ still warrant the bug workflow because behavior is broken; the
 `amendment` scale value is recorded (and surfaced in the notice
 line) but does not alter routing for the bug kind.
 
-### Inferred spec path rule (`done→spec:<inferred-path>`)
+### Inferred spec path rule (`--target <inferred-path>`)
 
 For the `(feature-work, amendment)` cell, the dispatcher MUST attempt to
 infer the spec path that should receive the AC patch. Inference rule:
 
-1. Starting from the anchor's path component (the part before any
-   `:line` suffix), walk **upward** through the directory chain.
+1. Starting from `anchor.path` (the file path; if `anchor` is `null`,
+   inference fails immediately), walk **upward** through the directory
+   chain.
 2. If a directory matching the pattern `specs/epic-*/` is found in the
    walk, the inferred path is `specs/epic-<slug>/spec.md` for that
    epic.
 3. ELSE, if the anchor is under `plugins/base/skills/<name>/`, the
    inferred path is the anchored file itself — these skill prompts
    ARE specs in the meta sense (they document agent behavior).
-4. ELSE (the walk reaches the repo root with no match, OR the anchor
-   is `-`, OR the anchor points at an arbitrary file with no spec
+4. ELSE (the walk reaches the repo root with no match, OR `anchor` is
+   `null`, OR the anchor points at an arbitrary file with no spec
    association), inference **fails**: reclassify `scale = full` and
    route to `Skill("base:feature", args: "backlog:<slug>")` as the
    `(feature-work, full)` cell of the matrix. This fallback is the
@@ -700,28 +703,27 @@ For `base:backlog resolve` dispatches (the `mechanical` and
 `(feature-work, amendment)` routes), the args are NOT extended with
 `auto` — the `base:backlog` skill does not have an auto-mode
 contract in the same sense (its op selector is structural, not
-mode-keyed). The args composed by the matrix carry the action token
-directly (`done-mechanical` or `done→spec:<inferred-path>`); the
-resolve op parses the action token from args and skips the
-top-level "which resolution path?" prompt (see
-`plugins/base/skills/backlog/SKILL.md` `## Operation: resolve`,
-"Argument forms" / "Parsing"). Behavior by mode:
+mode-keyed). The args composed by the matrix carry the action flag
+directly (`--as done-mechanical` or `--as done --target <inferred-path>`);
+the resolve script enforces the action without prompts (see
+`plugins/base/skills/backlog/SKILL.md` `### resolve <slug>` and
+`scripts/resolve.sh --help`). Behavior by mode:
 
 - **`mode == auto`** — Step 6 invokes `Skill("base:backlog", args:
-  "resolve <slug> done-mechanical")` or `Skill("base:backlog",
-  args: "resolve <slug> done→spec:<inferred-path>")` per the
-  matrix. For `done-mechanical` the resolve op completes silently
-  (the dispatcher has already classified the bullet as mechanical;
-  the two-word-test confirmation prompt is skipped). For
-  `done→spec` the resolve op skips the path-selection prompt
-  (target path is supplied via args) but still prompts for AC ID /
-  AC text / amendment rationale — that is genuine user-authorship
-  territory and AC-NEXT-3 requires that dispatch occur, not that
-  the entire resolution complete silently.
+  "resolve <slug> --as done-mechanical")` or `Skill("base:backlog",
+  args: "resolve <slug> --as done --target <inferred-path>")` per the
+  matrix. For `--as done-mechanical` the script completes silently
+  (the dispatcher has already classified the finding as mechanical;
+  no two-word-test prompt). For `--as done --target …` the script
+  removes the finding from `findings[]` and surfaces a one-line
+  reminder that the spec amendment is the caller's responsibility — in
+  auto mode the dispatcher does not block on AC authorship; the user
+  must follow up by amending the named spec.
 - **`mode == detail`** — The user has explicitly picked the candidate
   via `AskUserQuestion`. Step 6 invokes the same Skill calls per
-  the matrix. The user is already in the loop and can answer the
-  resolve op's remaining prompts.
+  the matrix. For `--as done --target …` in detail mode, the user
+  should be reminded of the spec amendment they need to author (the
+  notice line names the target path).
 
 ---
 
@@ -729,19 +731,20 @@ top-level "which resolution path?" prompt (see
 
 This step runs only when `mode == auto` AND Step 6 dispatched to
 `base:bug` or `base:feature`. Skip entirely in detail mode, and skip
-for `base:backlog resolve` dispatches (the resolve op does not emit
-the abort signal this step watches for).
+for `base:backlog resolve` dispatches (the resolve script does not
+emit the abort signal this step watches for).
 
 The **worker** (`/base:bug` or `/base:feature`) is the **sole writer**
-of the `[DEFERRED:<reason>:<detail>]` stamp — it performs the `Edit` on
-`BACKLOG.md` before emitting the matching `ABORT:DEFERRED:<reason>:<detail>`
-signal on stdout, while the slug and the relevant context are still in
-scope (see each worker's Stamp-write procedure, and
-`plugins/base/skills/backlog/references/format.md ### Deferred-state stamp`
+of the deferred stamp — it calls
+`plugins/base/skills/backlog/scripts/defer-stamp.sh <slug> --reason <r> --detail <d>`
+before emitting the matching `ABORT:DEFERRED:<reason>:<detail>` signal
+on stdout, while the slug and the relevant context are still in scope
+(see each worker's Stamp-write procedure, and
+`plugins/base/skills/backlog/references/format.md ## Deferred state`
 "Sole signal — worker writes" + "No dispatcher fallback").
 
 This step is a **post-return sanity check**: it verifies the stamp
-landed by re-reading the bullet, and surfaces a WARNING + exits if it
+landed by re-reading the finding, and surfaces a WARNING + exits if it
 did not. The dispatcher does NOT write the stamp itself.
 
 After the Skill call in Step 6 returns in auto mode, inspect the return
@@ -756,18 +759,18 @@ is found:
    that line, trimmed). Use only the first matching line if multiple
    exist.
 
-2. **Verify the worker stamped.** Read `BACKLOG.md` at the repo root
-   and locate the dispatched bullet by its `<slug>` at position 1
-   (unique by construction). Inspect position 3:
+2. **Verify the worker stamped.** Invoke
+   `plugins/base/skills/backlog/scripts/get.sh <slug> --field deferred`
+   (returns the deferred object as JSON, or empty if not deferred):
 
-     a. **Stamped.** If position 3 begins with `[DEFERRED:`, the worker
-        stamped successfully. Proceed to step 3.
+     a. **Stamped.** If the script returns a non-empty value, the
+        worker stamped successfully. Proceed to step 3.
 
      b. **Not stamped.** Surface a single WARNING line and exit:
 
         ```
-        WARNING: worker emitted ABORT:DEFERRED:<reason>:<detail> but did not stamp the bullet in BACKLOG.md.
-        Loop-break invariant unmet for `<slug>`. Resolve manually via `/base:backlog resolve <slug>` to prevent re-dispatch.
+        WARNING: worker emitted ABORT:DEFERRED:<reason>:<detail> but did not stamp <slug> in BACKLOG.json.
+        Loop-break invariant unmet for `<slug>`. Resolve manually via `/base:backlog resolve <slug> --as ...` or `defer-stamp <slug> --reason <r> --detail <d>` to prevent re-dispatch.
         ```
 
         Do NOT write the stamp from the dispatcher. The dispatcher is
@@ -779,21 +782,21 @@ is found:
    ```
    Auto-dispatch aborted.
    Reason: <reason> — <detail>
-   Original finding stamped [DEFERRED:<reason>:<detail>] in BACKLOG.md (deferred).
+   Original finding stamped (deferred) in BACKLOG.json.
    <next-action>
    ```
 
    `<next-action>` varies slightly by `<reason>`:
-   - `spec-gap` → "Address the gap (fill the referenced anchor) then re-dispatch via `/base:next <slug>` to un-stamp and retry, or close via `/base:backlog resolve <slug>`."
-   - `already-resolved` → "Review the diff in the anchored path; commit and re-dispatch via `/base:next <slug>` to un-stamp and retry, or close via `/base:backlog resolve <slug> done-mechanical` if the working tree already addresses it."
+   - `spec-gap` → "Address the gap (fill the referenced anchor) then re-dispatch via `/base:next <slug>` to un-stamp and retry, or close via `/base:backlog resolve <slug> --as ...`."
+   - `already-resolved` → "Review the diff in the anchored path; commit and re-dispatch via `/base:next <slug>` to un-stamp and retry, or close via `/base:backlog resolve <slug> --as done-mechanical` if the working tree already addresses it."
    - `escalated` → "Resolve the escalation (typically by amending the spec or recording an ADR), then re-dispatch via `/base:next <slug>`."
    - `arch-debate-required` → "Run `/base:arch-debate <spec-path>` interactively. Re-dispatch via `/base:next <slug>` after the debate lands an ADR."
-   - `legacy-orphan` → "Original framing cannot be re-dispatched safely. Close via `/base:backlog resolve <slug> rejected:legacy-orphan`."
+   - `legacy-orphan` → "Original framing cannot be re-dispatched safely. Close via `/base:backlog resolve <slug> --as rejected --reason 'legacy-orphan: <evidence>'`."
 
 Then exit. Do NOT attempt the next candidate. Auto mode processes exactly
 one item regardless of result (success or abort).
 
-The next `/base:next auto` invocation will see the stamped bullet,
+The next `/base:next auto` invocation will see the stamped finding,
 classify it as `deferred` in Step 3, and skip it — breaking the
 re-rejection loop.
 

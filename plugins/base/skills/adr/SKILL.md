@@ -3,7 +3,7 @@ name: adr
 description: >-
   Scaffolds a lightweight Architecture Decision Record at `docs/adr/ADR-NNN-<slug>.md`
   using the next available ADR number. Use for cross-spec decisions, supersession events,
-  or codifying a cluster of related rejections from `BACKLOG.md ## Archive` (the
+  or codifying a cluster of related rejections from `BACKLOG.json#archive[]` (the
   project-curator and `/base:orient` may propose this). For heavyweight architecture
   work that warrants a structured Proposer↔Codex debate, use `base:arch-debate` instead —
   it produces an ADR of `Type: Debated` plus an `architecture.md`.
@@ -52,16 +52,16 @@ just the scaffold + the right number + a stub the user fills in.
        and adds a `References` line.
      - Optional `from-archive:<marker>[,<marker>,...]` — one or more
        comma-separated substrings, each identifying one or more
-       `BACKLOG.md ## Archive` entries (the multi-marker form is what
+       `BACKLOG.json#archive[]` entries (the multi-marker form is what
        `base:project-curator`'s `promote_rejections_to_adr` proposal
        passes — every marker in the cluster the curator identified must
        be applied so the ADR's evidence base is complete). Read
-       BACKLOG.md, match each marker independently against `## Archive`
+       BACKLOG.json, match each marker independently against `## Archive`
        entries, embed every matched entry verbatim under `## Context`
        (deduplicated if the same entry matches multiple markers),
        and stage a follow-up note to the user: after the ADR is
        Accepted, those archive lines should get a `[→ ADR-NNN]` pointer
-       (the user does this; this skill does not edit BACKLOG.md).
+       (the user does this; this skill does not edit BACKLOG.json).
      - Optional `proposed` — when present, the scaffolded ADR is written
        with `Status: Proposed` instead of `Status: Accepted`. Use this
        when the curator applies a `promote_to_adr` decision autonomously;
@@ -112,8 +112,8 @@ just the scaffold + the right number + a stub the user fills in.
 7. Report the path written, the list of specs cross-referenced (if
    any), and any follow-up actions:
      - If from-archive was used, remind the user to add `[→ ADR-{NNN}]`
-       to the matched lines in BACKLOG.md ## Archive (this skill never
-       touches BACKLOG.md).
+       to the matched lines in BACKLOG.json#archive[] (this skill never
+       touches BACKLOG.json).
      - If affects was supplied with `project-wide`, remind the user
        that no spec cross-references were written.
 ```
@@ -135,7 +135,7 @@ just the scaffold + the right number + a stub the user fills in.
   the skill scaffolds with `Status: Proposed` directly. The user reviews
   and changes to `Accepted` when ready. Manual editing is still valid
   when the flag is not passed.
-- **No edits to BACKLOG.md.** Promotion of archive entries to an ADR
+- **No edits to BACKLOG.json.** Promotion of archive entries to an ADR
   pointer is the user's call (or the curator's proposal at the next
   `/feature` retro).
 - **No edits to specs beyond the `## Constrained by ADRs` pointer line.**

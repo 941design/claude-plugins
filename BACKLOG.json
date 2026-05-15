@@ -1,0 +1,221 @@
+{
+  "version": 3,
+  "updated_at": "2026-05-15T08:14:25Z",
+  "epics": [
+    {
+      "path": "specs/epic-base-next/",
+      "status": "DONE",
+      "next_action": "seeded by /base:backlog init 2026-05-12"
+    },
+    {
+      "path": "specs/epic-lean-lead-decider/",
+      "status": "DONE",
+      "next_action": "seeded by /base:backlog init 2026-05-12"
+    },
+    {
+      "path": "specs/epic-pipeline-autonomous-retros/",
+      "status": "DONE",
+      "next_action": "completed 2026-05-12"
+    },
+    {
+      "path": "specs/epic-next-modes/",
+      "status": "DONE",
+      "next_action": "completed 2026-05-12"
+    },
+    {
+      "path": "specs/epic-fast-track-routing/",
+      "status": "DONE",
+      "next_action": "completed 2026-05-13"
+    },
+    {
+      "path": "specs/epic-next-auto-backlog-audit/",
+      "status": "IN_PROGRESS",
+      "next_action": "created 2026-05-14"
+    },
+    {
+      "path": "specs/epic-story-planner-schema-conformance/",
+      "status": "DONE",
+      "next_action": "completed 2026-05-14"
+    }
+  ],
+  "findings": [
+    {
+      "slug": "spec-epic-proposed-supersedes-composability-ready",
+      "scope": "any",
+      "anchor": {
+        "path": "specs/epic-proposed-supersedes-composability/spec.md"
+      },
+      "text": "Is spec for epic-proposed-supersedes-composability ready? Auto-dispatch aborted: `## Solution` and `acceptance-criteria.md` are entirely un-authored stubs requiring human input. Finish specifying then remove this finding.",
+      "created_at": "2026-05-13",
+      "deferred": {
+        "reason": "legacy-orphan",
+        "detail": "Is spec for epic-proposed-supersedes-composability rea…",
+        "stamped_at": "2026-05-13"
+      }
+    },
+    {
+      "slug": "spec-epic-proposed-supersedes-composability-ready-2",
+      "scope": "any",
+      "anchor": {
+        "path": "specs/epic-proposed-supersedes-composability/spec.md"
+      },
+      "text": "Is spec for epic-proposed-supersedes-composability ready? Auto-dispatch aborted: `## Solution` section is empty — the spec stub was promoted from the backlog finding but not yet authored. Finish specifying then remove this finding.",
+      "created_at": "2026-05-13",
+      "deferred": {
+        "reason": "legacy-orphan",
+        "detail": "Is spec for epic-proposed-supersedes-composability rea…",
+        "stamped_at": "2026-05-13"
+      }
+    },
+    {
+      "slug": "proposed-supersedes-composability-undocumented",
+      "scope": "base-plugin",
+      "anchor": {
+        "path": "plugins/base/skills/adr/SKILL.md",
+        "range": [
+          65,
+          69
+        ]
+      },
+      "text": "`proposed+supersedes` composability is undocumented: when both flags are passed together, it is unspecified whether the superseded ADR's `Superseded by:` line should be updated immediately (when the new ADR is still Status: Proposed) or deferred until the user accepts the ADR — surfaced as VQ-S4-009 PARTIAL, pipeline-autonomous-retros S4",
+      "created_at": "2026-05-12",
+      "deferred": {
+        "reason": "spec-gap",
+        "detail": "spec stub `## Solution` and acceptance-criteria.md un-auth…",
+        "stamped_at": "2026-05-12"
+      }
+    },
+    {
+      "slug": "skills-languages-markdown-md-exists-verification",
+      "scope": "any",
+      "anchor": null,
+      "text": "No `skills/languages/markdown.md` exists; the verification-examiner's AC-derived SPEC protocol requires \"(b) tests at file:line\" and \"(c) confirmation tests are not pure mock-spy proxies\", written for executable code — epics whose stories edit only Markdown files have no matching language skill, causing examiners to improvise — surfaced during epic-next-modes",
+      "created_at": "2026-05-12",
+      "deferred": {
+        "reason": "spec-gap",
+        "detail": "## Solution and acceptance-criteria.md are entirely un-aut…",
+        "stamped_at": "2026-05-12"
+      }
+    },
+    {
+      "slug": "mode-3-verification-question-schema-split",
+      "scope": "base-plugin",
+      "anchor": {
+        "path": "plugins/base/agents/story-planner.md"
+      },
+      "text": "Mode-3 verification-question schema is split between two conflicting shapes: the system-prompt canonical shape uses `\"question_id\"/\"category\"/\"ac_id\"/\"phase\"` (no `check_method`), while the task-specific prompt uses `\"id\"/\"type\"/\"ac_ref\"/\"check_method\"/\"status\"`; every on-disk `verification.json` uses `\"type\"` not `\"category\"`, and `check_method` is absent from the system-prompt schema; recommendation: adopt the richer task-specific shape, rename `id→question_id` and `ac_ref→ac_id` to align vocabulary, ship `verification.schema.json` so drift is caught at write time; update `base:verification-examiner` in the same change — surfaced across epic-next-modes and epic-pipeline-autonomous-retros Mode-3 planning",
+      "created_at": "2026-05-12",
+      "deferred": {
+        "reason": "spec-gap",
+        "detail": "spec stub `## Solution` and acceptance-criteria.md un-auth…",
+        "stamped_at": "2026-05-12"
+      }
+    },
+    {
+      "slug": "mode-1-story-planner-should-require",
+      "scope": "base-plugin",
+      "anchor": {
+        "path": "plugins/base/agents/story-planner.md"
+      },
+      "text": "Mode-1 story-planner should require a reconciliation pass against `exploration.json` before finalizing ACs: AC-MANIFEST-1 in epic-base-next pointed at non-existent commands listings in plugin.json/marketplace.json that the explorer had already flagged as absent, but the AC was not updated; add a Mode-1 step that cross-checks every AC's referenced artifact (file paths, manifest keys, config entries) against explorer findings — surfaced during epic-base-next pre-implementation",
+      "created_at": "2026-05-12",
+      "deferred": {
+        "reason": "spec-gap",
+        "detail": "## Solution and acceptance-criteria.md are entirely un-auth…",
+        "stamped_at": "2026-05-12"
+      }
+    },
+    {
+      "slug": "skip-condition-one-off-interactive-debugging",
+      "scope": "base-plugin",
+      "anchor": {
+        "path": "plugins/base/skills/e2e-testing/SKILL.md",
+        "range": [
+          20,
+          21
+        ]
+      },
+      "text": "SKIP condition \"one-off interactive debugging where sequential execution adds no value\" is too easy to misapply: repeated single-file targeted runs (e.g. `npx playwright test e2e/46-...`) get reclassified as debugging when they are in fact repeated suite invocations; practical consequence was 11 tests running in parallel against a shared relay each time, full output flooding main context, and no fail-fast discipline; tighten the SKIP condition to require *truly* one-off (≤1 run, non-suite) or add a heuristic: if the same test file is invoked more than once in a session, escalate to the skill — surfaced in a nostr-skills session",
+      "created_at": "2026-05-13",
+      "deferred": {
+        "reason": "spec-gap",
+        "detail": "## Solution and acceptance-criteria.md are un-authored stubs",
+        "stamped_at": "2026-05-13"
+      }
+    },
+    {
+      "slug": "base-bug-leaves-working-tree-dirty",
+      "scope": "base-plugin",
+      "anchor": {
+        "path": "plugins/base/commands/bug.md"
+      },
+      "text": "`/base:bug` leaves working tree dirty after ACCEPTED: when a run terminates ACCEPTED with no escalation, no rejection, and no open remediation rounds, the natural terminal state is \"committed to branch\" not \"staged for review\"; Step 4 should auto-commit exactly the files in the contract's `allowed_changes.files` plus bug-reports artifacts and BACKLOG.md, using the bug slug + root_cause for the commit message; skip auto-commit on any non-ACCEPTED terminal state (ESCALATED, REJECTED, ABORT:UNDERSPECIFIED); surfaced by user after shophop/waitForTimeout-has-no-durable-fallback run",
+      "created_at": "2026-05-13",
+      "deferred": {
+        "reason": "spec-gap",
+        "detail": "## Solution and acceptance-criteria.md are entirely un-auth…",
+        "stamped_at": "2026-05-13"
+      }
+    },
+    {
+      "slug": "base-feature-leaves-working-tree-dirty",
+      "scope": "base-plugin",
+      "anchor": {
+        "path": "plugins/base/commands/feature.md"
+      },
+      "text": "`/base:feature` leaves working tree dirty on successful completion: all-stories-ACCEPTED runs end without committing, requiring a manual commit step; the final phase should auto-commit the epic's changed files using the epic slug as the commit message, skipping on ESCALATED or ABORT terminal states",
+      "created_at": "2026-05-14",
+      "deferred": {
+        "reason": "spec-gap",
+        "detail": "## Solution is an empty stub; no intent authored",
+        "stamped_at": "2026-05-14"
+      }
+    },
+    {
+      "slug": "ac-verification-must-distinguish-pre-post-fix",
+      "scope": "base-plugin",
+      "anchor": {
+        "path": "plugins/base/agents/story-planner.md"
+      },
+      "text": "AC verification commands must distinguish pre-fix from post-fix state: during epic-story-planner-schema-conformance planning, `grep 'category'` would have passed as a false-green for AC-STRUCT-4 before the fix because the JSON example block already contained the field name; the tightened command (`grep -n 'not.*\"type\"'` with line-number guard) caught this, but the principle is not documented — Mode-3 VQ authors and AC authors should verify that every grep/shell check returns a different result on a clean checkout vs. after the fix; surfaced during epic-story-planner-schema-conformance Mode 1 planning",
+      "created_at": "2026-05-14"
+    },
+    {
+      "slug": "schema-repair-epic-self-referential-catch22",
+      "scope": "base-plugin",
+      "anchor": null,
+      "text": "Schema-fixing epics produce a `stories.json` that cannot be validated against the very schema pattern being fixed during the run: the schema is in a broken state when the story-planner writes `stories.json`, so the schema cannot describe its own repair artifact; this structural catch-22 recurs for any epic whose sole deliverable is a schema pattern change — story-planner Mode 2 should note that schema-repair stories are exempt from runtime schema validation during their own run; surfaced during epic-story-planner-schema-conformance Mode 2 planning",
+      "created_at": "2026-05-14"
+    },
+    {
+      "slug": "mode-3-test-spec-overlap-markdown-only-stories",
+      "scope": "base-plugin",
+      "anchor": {
+        "path": "plugins/base/agents/story-planner.md"
+      },
+      "text": "Mode-3 TEST and SPEC verification questions are indistinguishable for documentation-only stories (no automated test suite): when all story verification is grep/shell commands on Markdown files, TEST questions and SPEC questions produce identical check commands with no meaningful categorical difference; story-planner Mode 3 should note that for Markdown-only stories, TEST questions may be collapsed into SPEC or omitted with an explicit rationale; surfaced during epic-story-planner-schema-conformance Mode 3 planning",
+      "created_at": "2026-05-14"
+    },
+    {
+      "slug": "epic-state-json-no-schema",
+      "scope": "base-plugin",
+      "anchor": {
+        "path": "plugins/base/commands/feature.md",
+        "line": 438
+      },
+      "text": "`epic-state.json` has no schema file unlike `verification.json`, `result.json`, and `stories.json`: the `pre_existing_dirty_files` field added in the verifier-cannot-distinguish-pre-existing fix is purely convention-based with no validation barrier — a schema at `plugins/base/schemas/epic-state.schema.json` would catch field-name drift between feature.md and verification-examiner.md at write time; surfaced during bug fix verifier-cannot-distinguish-pre-existing",
+      "created_at": "2026-05-14"
+    },
+    {
+      "slug": "feature-md-examiner-invariant-prose-duplication",
+      "scope": "base-plugin",
+      "anchor": {
+        "path": "plugins/base/commands/feature.md",
+        "line": 701
+      },
+      "text": "`feature.md:701` spawn paragraph describes the PARTIAL trigger and the hard-violation path but does not explicitly state the hard violation takes precedence when both co-occur in the same diff — the invariant is stated at `verification-examiner.md:55` but not mirrored in the spawn paragraph, creating documentation-drift risk; fix: add one sentence to `feature.md:701` (\"When a diff contains both a non-baseline out-of-scope file and a baseline-overlap file, the hard violation always wins — PARTIAL is the answer only when no non-baseline out-of-scope file is in the diff\") or reduce the spawn paragraph to \"pass the array; see verification-examiner.md for usage semantics\" to avoid duplication; surfaced by reviewer follow-up during verifier-cannot-distinguish-pre-existing bug fix",
+      "created_at": "2026-05-14"
+    }
+  ],
+  "archive": []
+}

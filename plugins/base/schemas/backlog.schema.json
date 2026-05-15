@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "backlog.schema.json",
+  "title": "Project Backlog Schema",
+  "description": "Authoritative schema for BACKLOG.json — the project-level coordination file consumed by /base:orient, /base:next, base:project-curator, /base:feature, and /base:bug.",
+  "type": "object",
+  "required": ["version", "epics", "findings", "archive"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 3,
+      "description": "Backlog grammar version. v3 is JSON; v1/v2 were markdown."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of the last mutation. Set by every write script."
+    },
+    "epics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/epic" },
+      "description": "One entry per specs/epic-*/ directory. Seeded by /base:backlog init, maintained by /base:feature Step 3 and Step 7, mutated by base:project-curator's update_epics_section action."
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" },
+      "description": "Open working set. Soft cap ~15 entries — beyond that /base:orient nags to prune."
+    },
+    "archive": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/archive_entry" },
+      "description": "Rejected findings only. Append-only. Never pruned."
+    }
+  },
+  "$defs": {
+    "epic": {
+      "type": "object",
+      "required": ["path", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^specs/epic-[a-z0-9-]+/$",
+          "description": "Path to the epic directory, trailing slash."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PLANNED", "IN_PROGRESS", "DONE", "ESCALATED", "UNKNOWN"],
+          "description": "Mapped from epic-state.json#status: planning|in_progress→IN_PROGRESS, done→DONE, escalated→ESCALATED. UNKNOWN when state file is missing or malformed."
+        },
+        "next_action": {
+          "type": "string",
+          "description": "Short hint for a returning human or agent (e.g. 'resume on story 3', 'awaiting decider verdict', 'ready to ship')."
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "required": ["slug", "scope", "anchor", "text", "created_at"],
+      "additionalProperties": false,
+      "properties": {
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "maxLength": 50,
+          "description": "Kebab-case identifier coined at write time from the finding's text. Stable for the finding's lifetime; unique across findings[]."
+        },
+        "scope": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "Which project the finding belongs to. Common values: 'any', 'base-plugin', or a plugin slug (e.g. 'nostr-skills') or a consumer-project basename. Inferred at write time from the anchor."
+        },
+        "anchor": {
+          "oneOf": [
+            { "$ref": "#/$defs/file_anchor" },
+            { "type": "null" }
+          ],
+          "description": "Where the finding points in the codebase. null for cross-cutting findings with no specific file location."
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One line, present-tense, specific. The full finding prose."
+        },
+        "created_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "Date the finding was added (YYYY-MM-DD)."
+        },
+        "deferred": {
+          "oneOf": [
+            { "$ref": "#/$defs/deferred_stamp" },
+            { "type": "null" }
+          ],
+          "description": "Present iff the finding was stamped by an auto-dispatched worker that decided not to proceed. Stamped bullets are skipped by /base:next document-order walks and excluded from workload-pressure scanners."
+        }
+      }
+    },
+    "file_anchor": {
+      "type": "object",
+      "required": ["path"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative file path."
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Single line number. Mutually exclusive with range."
+        },
+        "range": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Line range [start, end]. Mutually exclusive with line."
+        }
+      },
+      "not": {
+        "required": ["line", "range"]
+      }
+    },
+    "deferred_stamp": {
+      "type": "object",
+      "required": ["reason", "detail", "stamped_at"],
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": [
+            "spec-gap",
+            "already-resolved",
+            "escalated",
+            "arch-debate-required",
+            "legacy-orphan"
+          ],
+          "description": "Closed enum. Adding a new value is a schema change. See plugins/base/skills/backlog/references/format.md for semantics and paths to resolution."
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short description of why the stamp landed. Worker's abort-reason text, line-precise hunk evidence, gate/escalation reason, or original bullet text for legacy-orphan."
+        },
+        "stamped_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "Date the stamp was applied (YYYY-MM-DD)."
+        }
+      }
+    },
+    "archive_entry": {
+      "type": "object",
+      "required": ["date", "text", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "Date of rejection (YYYY-MM-DD)."
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Verbatim text of the rejected finding."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why it was rejected. Cite evidence: a test, a decider verdict, a file."
+        },
+        "source_slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "Optional: the slug of the finding that became this archive entry. Helps audit trails link rejection back to the original finding when slug records pre-date the rejection."
+        },
+        "adr": {
+          "type": "string",
+          "pattern": "^ADR-[0-9]+$",
+          "description": "Optional: ADR identifier when the archive cluster was promoted via base:project-curator's promote_rejections_to_adr action. Marks the entry as adopted into a durable architectural record without deleting it from the archive."
+        }
+      }
+    }
+  }
+}
