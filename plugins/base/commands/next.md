@@ -1,14 +1,16 @@
 ---
 name: next
-description: Pick the next actionable finding from BACKLOG.json and dispatch it to the right workflow (/base:bug or /base:feature). Runs in detail mode by default (renders top candidates with a prose paragraph and asks for confirmation) or auto mode (/base:next auto — silently dispatches the top actionable finding without prompting).
-argument-hint: "(no args = detail) | auto | <hint> [auto]"
+description: Pick the next actionable item and dispatch it. Default surface is the BACKLOG.json findings walker (routes to /base:bug or /base:feature). With a leading `epic` token, delegates to base:next-epic, which walks specs/epic-*/ and dispatches the next PLANNED epic (fallback IN_PROGRESS) into /base:feature. Detail mode renders top candidates with a prose paragraph and asks for confirmation; auto mode silently dispatches the top item.
+argument-hint: "(no args = detail) | auto | <hint> [auto] | epic [<hint>] [auto]"
 allowed-tools: Read, Bash, AskUserQuestion, Skill, Grep
 model: sonnet
 ---
 
 # Backlog Dispatcher
 
-You are a thin dispatcher. Your job is to pick the top actionable finding from `BACKLOG.json` and hand it to the right command. You do one dispatch and exit. You do not loop. You do not modify `BACKLOG.json` — that is the target command's responsibility (workers call `scripts/defer-stamp.sh` to mark deferred findings; the dispatcher only un-stamps via the escape-hatch path documented below).
+You are a thin dispatcher. Your default job is to pick the top actionable finding from `BACKLOG.json` and hand it to the right command. You do one dispatch and exit. You do not loop. You do not modify `BACKLOG.json` — that is the target command's responsibility (workers call `scripts/defer-stamp.sh` to mark deferred findings; the dispatcher only un-stamps via the escape-hatch path documented below).
+
+When `$ARGUMENTS` starts with the literal token `epic`, you are not the finding walker — you are a thin router that delegates to `base:next-epic`. See **Step 0.5** below.
 
 ## Input: $ARGUMENTS
 
@@ -65,6 +67,46 @@ There is no longer a strict-exit branch on unrecognised arguments —
 anything that is not empty and is not exactly `auto` is interpreted as
 a content hint. Hint matching itself can still fail (Step 3 handles
 zero-match and ambiguous-match cases).
+
+---
+
+## Step 0.5: Epic-Mode Delegation
+
+Before Step 1 runs, check whether `$ARGUMENTS` (trimmed) starts with the
+literal token `epic` followed by either end-of-string or a whitespace
+character (case-sensitive; `Epic`, `EPIC`, `epics`, `epic-foo` do NOT
+qualify).
+
+```
+trimmed = $ARGUMENTS with leading/trailing whitespace removed.
+tokens = trimmed split on whitespace.
+
+IF tokens is non-empty AND tokens[0] == "epic":
+    epic_args = tokens[1:] rejoined with single spaces  # may be empty
+    invoke Skill("base:next-epic", args: epic_args)
+    exit after the Skill call returns; do not run Steps 1–7.
+```
+
+Rationale: `/base:next` is the documented single entrypoint for "what's
+next." The default surface walks `BACKLOG.json#findings[]` (Steps 1–7
+below); the `epic` token switches to the epic walker, which walks
+`specs/epic-*/` as ground truth and dispatches the next un-shipped epic
+into `/base:feature`. The router strips the `epic` token before
+delegating so `base:next-epic` sees a clean sub-grammar identical to
+this command's `(no args = detail) | auto | <hint> [auto]`.
+
+If `base:next-epic` is unavailable (skill missing, Skill call fails),
+surface a single WARNING line and exit:
+
+> WARNING: `base:next-epic` skill not available; cannot route `epic` sub-mode. Run `/base:next` (no `epic` token) for the findings walker, or `/base:feature specs/epic-<slug>/` to invoke an epic directly.
+
+Steps 1–7 below execute only when Step 0.5 does NOT delegate (i.e. when
+no leading `epic` token is present in `$ARGUMENTS`). The `epic` token
+parsing is mutually exclusive with the Step 0 grammar — Step 0's
+`mode`/`hint` parse runs before Step 0.5 and is harmless on the
+no-epic path; on the epic path, `base:next-epic` re-parses its own
+`mode`/`hint` from `epic_args` and Step 0's variables are not
+consulted further.
 
 ---
 
