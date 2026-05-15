@@ -1,0 +1,19 @@
+{
+  "bug_name": "backlog-marker-design-fails-when-multiple",
+  "scope": {
+    "allowed_files": [
+      "plugins/base/skills/backlog/references/format.md"
+    ],
+    "allowed_changes": [
+      "Replace 'backlog:<marker>' with 'backlog:<slug>' in fallback-on-inference-failure prose (line ~449)",
+      "Replace foo.md/bar.md/baz.md/qux.md anchor-path style identifiers in notice-line grammar examples with kebab-case slugs (no .md extension) (lines ~470-473)"
+    ],
+    "out_of_scope": [
+      "Any other content in format.md",
+      "Other files in plugins/base/",
+      "Test files",
+      "Code outside plugins/base/skills/backlog/references/"
+    ]
+  },
+  "rationale": "Two isolated terminology drift sites where v1 'marker' vocabulary and anchor-path-as-token style persist. Authoritative vocabulary in next.md uses 'slug' and kebab-case identifiers without .md extensions. Fix is purely textual: align the docs to the v2 design without semantic change."
+}

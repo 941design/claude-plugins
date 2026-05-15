@@ -1,0 +1,52 @@
+{
+  "bug_name": "backlog-marker-design-fails-when-multiple",
+  "root_cause": "Stale v1 terminology persisted in format.md after the rename from 'marker' to 'slug' and the migration from anchor-file-path dispatch tokens to kebab-case slug dispatch tokens. Two sites were missed: the fallback-on-inference-failure prose (used '<marker>') and the notice-line grammar examples (used 'foo.md', 'bar.md', 'baz.md', 'qux.md' as identifiers, conflating dispatch slug with anchor file path).",
+  "fix_description": "Replaced the single occurrence of 'backlog:<marker>' with 'backlog:<slug>' on the fallback prose. Replaced the four .md-suffixed example identifiers in the notice-line grammar examples with kebab-case slugs that match the v2 design and the canonical examples in plugins/base/commands/next.md.",
+  "files_changed": [
+    "plugins/base/skills/backlog/references/format.md"
+  ],
+  "tests_added": [],
+  "baseline_grep_count": 5,
+  "final_grep_count": 0,
+  "verification_answers": [
+    {
+      "question_id": "VQ-1",
+      "answer": "YES",
+      "evidence": "grep -c 'backlog:<marker>' plugins/base/skills/backlog/references/format.md returns 0. The combined grep ('backlog:<marker>\\|foo\\.md\\|bar\\.md\\|baz\\.md\\|qux\\.md') also returns 0.",
+      "severity": null,
+      "confidence": 1.0
+    },
+    {
+      "question_id": "VQ-2",
+      "answer": "YES",
+      "evidence": "Lines 470-473 now read: 'backlog:add-csv-export auto', 'backlog:null-pointer-on-empty-input auto', 'resolve fix-typo-in-readme done-mechanical', 'resolve overhaul-auth-flow done→spec:specs/epic-foo/spec.md'. All identifiers are kebab-case with no .md extension.",
+      "severity": null,
+      "confidence": 1.0
+    },
+    {
+      "question_id": "VQ-3",
+      "answer": "YES",
+      "evidence": "next.md uses 'backlog:<slug>' (line 679) and 'backlog:<slug> auto' (lines 695-696) as the canonical patterns. The new format.md examples instantiate those patterns with concrete kebab-case slugs (add-csv-export, null-pointer-on-empty-input, fix-typo-in-readme, overhaul-auth-flow), consistent in style.",
+      "severity": null,
+      "confidence": 1.0
+    },
+    {
+      "question_id": "VQ-4",
+      "answer": "NO",
+      "evidence": "grep -n 'backlog:<marker>' plugins/base/ -r --include='*.md' returns no results. No other file in plugins/base/ uses the legacy '<marker>' placeholder.",
+      "severity": null,
+      "confidence": 1.0
+    },
+    {
+      "question_id": "VQ-5",
+      "answer": "YES",
+      "evidence": "Only two Edit operations were applied, both targeting the exact stale references identified in the bug report. No other content in format.md was modified. Diff is limited to lines 449 and 470-473.",
+      "severity": null,
+      "confidence": 1.0
+    }
+  ],
+  "retrospective": {
+    "skipped": true,
+    "reason": "straightforward mechanical rename — no friction encountered"
+  }
+}

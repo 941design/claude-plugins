@@ -446,7 +446,7 @@ spec file that should receive the AC patch:
 
 **Fallback on inference failure.** Reclassify the bullet to
 `scale = full` and route to `Skill("base:feature", args:
-"backlog:<marker>")` as the `(feature-work, full)` cell. This is the
+"backlog:<slug>")` as the `(feature-work, full)` cell. This is the
 conservative path — the full pipeline can always handle the work
 when no clean spec target exists.
 
@@ -467,10 +467,10 @@ Dispatching as <kind>/<scale>: <truncated-bullet> → <Skill invocation>
   to ~60 characters with a trailing `…` when longer.
 - `<Skill invocation>` is the literal Skill call composed from the
   routing matrix, including its args. Examples:
-    - `Skill("base:feature", args: "backlog:foo.md auto")`
-    - `Skill("base:bug", args: "backlog:bar.md auto")`
-    - `Skill("base:backlog", args: "resolve baz.md done-mechanical")`
-    - `Skill("base:backlog", args: "resolve qux.md done→spec:specs/epic-foo/spec.md")`
+    - `Skill("base:feature", args: "backlog:add-csv-export auto")`
+    - `Skill("base:bug", args: "backlog:null-pointer-on-empty-input auto")`
+    - `Skill("base:backlog", args: "resolve fix-typo-in-readme done-mechanical")`
+    - `Skill("base:backlog", args: "resolve overhaul-auth-flow done→spec:specs/epic-foo/spec.md")`
 - In hint-mode dispatches, the parenthetical `(hint-matched)` token
   is inserted between `<kind>/<scale>` and the colon
   (`Dispatching as <kind>/<scale> (hint-matched): …`).

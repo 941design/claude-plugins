@@ -1,0 +1,65 @@
+{
+  "bug_name": "backlog-marker-design-fails-when-multiple",
+  "bug_report_file": "bug-reports/backlog-marker-design-fails-when-multiple-report.md",
+  "created_at": "2026-05-14T00:00:00Z",
+  "updated_at": "2026-05-15T00:00:00Z",
+  "phase": "ACCEPTED",
+  "complexity": "low",
+  "verification_questions": [
+    {
+      "question_id": "VQ-1",
+      "category": "TEST",
+      "ac_id": "VQ-1",
+      "phase": "post-fix",
+      "question": "Does `format.md` no longer contain the string `backlog:<marker>` anywhere?"
+    },
+    {
+      "question_id": "VQ-2",
+      "category": "TEST",
+      "ac_id": "VQ-2",
+      "phase": "post-fix",
+      "question": "Do the notice-line grammar examples in format.md use slug-style identifiers (no `.md` extensions, no backtick-prefixed paths)?"
+    },
+    {
+      "question_id": "VQ-3",
+      "category": "SPEC",
+      "ac_id": "VQ-3",
+      "phase": "post-fix",
+      "question": "Are the notice-line example slug identifiers consistent in style with how `next.md` documents them (kebab-case, no file extension)?"
+    },
+    {
+      "question_id": "VQ-4",
+      "category": "ARCHITECTURE",
+      "ac_id": "VQ-4",
+      "phase": "post-fix",
+      "question": "Does any other file in `plugins/base/` still use `backlog:<marker>` (not as a legacy detection target) or anchor-path style dispatch examples?"
+    },
+    {
+      "question_id": "VQ-5",
+      "category": "QUALITY",
+      "ac_id": "VQ-5",
+      "phase": "post-fix",
+      "question": "Is the fix minimal — limited only to the two stale references, with no unrelated changes?"
+    }
+  ],
+  "baseline": {"grep_count": 5},
+  "fix": {
+    "files_changed": ["plugins/base/skills/backlog/references/format.md"],
+    "final_grep_count": 0,
+    "description": "Replaced backlog:<marker> with backlog:<slug> on line 449; replaced .md-suffixed anchor-path examples on lines 470-473 with kebab-case slug examples"
+  },
+  "review_rounds": [
+    {
+      "round": 1,
+      "verdict": "ACCEPTED",
+      "reviewer_notes": "All VQs passed. Codex adversarial review: no material findings."
+    }
+  ],
+  "remediation_round": 0,
+  "phase_history": [
+    {"phase": "INITIALIZED", "timestamp": "2026-05-14T00:00:00Z", "trigger": "workflow_start"},
+    {"phase": "FIX_READY", "timestamp": "2026-05-14T00:00:00Z", "trigger": "fixer_complete"},
+    {"phase": "REVIEWING", "timestamp": "2026-05-14T00:00:00Z", "trigger": "examiners_complete"},
+    {"phase": "ACCEPTED", "timestamp": "2026-05-15T00:00:00Z", "trigger": "reviewer_accepted"}
+  ]
+}
