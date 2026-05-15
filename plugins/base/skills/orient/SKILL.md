@@ -75,9 +75,31 @@ repo root and `BACKLOG.json` does NOT, print exactly one notice line:
 > Detected legacy v2 `BACKLOG.md`; invoking `/base:backlog migrate-v3` before continuing.
 
 Then invoke `Skill("base:backlog", args: "migrate-v3")` and read the
-resulting `BACKLOG.json`. If migration fails, surface a high-priority
-warning in "Worth your attention" and continue the remaining rules with
-best-effort parsing of the legacy file.
+resulting `BACKLOG.json`. The migration is best-effort: rows under v2
+`## Epics` that don't fit v3's `specs/epic-<slug>/` shape are demoted to
+`findings[]` (when interpretable as work-we-know-about) or quarantined
+(when the row text is too thin to derive a slug from). When that happens,
+the script writes `BACKLOG.migration-report.md` with the per-row
+disposition. If that file exists after the Skill returns, surface it as
+a "Worth your attention" item:
+
+> v2→v3 migration interpreted some `## Epics` rows as findings — see
+> `BACKLOG.migration-report.md`. Edit `BACKLOG.json` directly via
+> `scripts/*.sh` to override.
+
+If migration exits non-zero (rare under the best-effort design — zero
+translatable rows, or a migration-code bug), surface a high-priority
+warning that names the script and the report path:
+
+> WARNING: BACKLOG.md → BACKLOG.json migration failed. Run
+> `bash plugins/base/skills/backlog/scripts/migrate-v3.sh` to see the
+> error, edit `BACKLOG.md` to fix the offending rows, and re-run. Do not
+> propose `/base:backlog init` — it would discard the v2 content.
+
+Then continue the remaining rules with best-effort parsing of the legacy
+file. Do NOT propose Rule 1's `/base:backlog init` move when a v2
+`BACKLOG.md` is on disk — it refuses to scaffold over an existing v2
+file, and even if it didn't, it would discard the user's content.
 
 **Schema malformations** (best-effort, no auto-fix): the JSON does not
 parse; required top-level fields (`version`, `epics`, `findings`,
@@ -104,23 +126,32 @@ still produce useful signal.
 
 For each `specs/epic-*/`:
 - **`BACKLOG.json` exists**:
-    - Compute the entry's *expected* status from `epic-state.json#status`
-      via the canonical mapping: `planning` → `IN_PROGRESS`,
-      `in_progress` → `IN_PROGRESS`, `done` → `DONE`,
-      `escalated` → `ESCALATED`. If the actual `epics[i].status` differs
-      from the expected status (in *either direction*) → propose
-      updating via `/base:backlog add-epic --path <p> --status <s>`.
-      The general drift detector covers every combination, including
-      those that `/base:feature` Step 6.1 *should* have written but
-      didn't (e.g. crashed mid-write, `BACKLOG.json` was missing at
-      Step 6.1 but exists now after a separate `/base:backlog init` run).
+    - Compute the entry's *expected* status by **evidence-based
+      classification of the epic dir** — the same procedure the
+      `base:next-epic` skill uses (see its Step 2). The inputs are
+      `epic-state.json#status` (when present and canonical),
+      `epic-state.json#phase`, escalation markers, spec.md done markers
+      (`Implementation Summary`, `Status: Implemented`, etc.), and
+      story-dir completion artifacts. The output is one of `PLANNED |
+      IN_PROGRESS | DONE | ESCALATED | UNKNOWN`. No literal-value
+      synonym table — a non-canonical status field (e.g. legacy
+      `complete`) does not by itself force `UNKNOWN`; the spec marker
+      or story evidence will reach the right verdict.
+    - If the actual `epics[i].status` differs from the expected status
+      (in *either direction*) → propose updating via
+      `/base:backlog add-epic --path <p> --status <s>`. The general
+      drift detector covers every combination, including those that
+      `/base:feature` Step 6.1 *should* have written but didn't
+      (e.g. crashed mid-write, `BACKLOG.json` was missing at Step 6.1
+      but exists now after a separate `/base:backlog init` run).
     - If the spec dir exists on disk but is missing from `epics[]`
       entirely → propose appending via `/base:backlog add-epic`.
     - If `epics[]` lists a spec dir that does not exist on disk →
       propose curator follow-up to remove via `update_epics_section`.
 - **`BACKLOG.json` missing**: report the count of existing epic dirs and
-  their statuses (from each `epic-state.json`) as a single bullet under
-  "Worth your attention", paired with the Rule-1 bootstrap move.
+  their statuses (evidence-based per the same procedure) as a single
+  bullet under "Worth your attention", paired with the Rule-1 bootstrap
+  move.
 
 ### Rule 3 — Stale epics
 

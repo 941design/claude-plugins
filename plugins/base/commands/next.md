@@ -117,9 +117,14 @@ Read `BACKLOG.json` at the repo root by calling
 The script returns the findings array; the schema is at
 `plugins/base/schemas/backlog.schema.json`.
 
-If the script fails because the file does not exist, exit with:
+If the script fails because the file does not exist AND no legacy
+`BACKLOG.md` is present either, exit with:
 
 > No `BACKLOG.json` found. Run `/base:backlog init` to bootstrap project state.
+
+(If `BACKLOG.md` IS present, Step 1.5 will auto-migrate first; do not
+emit the bootstrap message in that case — `init` would discard the v2
+content.)
 
 ---
 
@@ -131,10 +136,22 @@ NOT, print exactly one line:
 > Detected legacy v2 `BACKLOG.md`; invoking `/base:backlog migrate-v3` before dispatch.
 
 Then invoke `Skill("base:backlog", args: "migrate-v3")` and re-read
-`BACKLOG.json` after it returns. If the Skill call fails, surface a
-WARNING and exit:
+`BACKLOG.json` after it returns. The migration is best-effort: rows under
+v2 `## Epics` that don't fit v3's `specs/epic-<slug>/` shape are demoted
+to `findings[]` (the dispatcher will pick them up on subsequent walks)
+or quarantined. If `BACKLOG.migration-report.md` exists after the Skill
+returns, surface it once before continuing dispatch:
 
-> WARNING: BACKLOG.md → BACKLOG.json migration failed; cannot dispatch until v3 grammar is in place. Run `/base:backlog migrate-v3` manually.
+> Note: v2→v3 migration interpreted some `## Epics` rows as findings —
+> see `BACKLOG.migration-report.md`.
+
+If the Skill call exits non-zero (rare under the best-effort design),
+surface a WARNING and exit. Do NOT propose `/base:backlog init` — it
+would discard the v2 content.
+
+> WARNING: BACKLOG.md → BACKLOG.json migration failed. Run
+> `bash plugins/base/skills/backlog/scripts/migrate-v3.sh` to see the
+> error, edit `BACKLOG.md` to fix the offending rows, and re-run.
 
 ---
 

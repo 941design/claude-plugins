@@ -47,7 +47,7 @@
         "status": {
           "type": "string",
           "enum": ["PLANNED", "IN_PROGRESS", "DONE", "ESCALATED", "UNKNOWN"],
-          "description": "Mapped from epic-state.json#status: planning|in_progress→IN_PROGRESS, done→DONE, escalated→ESCALATED. UNKNOWN when state file is missing or malformed."
+          "description": "Derived by evidence-based classification of the epic dir (see base:next-epic Step 2). Inputs: epic-state.json#status when present and canonical, escalation markers, spec.md done markers (Implementation Summary, Status: Implemented), and story-dir completion artifacts. UNKNOWN is the residual when spec.md is missing — non-canonical state values alone do not collapse the epic into UNKNOWN."
         },
         "next_action": {
           "type": "string",

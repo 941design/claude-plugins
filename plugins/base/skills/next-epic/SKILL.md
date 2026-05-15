@@ -80,51 +80,56 @@ For each `specs/epic-<slug>/` dir, capture:
 
 ---
 
-## Step 2: Compute per-epic status
+## Step 2: Compute per-epic status (evidence-based)
 
-For each enumerated dir, classify status using this precedence (matches the mapping in `plugins/base/schemas/backlog.schema.json#/$defs/epic.status` and the description of `BACKLOG.json#epics[]`):
+For each enumerated dir, classify status by **aggregating signals from the epic itself**, not by mapping a single field. The schema's `epic.status` enum (`PLANNED | IN_PROGRESS | DONE | ESCALATED | UNKNOWN`) is the output vocabulary; the inputs are everything observable about the epic dir.
+
+This is deliberately tolerant. `epic-state.json#status` is the canonical signal when present and recognized, but a missing state file, a non-canonical value (e.g. legacy `complete`), or a hand-edited spec marked `Status: Implemented` should not collapse the epic into `UNKNOWN`. Consumers (`/base:feature`, this dispatcher) need to know what state the epic is *in*, not what literal string the writer used.
+
+### Signal collection (per epic at `specs/epic-<slug>/`)
 
 ```
-For each epic at path `specs/epic-<slug>/`:
-
-  IF spec.md is missing:
-      status = "UNKNOWN"        # broken/orphan dir; surface as drift, do not dispatch
-  ELSE IF epic-state.json is missing:
-      status = "PLANNED"        # stub, never picked up by /base:feature
-  ELSE:
-      Read epic-state.json#status (a JSON string field).
-      Map:
-        "planning"     → "IN_PROGRESS"
-        "in_progress"  → "IN_PROGRESS"
-        "done"         → "DONE"
-        "escalated"    → "ESCALATED"
-        anything else  → "UNKNOWN"
-      (file unreadable / malformed JSON / missing `status` field → "UNKNOWN")
+spec_present       = test -f spec.md
+state_present      = test -f epic-state.json
+state_status       = jq -r '.status // ""' epic-state.json   (or "" if not present / unreadable)
+state_phase        = jq -r '.phase // ""'  epic-state.json   (or "" if not present / unreadable)
+state_escalated    = jq -e '.escalated // .escalation // empty' epic-state.json (truthy if present)
+spec_done_marker   = grep -E -q '^(#+ Implementation Summary|#+ Done|Status:[[:space:]]+Implemented)' spec.md  (true/false)
+story_dirs         = ls -d S[0-9]*-*/ 2>/dev/null  (count)
+story_results      = count of story dirs containing result.json
+story_results_done = count of story dirs whose result.json reports a done state (jq -e '.status == "done" or .done == true' result.json)
 ```
 
-Use `jq -r '.status // ""' specs/epic-<slug>/epic-state.json` to extract the field; a non-zero exit or empty result falls through to `"UNKNOWN"`.
+`spec_done_marker` matches:
+- `# Implementation Summary` / `## Implementation Summary` (any heading level), or
+- `# Done` / `## Done`, or
+- A leading-line `Status: Implemented` (case-sensitive on `Implemented`; spec-format conventions use that capitalization).
 
-The skill does NOT consult `BACKLOG.json#epics[]` for status — `epic-state.json` is closer to the truth (it is what `/base:feature` writes). The `epics[]` array can lag (registration drift). See Step 2.5 for drift detection.
+These are the markers actually present in shipped epics in this repo. If a project adopts a different convention, add that pattern here — but resist enumerating arbitrary synonyms (`Status: Complete`, `Status: Shipped`, …). Pick the conventions that *exist* in the project's specs and stop.
 
-### Step 2a: Title↔slug alignment check (PLANNED epics only)
+### Classification (first match wins)
 
-For every epic classified `PLANNED`, also compute a **`title_aligned`** boolean. This guard prevents the dispatcher from putting `/base:feature` into a configuration that would orphan the original epic dir.
-
-```bash
-# For each PLANNED epic at specs/epic-<dir-slug>/:
-dir_slug=<the slug portion of the dir name>
-title=$(grep -m1 '^# ' specs/epic-<dir-slug>/spec.md | sed 's/^# //')
-derived_slug=$(echo "$title" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-')
-
-IF "$derived_slug" == "$dir_slug":
-    title_aligned = true
-ELSE:
-    title_aligned = false
+```
+1. NOT spec_present                                                                  → UNKNOWN
+2. state_escalated OR state_status == "escalated"                                    → ESCALATED
+3. state_status == "done"
+   OR spec_done_marker
+   OR (story_results > 0 AND story_results_done == story_results)                    → DONE
+4. state_status in {"planning", "in_progress"}
+   OR state_phase is non-empty
+   OR story_dirs count > 0
+   OR (state_present AND state_status is non-empty AND none of the above matched)    → IN_PROGRESS
+5. otherwise                                                                         → PLANNED
 ```
 
-The derivation algorithm mirrors `commands/feature.md` Step 3 (`grep -m1 "^# " "$spec_file" | sed 's/^# //' | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-'`). When `title_aligned == false`, dispatching the `.md` form into NEW mode would derive a different `epic_name` from the title, copy the spec to `specs/epic-<derived_slug>/spec.md`, and leave the original `specs/epic-<dir-slug>/` as orphan repo state. This is a latent bug in `/base:feature` Step 3's title-keyed naming — see the project-state finding raised alongside this skill.
+Notes:
 
-`title_aligned` is not meaningful for IN_PROGRESS / DONE / ESCALATED / UNKNOWN epics (those don't use the title-derivation path). Skip the check for those.
+- **Rule 3 — DONE on any-of evidence.** The `complete` legacy literal is unmatched by `state_status == "done"`, but the same epic's stories or spec marker will trigger DONE. The `swipe-to-delete-list`-shaped case (no state file, but spec marked `Status: Implemented`) is caught by `spec_done_marker`. No literal `complete → done` translation table exists.
+- **Rule 4 — "writer set something non-canonical" biases toward IN_PROGRESS.** A state file with an unrecognized non-empty status (and no done evidence elsewhere) means the writer was tracking *something*; treating it as PLANNED would mis-classify a paused epic as fresh. IN_PROGRESS is the safer fallback because it routes to RESUME mode (RECONCILE first), which surfaces drift to the user instead of overwriting state.
+- **Rule 5 — PLANNED is the residual.** Spec exists, no state file, no work artifacts, no done markers — that is genuinely a stub.
+- **No `epics[]` consultation.** This skill does NOT read `BACKLOG.json#epics[]` for status. The on-disk evidence is closer to truth; `epics[]` can lag (registration drift). See Step 2.5.
+
+The classification is the **lead's job**, executed inline (no subagent). Keep the per-epic shell calls cheap — `jq -r` extractions on small JSON files and a single `grep -E -q` per spec are fine for tens of epics. If a project ever exceeds ~200 epic dirs, revisit this.
 
 ---
 
@@ -156,23 +161,16 @@ Two paths: **hint short-circuit** (when `hint != None`) or the default **documen
 
 ### Default path: document-order walk (when `hint == None`)
 
-Walk the enumerated epics in document order (lexical sort from Step 1). Skip `DONE` and `UNKNOWN` epics silently — they are not candidates. Skip `PLANNED` epics with `title_aligned == false` from the dispatchable set (but surface them in a footer per Step 4's render — they need title↔slug realignment before they can be dispatched safely). Surface `ESCALATED` epics inline in detail mode (see Step 4) but do NOT pick them as the dispatch candidate.
+Walk the enumerated epics in document order (lexical sort from Step 1). Skip `DONE` and `UNKNOWN` epics silently — they are not candidates. Surface `ESCALATED` epics inline in detail mode (see Step 4) but do NOT pick them as the dispatch candidate.
 
 **Candidate selection rule:**
 
-1. The first epic with `status == PLANNED` AND `title_aligned == true` is the candidate. Stop scanning.
-2. If no aligned `PLANNED` epic exists, the first epic with `status == IN_PROGRESS` is the candidate. Stop scanning.
-3. If neither exists (all epics are `DONE`, `ESCALATED`, `UNKNOWN`, or PLANNED-but-misaligned), exit with:
+1. The first epic with `status == PLANNED` is the candidate. Stop scanning.
+2. If no `PLANNED` epic exists, the first epic with `status == IN_PROGRESS` is the candidate. Stop scanning.
+3. If neither exists (all epics are `DONE`, `ESCALATED`, or `UNKNOWN`), exit with:
 
    ```
    No dispatchable epics — nothing to do.
-
-   <if any PLANNED-but-misaligned exists>
-   PLANNED epics with title↔slug mismatch (would orphan dirs in NEW mode; not dispatched):
-     - specs/epic-<dir-slug-1>/  (title derives '<derived-slug-1>')
-     - specs/epic-<dir-slug-2>/  ...
-   Fix by renaming the dir to match the title (or editing the title to match the dir slug), then re-run.
-   </if>
 
    <if any ESCALATED exists>
    Escalated epics blocked on human resolution:
@@ -184,6 +182,8 @@ Walk the enumerated epics in document order (lexical sort from Step 1). Skip `DO
    ```
 
 PLANNED is preferred over IN_PROGRESS because a stub that has never been started is a fresh-context dispatch (cheaper to onboard); an IN_PROGRESS epic implies a partial state and a RESUME flow. The user can override either choice with a hint.
+
+**Dispatcher does not pre-validate title↔slug alignment.** `/base:feature` Step 3 pins `epic_name` from the dir path when the spec lives at `specs/epic-<dir-slug>/spec.md` (the canonical case for every epic this dispatcher could pick). Title↔slug divergence cannot orphan a dir under that contract, so this skill carries no alignment guard. If a misaligned external spec slips through some other dispatch path, `/base:orient` Rule 2 surfaces the resulting drift on the next session.
 
 ### Hint path: content-overlap match (when `hint != None`)
 
@@ -207,13 +207,9 @@ Skip the document-order walk. Narrow the enumerated epics to the single epic who
 
    If status is `UNKNOWN`, surface and exit:
 
-   > Hint matched a broken epic dir: `specs/epic-<slug>/` (missing `spec.md` or malformed `epic-state.json`). Repair the dir first.
+   > Hint matched a broken epic dir: `specs/epic-<slug>/` (missing `spec.md`). Repair the dir first.
 
-   If status is `PLANNED` AND `title_aligned == false`, surface and exit:
-
-   > Hint matched a PLANNED epic with title↔slug mismatch: `specs/epic-<dir-slug>/` (title derives `<derived-slug>`). NEW mode would orphan the original dir. Fix by renaming the dir to match the title, or editing the title to match the dir slug, then re-run.
-
-   Otherwise (`PLANNED` with `title_aligned == true`, or `IN_PROGRESS`) proceed to Step 4 with this single candidate.
+   Otherwise (`PLANNED` or `IN_PROGRESS`) proceed to Step 4 with this single candidate.
 
 4. **No unique match.** Print and exit without dispatching:
 
@@ -252,7 +248,7 @@ ELSE IF status == "IN_PROGRESS": dispatch_arg = "<epic-path>"      # RESUME mode
 
 Where `<epic-path>` is `specs/epic-<slug>/` with trailing slash. Use this `dispatch_arg` in the notice line and the Skill call below.
 
-NEW mode derives `epic_name` from the spec's `# Title` heading (`commands/feature.md` Step 3, "Create Directories and State"). When the title's kebab-case form matches the dir slug — the case for every epic scaffolded by `base:project-curator` or by this dispatcher's upstream pipeline — the `realpath` self-copy guard fires and no orphan is created. When the title and slug mismatch (hand-authored, hand-edited), NEW mode will copy to a second `specs/epic-<title-derived>/` dir and leave the original as orphan repo state. This dispatcher does NOT pre-check title↔slug alignment — the user authored the spec and owns the title; `/base:orient` Rule 2 will surface any resulting orphan.
+NEW mode pins `epic_name` from the spec's directory path when the spec is at `specs/epic-<dir-slug>/spec.md` (`commands/feature.md` Step 3, "Create Directories and State"). The dir slug is the identity; the title is presentation. Title↔slug divergence cannot orphan a dir under that contract, so this dispatcher carries no pre-check.
 
 ### IF mode == auto AND hint == None
 
@@ -298,7 +294,7 @@ Then invoke `AskUserQuestion` with two options:
 
 ### IF mode == detail AND hint == None
 
-Collect candidates: the first 3 **dispatchable** epics in document order, preferring PLANNED first then IN_PROGRESS — i.e. concatenate `[PLANNED epics with title_aligned == true in doc order]` + `[IN_PROGRESS epics in doc order]` and take the first 3. There may be fewer than 3. PLANNED-but-misaligned epics are NOT dispatchable; they surface in a footer.
+Collect candidates: the first 3 **dispatchable** epics in document order, preferring PLANNED first then IN_PROGRESS — i.e. concatenate `[PLANNED epics in doc order]` + `[IN_PROGRESS epics in doc order]` and take the first 3. There may be fewer than 3.
 
 For each candidate, invoke Step 4a (paragraph synthesis). The reads may run in parallel.
 
@@ -315,14 +311,6 @@ Render:
 
 **3.** <epic-path-3>  [<status-3>]
       <paragraph-3>
-```
-
-If any PLANNED-but-misaligned epics exist, append a footer (informational; they are not options):
-
-```
-PLANNED with title↔slug mismatch (not dispatchable — would orphan dir):
-  - specs/epic-<dir-slug>/  (title derives '<derived-slug>')
-  ...
 ```
 
 If any `ESCALATED` epics exist, append:

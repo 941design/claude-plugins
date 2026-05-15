@@ -5,12 +5,10 @@
 # substep checks its own precondition independently so partial state
 # can be repaired.
 #
-# Seeds ## Epics from existing specs/epic-*/ directories on first
-# creation only. epic-state.json#status mapping:
-#   planning|in_progress → IN_PROGRESS
-#   done                 → DONE
-#   escalated            → ESCALATED
-#   (missing or malformed) → UNKNOWN
+# Seeds epics[] from existing specs/epic-*/ directories on first
+# creation only. Each epic's status is derived by evidence-based
+# classification (lib/common.sh#classify_epic_status) — same procedure
+# used by /base:next-epic, /base:orient Rule 2, and migrate-v3.
 
 set -euo pipefail
 
@@ -36,17 +34,7 @@ if [[ ! -f "$BACKLOG" ]]; then
       rel="${dir#$ROOT/}"
       # Trailing slash, repo-relative
       epic_path="${rel%/}/"
-      state_file="$dir/epic-state.json"
-      status="UNKNOWN"
-      if [[ -f "$state_file" ]]; then
-        raw_status="$(jq -r '.status // "UNKNOWN"' "$state_file" 2>/dev/null || echo "UNKNOWN")"
-        case "$raw_status" in
-          planning|in_progress) status="IN_PROGRESS" ;;
-          done)                 status="DONE" ;;
-          escalated)            status="ESCALATED" ;;
-          *)                    status="UNKNOWN" ;;
-        esac
-      fi
+      status="$(classify_epic_status "$dir")"
       epics_json="$(printf '%s' "$epics_json" | jq \
         --arg path "$epic_path" \
         --arg status "$status" \

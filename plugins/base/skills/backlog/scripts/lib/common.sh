@@ -167,3 +167,71 @@ slug_exists() {
   path="$(require_backlog)"
   jq -e --arg s "$slug" '.findings[] | select(.slug == $s)' "$path" >/dev/null 2>&1
 }
+
+# classify_epic_status <epic-dir>
+# Emits one of PLANNED / IN_PROGRESS / DONE / ESCALATED / UNKNOWN by
+# aggregating on-disk evidence (epic-state.json, spec.md done markers,
+# story dirs). No literal-value synonym table — non-canonical state
+# values do not collapse the epic into UNKNOWN; the spec marker or
+# story evidence reaches the right verdict instead.
+#
+# This is the single canonical classifier used by /base:backlog init,
+# /base:backlog migrate-v3, /base:next-epic, and /base:orient Rule 2.
+# Keep it in sync with base:next-epic Step 2 (the user-facing prose).
+classify_epic_status() {
+  local epic_dir="$1"
+  local state_file="$epic_dir/epic-state.json"
+  local spec_file="$epic_dir/spec.md"
+  local state_status="" state_phase=""
+  local state_escalated=0 spec_done=0
+  local stories_total=0 stories_done=0
+  local has_story_dirs=0
+
+  [[ -f "$spec_file" ]] || { echo "UNKNOWN"; return; }
+
+  if [[ -f "$state_file" ]]; then
+    state_status="$(jq -r '.status // ""' "$state_file" 2>/dev/null || true)"
+    state_phase="$(jq -r '.phase  // ""' "$state_file" 2>/dev/null || true)"
+    if jq -e '.escalated // .escalation // empty' "$state_file" >/dev/null 2>&1; then
+      state_escalated=1
+    fi
+  fi
+
+  if grep -E -q '^(#+ Implementation Summary|#+ Done|Status:[[:space:]]+Implemented)' "$spec_file" 2>/dev/null; then
+    spec_done=1
+  fi
+
+  local d
+  for d in "$epic_dir"/S[0-9]*-*/; do
+    [[ -d "$d" ]] || continue
+    has_story_dirs=1
+    if [[ -f "$d/result.json" ]]; then
+      stories_total=$((stories_total + 1))
+      if jq -e '.status == "done" or .done == true' "$d/result.json" >/dev/null 2>&1; then
+        stories_done=$((stories_done + 1))
+      fi
+    fi
+  done
+
+  if [[ "$state_escalated" -eq 1 || "$state_status" == "escalated" ]]; then
+    echo "ESCALATED"; return
+  fi
+  if [[ "$state_status" == "done" || "$spec_done" -eq 1 ]]; then
+    echo "DONE"; return
+  fi
+  if [[ "$stories_total" -gt 0 && "$stories_done" -eq "$stories_total" ]]; then
+    echo "DONE"; return
+  fi
+  if [[ "$state_status" == "planning" || "$state_status" == "in_progress" ]]; then
+    echo "IN_PROGRESS"; return
+  fi
+  if [[ -n "$state_phase" || "$has_story_dirs" -eq 1 ]]; then
+    echo "IN_PROGRESS"; return
+  fi
+  if [[ -f "$state_file" && -n "$state_status" ]]; then
+    # Writer set something non-canonical and no other evidence either way —
+    # bias to IN_PROGRESS so RESUME mode's RECONCILE surfaces it.
+    echo "IN_PROGRESS"; return
+  fi
+  echo "PLANNED"
+}
