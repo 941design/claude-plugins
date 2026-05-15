@@ -403,7 +403,27 @@ if [ "$mode" = "BACKLOG_PROMOTE" ]; then
     # the original specs/epic-<slug>/ stub.
     epic_name="$promoted_slug"
 else
-    epic_name=$(grep -m1 "^# " "$spec_file" | sed 's/^# //' | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-')
+    case "$spec_file" in
+        specs/epic-*/spec.md)
+            # The spec is already at the canonical location
+            # `specs/epic-<dir-slug>/spec.md` (e.g. hand-authored stub,
+            # dispatched by `/base:next epic` for a PLANNED epic, or a re-run
+            # against an in-place spec). The dir slug is authoritative —
+            # re-deriving `epic_name` from the title would copy the spec into
+            # `specs/epic-<title-derived-slug>/spec.md` and orphan the original
+            # dir whenever the title and slug diverge (title edits, tightened
+            # slugs from project-curator, etc.). Extract the dir slug.
+            epic_name="${spec_file#specs/epic-}"
+            epic_name="${epic_name%/spec.md}"
+            ;;
+        *)
+            # External spec path (e.g. an ad-hoc spec living in cwd, or somewhere
+            # outside `specs/`). Derive `epic_name` from the spec's `# Title`
+            # heading — this is the original behavior and the only path where
+            # title-derivation is correct (no existing dir to orphan).
+            epic_name=$(grep -m1 "^# " "$spec_file" | sed 's/^# //' | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-')
+            ;;
+    esac
 fi
 mkdir -p "specs/epic-${epic_name}"
 canonical_spec="specs/epic-${epic_name}/spec.md"
@@ -412,9 +432,13 @@ if [ "$(realpath "$spec_file" 2>/dev/null)" != "$(realpath "$canonical_spec" 2>/
 fi
 ```
 
-In `BACKLOG_PROMOTE` mode the slug captured by Step 1 (stored as `promoted_slug` in-session) is the authoritative epic name. Re-deriving from the spec's `# Title` heading would silently rename the epic when the user edits the title before validation — creating a second `specs/epic-*/` directory and leaving the original promoted stub as orphan repo state. In every other mode, the title-heading derivation stands.
+`epic_name` derivation rules, in precedence order:
 
-The `realpath` check skips a self-copy in `BACKLOG_PROMOTE` mode (where `$spec_file` already points to `specs/epic-<slug>/spec.md` because the spec was scaffolded there in Step 1) and in any other case where the source already sits at the canonical destination. macOS `cp X X` exits 1 with "are identical (not copied)"; the guard prevents that.
+1. **BACKLOG_PROMOTE** — the slug captured by Step 1 (stored as `promoted_slug` in-session) is authoritative. Re-deriving from the title would silently rename the epic when the user edits the title before validation, creating a second `specs/epic-*/` directory and leaving the original promoted stub as orphan repo state.
+2. **In-place spec at `specs/epic-<dir-slug>/spec.md`** — the dir slug is authoritative. This covers hand-authored stubs, `/base:next epic` dispatching a PLANNED epic via its `.md` form, and any re-run against a spec already sitting at the canonical location. The title and dir slug may legitimately diverge (project-curator tightens slugs when promoting findings, users edit titles without renaming dirs), so trusting the title here also creates orphans.
+3. **External spec** (path does not start with `specs/epic-`) — derive from the spec's `# Title` heading. This is the only path where title-derivation is correct, because there is no pre-existing `specs/epic-<X>/` to orphan.
+
+The `realpath` check skips a self-copy in `BACKLOG_PROMOTE` mode (where `$spec_file` already points to `specs/epic-<slug>/spec.md` because the spec was scaffolded there in Step 1) and in the in-place case (rule 2 above) where the source already sits at the canonical destination. macOS `cp X X` exits 1 with "are identical (not copied)"; the guard prevents that.
 
 ### Write epic state
 
