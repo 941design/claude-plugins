@@ -171,18 +171,15 @@ the instruction injection and the catch.
 
 ## Step 1: Determine What We're Working With
 
-```
-IF argument starts with "specs/epic-":
-    mode = RESUME (read epic-state.json, pick up where we left off; runs RECONCILE first — see Step 1.5)
-ELSE IF argument starts with "backlog:":
-    mode = BACKLOG_PROMOTE (read BACKLOG.json, promote the named finding to a stub spec, then NEW)
-ELSE IF argument is a .md file path or starts with @:
-    mode = NEW (validate spec, plan stories, then implement)
-ELSE IF no argument:
-    mode = SCAN (look for in-progress epics in specs/epic-*/)
-ELSE:
-    mode = NATURAL_LANGUAGE (gather requirements, generate spec, then NEW)
-```
+Classify the argument by what kind of thing it is. The forms below are distinguishable on their own evidence; do not collapse them into a first-prefix-match cascade, because the `.md` form and the dir form share the `specs/epic-` prefix but mean different modes.
+
+- **A path ending in `.md`** (e.g. `specs/epic-foo/spec.md`, `bar.md`, or `@spec.md`) → `mode = NEW`. Validate spec, plan stories, then implement.
+- **A directory under `specs/epic-*/`** — i.e. starts with `specs/epic-` AND has a trailing slash AND does NOT end in `.md` (e.g. `specs/epic-foo/`) → `mode = RESUME`. Read `epic-state.json`, run RECONCILE (Step 1.5), pick up where we left off.
+- **`backlog:<slug>`** → `mode = BACKLOG_PROMOTE`. Promote the named finding to a stub spec, then continue as NEW.
+- **No argument** → `mode = SCAN`. Look for in-progress epics under `specs/epic-*/`.
+- **Anything else** → `mode = NATURAL_LANGUAGE`. Gather requirements, generate a spec, then continue as NEW.
+
+A `.md` argument always means NEW, even when its path starts with `specs/epic-`. `/base:next-epic` deliberately emits the `.md` form for PLANNED epics (which have no `epic-state.json` yet — RESUME would crash) and the dir form for IN_PROGRESS epics. Honor that distinction here. The single bit that separates the two is whether the argument ends in `.md`.
 
 If SCAN finds in-progress epics, ask the user which to resume or whether to start fresh. SCAN should also note whether `BACKLOG.json` exists and has open findings (check via `plugins/base/skills/backlog/scripts/list.sh --status open --format compact | wc -l`) — if so, mention it as one option ("Or run `/base:orient` to see the project-wide picture") without making it the default.
 
@@ -941,7 +938,19 @@ pending → in_progress → done
 
 If resuming an epic:
 
-0. **RECONCILE first.** Run Step 1.5 (RECONCILE phase) before any of the steps below. The cache check makes this free when nothing has moved since the last resume; when the cache misses, the four-state inspection + adjudication produces a spec consistent with the workspace before crash recovery proceeds.
+0a. **You may be invoked against an already-completed epic.** RESUME's design assumption is "there is work to pick up," but reality contradicts that in two cases: the user dispatches `/base:feature specs/epic-<slug>/` manually on a shipped epic to sync stale state, or an upstream routing regression lands a finished epic here. Before running RECONCILE, read `epic-state.json` and `stories.json` and reason about whether this is a fully-done invocation:
+
+   **Fully-done state** = `epic-state.json#status == "done"` AND `epic-state.json#phase == "COMPLETE"` AND every entry in `stories.json` reports its story status as `done`. If all three hold, treat this invocation as a cleanup pass — do not re-run the implementation loop. Reason about which of the following cleanup actions are still owed, and apply only those:
+
+   - **Spec status header sync.** Read `spec.md`'s top status line (typically the first `Status:` or `**Status**:` line). If it still announces `pre-implementation`, `Specification request`, or any non-Implemented variant, rewrite it via `Edit` to `**Status**: Implemented YYYY-MM-DD` where the date is `epic-state.json#completed_at` (or today if absent). Then append one line to `## Amendments` recording this as a post-hoc status sync (the curator does NOT touch the status header — its `amend_spec` is scoped to `acceptance-criteria.md` and the amendments section, so the worker owns this `Edit` directly).
+   - **BACKLOG epics[] sync.** Run `plugins/base/skills/backlog/scripts/add-epic.sh --path "specs/epic-<slug>/" --status DONE --next-action "completed YYYY-MM-DD"`. The script upserts on path; re-running on an already-DONE entry is a no-op.
+   - **Retro presence.** Check whether a retro markdown file exists at `${CLAUDE_PLUGIN_DATA}/retros/<project-slug>/<epic-name>-<date>.md` (any date). If none exists, spawn `base:retro-synthesizer` with an empty retro_bundle; it returns `STATUS: NO_RETRO` cleanly when there is genuinely nothing to synthesize. Write the body only if the synthesizer returns a non-`NO_RETRO` markdown body.
+
+   After applying whichever subset of the above was needed, report what was reconciled (one line per action taken, or "no drift — nothing to reconcile") and exit. Skip all substeps below; the implementation loop has no work to do.
+
+   **Refuse to silently heal real inconsistencies.** If `epic-state.json#status == "done"` but one or more stories show status ≠ `done`, OR `phase` is not `COMPLETE`, OR any other obvious contradiction, that is a real bug — not stale cleanup. Do NOT auto-rewrite the state files. ABORT with `ABORT:DEFERRED:spec-gap:done-state drift: <one-line summary citing the specific contradiction>` and let the user adjudicate. This guard exists because automatic state-healing on contradictory evidence is exactly the failure mode that would corrupt completion records.
+
+0b. **RECONCILE first** (only reached when the fully-done check above did not apply). Run Step 1.5 (RECONCILE phase) before any of the steps below. The cache check makes this free when nothing has moved since the last resume; when the cache misses, the four-state inspection + adjudication produces a spec consistent with the workspace before crash recovery proceeds.
 1. Read `epic-state.json` for current phase and completed stories
 2. Check that `specs/epic-{name}/architecture.md` exists. If missing, produce it following the "Produce Epic Architecture" step above before resuming any stories.
 3. Read `stories.json` for per-story statuses
